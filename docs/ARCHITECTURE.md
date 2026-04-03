@@ -298,6 +298,18 @@ whirr/
 
 `NEXT_PUBLIC_` 접두사를 사용하지 **않는다** — API 키가 클라이언트 번들에 포함되는 것을 방지.
 
+로컬 개발 시 저장소 루트의 `.env.example`을 참고해 `.env.local`을 만들고, 동일한 키 이름으로 값을 채운다.
+
+### Vercel 연동 절차
+
+1. GitHub에 리포지토리를 만들고 이 프로젝트를 push한다.
+2. [Vercel](https://vercel.com) 대시보드에서 **Add New… → Project**로 해당 리포지토리를 Import한다.
+3. Framework Preset은 **Next.js**로 자동 감지되면 그대로 둔다.
+4. **Environment Variables**에 `ASSEMBLYAI_API_KEY`를 추가한다(Production / Preview 필요 시 동일하게).
+5. **Deploy** 후 발급된 URL로 프로덕션·프리뷰 배포가 정상인지 확인한다.
+
+별도 `vercel.json`은 필수 아니다. Next.js 단일 앱은 Vercel이 기본 빌드·라우팅을 처리한다.
+
 ---
 
 ## 9. 향후 자체 호스팅 전환 시 변경 범위
