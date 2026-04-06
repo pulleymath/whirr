@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { AssemblyAIRealtimeProvider } from "@/lib/stt";
 import type { TranscriptionProvider } from "@/lib/stt/types";
+
+describe("@/lib/stt exports", () => {
+  it("AssemblyAIRealtimeProvider를 export한다", () => {
+    expect(AssemblyAIRealtimeProvider).toBeTypeOf("function");
+  });
+});
 
 describe("TranscriptionProvider", () => {
   it("mock provider가 인터페이스를 만족한다", () => {

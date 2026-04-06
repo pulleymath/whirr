@@ -10,6 +10,8 @@
 - `npm test` — Vitest 단위·구조 테스트(훅 테스트는 해당 파일의 `@vitest-environment happy-dom` 지시 사용)
 - `npm run build` — 프로덕션 빌드
 
+로컬에서 실시간 전사를 쓰려면 저장소 루트 `.env.example`을 참고해 `.env.local`에 `ASSEMBLYAI_API_KEY`를 넣은 뒤 `npm run dev`로 녹음을 시작하면 된다.
+
 ## 문서 목차
 
 - **[PRD.md](./PRD.md)**

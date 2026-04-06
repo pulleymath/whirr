@@ -22,7 +22,7 @@
 
 ### Feature 3: AssemblyAI 실시간 STT 연동
 
-- [ ] [WebSocket 스트리밍 및 실시간 전사 텍스트 표시](./feature-3-realtime-stt.md)
+- [✅ 완료] [WebSocket 스트리밍 및 실시간 전사 텍스트 표시](./feature-3-realtime-stt.md)
 
 ### Feature 4: IndexedDB 기반 세션 저장소 연동
 
