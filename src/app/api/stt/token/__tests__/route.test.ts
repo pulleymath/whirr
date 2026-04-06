@@ -1,17 +1,30 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetSttTokenRateLimitForTests } from "@/lib/api/stt-token-rate-limit";
 import { POST } from "../route";
+
+function tokenPost(headers?: Record<string, string>) {
+  return new Request("http://localhost/api/stt/token", {
+    method: "POST",
+    headers: headers ?? { "x-forwarded-for": "10.0.0.1" },
+  });
+}
 
 describe("POST /api/stt/token", () => {
   const originalFetch = globalThis.fetch;
 
+  beforeEach(() => {
+    resetSttTokenRateLimitForTests();
+  });
+
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.unstubAllEnvs();
+    resetSttTokenRateLimitForTests();
   });
 
   it("ASSEMBLYAI_API_KEY가 없으면 503과 에러 본문을 반환한다", async () => {
     vi.stubEnv("ASSEMBLYAI_API_KEY", "");
-    const res = await POST();
+    const res = await POST(tokenPost());
     expect(res.status).toBe(503);
     const body = await res.json();
     expect(body).toEqual({ error: "STT token service unavailable" });
@@ -26,7 +39,7 @@ describe("POST /api/stt/token", () => {
       );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    const res = await POST();
+    const res = await POST(tokenPost());
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.assemblyai.com/v2/realtime/token",
@@ -48,7 +61,7 @@ describe("POST /api/stt/token", () => {
         new Response(JSON.stringify({}), { status: 200 }),
       ) as unknown as typeof fetch;
 
-    const res = await POST();
+    const res = await POST(tokenPost());
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "Invalid token response" });
   });
@@ -61,8 +74,28 @@ describe("POST /api/stt/token", () => {
         new Response(null, { status: 500 }),
       ) as unknown as typeof fetch;
 
-    const res = await POST();
+    const res = await POST(tokenPost());
     expect(res.status).toBe(502);
     expect(await res.json()).toEqual({ error: "Failed to obtain STT token" });
+  });
+
+  it("짧은 시간에 반복 요청이 많으면 429를 반환한다", async () => {
+    vi.stubEnv("ASSEMBLYAI_API_KEY", "k");
+    vi.stubEnv("STT_TOKEN_RATE_LIMIT_MAX", "2");
+    vi.stubEnv("STT_TOKEN_RATE_LIMIT_WINDOW_MS", "60000");
+    globalThis.fetch = vi
+      .fn()
+      .mockImplementation(
+        () => new Response(JSON.stringify({ token: "t" }), { status: 200 }),
+      ) as unknown as typeof fetch;
+
+    expect((await POST(tokenPost())).status).toBe(200);
+    expect((await POST(tokenPost())).status).toBe(200);
+    const res = await POST(tokenPost());
+    expect(res.status).toBe(429);
+    expect(await res.json()).toEqual({
+      error: "Too many STT token requests",
+    });
+    expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 });

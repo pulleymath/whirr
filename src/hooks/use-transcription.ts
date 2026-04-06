@@ -1,8 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AssemblyAIRealtimeProvider } from "@/lib/stt/assemblyai";
-import type { TranscriptionProvider } from "@/lib/stt/types";
+import {
+  createAssemblyAiRealtimeProvider,
+  type TranscriptionProvider,
+} from "@/lib/stt";
+import { userFacingSttError } from "@/lib/stt/user-facing-error";
 
 export type UseTranscriptionOptions = {
   fetchToken?: () => Promise<string>;
@@ -38,9 +41,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     [options?.fetchToken],
   );
   const createProvider = useMemo(
-    () =>
-      options?.createProvider ??
-      ((token: string) => new AssemblyAIRealtimeProvider(token)),
+    () => options?.createProvider ?? createAssemblyAiRealtimeProvider,
     [options?.createProvider],
   );
 
@@ -74,14 +75,14 @@ export function useTranscription(options?: UseTranscriptionOptions) {
           setPartial("");
         },
         (err) => {
-          setErrorMessage(err.message);
+          setErrorMessage(userFacingSttError(err.message));
           disconnectProvider();
         },
       );
       return true;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Unknown error";
-      setErrorMessage(msg);
+      const raw = e instanceof Error ? e.message : "Unknown error";
+      setErrorMessage(userFacingSttError(raw));
       disconnectProvider();
       return false;
     }

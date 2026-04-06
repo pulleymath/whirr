@@ -1,10 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { AssemblyAIRealtimeProvider } from "@/lib/stt";
+import {
+  AssemblyAIRealtimeProvider,
+  createAssemblyAiRealtimeProvider,
+} from "@/lib/stt";
 import type { TranscriptionProvider } from "@/lib/stt/types";
 
 describe("@/lib/stt exports", () => {
   it("AssemblyAIRealtimeProvider를 export한다", () => {
     expect(AssemblyAIRealtimeProvider).toBeTypeOf("function");
+  });
+
+  it("createAssemblyAiRealtimeProvider가 TranscriptionProvider를 반환한다", () => {
+    const p: TranscriptionProvider = createAssemblyAiRealtimeProvider("tok");
+    expect(p.connect).toBeTypeOf("function");
+    expect(p.sendAudio).toBeTypeOf("function");
+    expect(p.stop).toBeTypeOf("function");
+    expect(p.disconnect).toBeTypeOf("function");
   });
 });
 

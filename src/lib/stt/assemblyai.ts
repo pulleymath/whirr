@@ -4,9 +4,11 @@ const WS_BASE = "wss://api.assemblyai.com/v2/realtime/ws";
 
 function arrayBufferToBase64(buf: ArrayBuffer): string {
   const bytes = new Uint8Array(buf);
+  const chunkSize = 8192;
   let binary = "";
-  for (let i = 0; i < bytes.byteLength; i++) {
-    binary += String.fromCharCode(bytes[i]!);
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
   }
   if (typeof globalThis.btoa === "function") {
     return globalThis.btoa(binary);
@@ -33,6 +35,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   private stopTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
   private static readonly STOP_TIMEOUT_MS = 15_000;
+  private static readonly MAX_PENDING_AUDIO = 128;
 
   constructor(
     private readonly token: string,
@@ -89,7 +92,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
     }
 
     if (typeof msg.error === "string" && msg.error.length > 0) {
-      onError(new Error(msg.error));
+      onError(new Error("STT_PROVIDER_ERROR"));
       return;
     }
 
@@ -142,6 +145,11 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
     if (ws.readyState === this.WebSocketImpl.OPEN) {
       ws.send(payload);
     } else if (ws.readyState === this.WebSocketImpl.CONNECTING) {
+      while (
+        this.pendingAudio.length >= AssemblyAIRealtimeProvider.MAX_PENDING_AUDIO
+      ) {
+        this.pendingAudio.shift();
+      }
       this.pendingAudio.push(payload);
     }
   }

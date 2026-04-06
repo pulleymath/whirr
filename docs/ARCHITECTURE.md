@@ -129,9 +129,9 @@ Provider 교체 시 UI 코드 변경은 **없다**. 설정(환경 변수 등)으
 
 ### 4.1. 엔드포인트
 
-| 경로             | 메서드 | 역할                      | 응답                 |
-| ---------------- | ------ | ------------------------- | -------------------- |
-| `/api/stt/token` | POST   | AssemblyAI 임시 토큰 발급 | `{ "token": "..." }` |
+| 경로             | 메서드 | 역할                                                                  | 응답                                     |
+| ---------------- | ------ | --------------------------------------------------------------------- | ---------------------------------------- |
+| `/api/stt/token` | POST   | AssemblyAI 임시 토큰 발급(클라이언트 키별 메모리 기반 요청 빈도 제한) | `{ "token": "..." }` 또는 `429`/`502` 등 |
 
 ### 4.2. 토큰 발급 흐름
 
@@ -264,7 +264,7 @@ whirr/
 │   │   ├── stt/                   # STT Provider 추상화
 │   │   │   ├── types.ts           # TranscriptionProvider 인터페이스
 │   │   │   ├── assemblyai.ts      # AssemblyAI 구현체
-│   │   │   └── index.ts           # Provider factory (환경 변수 기반)
+│   │   │   └── index.ts           # TranscriptionProvider 타입 + createAssemblyAiRealtimeProvider
 │   │   ├── audio.ts               # AudioWorklet, getUserMedia 래퍼
 │   │   └── db.ts                  # IndexedDB CRUD
 │   │

@@ -136,4 +136,23 @@ describe("AssemblyAIRealtimeProvider", () => {
     p.disconnect();
     expect(ws.closed).toBe(true);
   });
+
+  it("서버 error 필드는 STT_PROVIDER_ERROR로 onError를 호출한다", async () => {
+    const p = new AssemblyAIRealtimeProvider("t");
+    const onError = vi.fn();
+    const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
+
+    ws.simulateMessage({ error: "internal detail from upstream" });
+    expect(onError).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "STT_PROVIDER_ERROR" }),
+    );
+  });
+
+  it("stop 없이 SessionTerminated만 오면 소켓을 닫는다", async () => {
+    const p = new AssemblyAIRealtimeProvider("t");
+    const ws = await openAndConnect(p);
+
+    ws.simulateMessage({ message_type: "SessionTerminated" });
+    expect(ws.closed).toBe(true);
+  });
 });

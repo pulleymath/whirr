@@ -9,6 +9,10 @@ afterEach(() => {
 
 const callOrder: string[] = [];
 
+const testRecorderState = vi.hoisted(() => ({
+  status: "idle" as "idle" | "recording",
+}));
+
 const prepareStreaming = vi.fn(async () => {
   callOrder.push("prepareStreaming");
   return true;
@@ -31,35 +35,34 @@ vi.mock("@/hooks/use-transcription", () => ({
   }),
 }));
 
-const startRecording = vi.fn(async () => {
-  callOrder.push("startRecording");
-});
-
-const stopRecording = vi.fn(async () => {
-  callOrder.push("stopRecording");
-});
-
 vi.mock("@/hooks/use-recorder", () => ({
   formatElapsed: (ms: number) => {
     const s = Math.floor(ms / 1000);
     return `00:${String(s).padStart(2, "0")}`;
   },
   useRecorder: (onPcm?: (b: ArrayBuffer) => void) => ({
-    status: "idle",
+    get status() {
+      return testRecorderState.status;
+    },
     errorMessage: null,
     elapsedMs: 0,
     level: 0,
     start: async () => {
-      await startRecording();
+      callOrder.push("startRecording");
+      testRecorderState.status = "recording";
       onPcm?.(new ArrayBuffer(4));
     },
-    stop: stopRecording,
+    stop: async () => {
+      callOrder.push("stopRecording");
+      testRecorderState.status = "idle";
+    },
   }),
 }));
 
 describe("Recorder STT 통합", () => {
   beforeEach(() => {
     callOrder.length = 0;
+    testRecorderState.status = "idle";
     vi.clearAllMocks();
   });
 
@@ -80,6 +83,25 @@ describe("Recorder STT 통합", () => {
 
     await vi.waitFor(() => {
       expect(sendPcm).toHaveBeenCalled();
+    });
+  });
+
+  it("녹음 중지 시 stopRecording 후 finalizeStreaming이 호출된다", async () => {
+    const { rerender } = render(<Recorder />);
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(callOrder).toEqual(["prepareStreaming", "startRecording"]);
+    });
+
+    rerender(<Recorder />);
+    expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+
+    callOrder.length = 0;
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+
+    await vi.waitFor(() => {
+      expect(callOrder).toEqual(["stopRecording", "finalizeStreaming"]);
     });
   });
 });

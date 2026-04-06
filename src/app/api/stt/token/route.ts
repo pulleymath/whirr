@@ -1,9 +1,21 @@
 import { NextResponse } from "next/server";
+import {
+  getClientKeyFromRequest,
+  isSttTokenRateLimited,
+} from "@/lib/api/stt-token-rate-limit";
 
 const ASSEMBLYAI_REALTIME_TOKEN_URL =
   "https://api.assemblyai.com/v2/realtime/token";
 
-export async function POST() {
+export async function POST(request: Request) {
+  const clientKey = getClientKeyFromRequest(request);
+  if (isSttTokenRateLimited(clientKey)) {
+    return NextResponse.json(
+      { error: "Too many STT token requests" },
+      { status: 429 },
+    );
+  }
+
   const apiKey = process.env.ASSEMBLYAI_API_KEY?.trim();
   if (!apiKey) {
     return NextResponse.json(

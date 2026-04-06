@@ -82,3 +82,24 @@
 - 사용자가 향후 모델 교체 또는 자체 서버 구축 가능성을 명시함
 - Provider 교체 시 UI 코드 변경을 0으로 만들기 위함
 - 환경 변수 하나로 Provider 전환 가능하도록 설계
+
+---
+
+## D7. STT 토큰 API — 인메모리 레이트 리밋
+
+**결정**: `POST /api/stt/token`에 `x-forwarded-for` / `x-real-ip` 기준 클라이언트 키별 요청 횟수 제한을 둔다. 기본값은 10분(600_000ms) 창에 최대 60회이며, `STT_TOKEN_RATE_LIMIT_MAX`·`STT_TOKEN_RATE_LIMIT_WINDOW_MS`로 조정한다.
+
+**근거**:
+
+- 로그인 전 MVP에서도 무제한 토큰 발급으로 인한 과금·남용 위험을 줄이기 위함.
+- 별도 Redis 없이 Next.js 단일 리포에서 동작하도록 한다.
+
+**한계**: 서버리스/다중 인스턴스에서는 인스턴스마다 메모리가 분리되어 전역 한도가 아니다. 트래픽이 커지면 Edge Config·Redis·Vercel Firewall 등으로 이전하는 것이 바람직하다.
+
+---
+
+## D8. STT UI 오류 메시지 — 사용자용 문구 정규화
+
+**결정**: 업스트림·WebSocket의 원문 오류는 UI에 직접 노출하지 않고 `userFacingSttError`로 고정 한국어 메시지에 매핑한다. AssemblyAI JSON의 `error` 필드는 내부 코드 `STT_PROVIDER_ERROR`로만 전달한다.
+
+**근거**: 내부 구현 단서 노출 완화 및 일관된 UX.

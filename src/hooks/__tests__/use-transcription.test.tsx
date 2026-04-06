@@ -20,7 +20,9 @@ describe("useTranscription", () => {
 
     expect(ok).toBe(false);
     await waitFor(() => {
-      expect(result.current.errorMessage).toBe("no token");
+      expect(result.current.errorMessage).toBe(
+        "음성 인식 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+      );
     });
   });
 
