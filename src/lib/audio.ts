@@ -1,0 +1,74 @@
+export type OnPcmChunk = (pcm: ArrayBuffer) => void;
+
+export function mapMediaErrorToMessage(error: unknown): string {
+  if (error && typeof error === "object" && "name" in error) {
+    const name = String((error as { name?: string }).name);
+    if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+      return "마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용해 주세요.";
+    }
+    if (name === "NotFoundError" || name === "DevicesNotFoundError") {
+      return "마이크를 찾을 수 없습니다.";
+    }
+  }
+  return "마이크를 시작할 수 없습니다.";
+}
+
+export interface PcmRecordingSession {
+  stop: () => Promise<void>;
+  analyser: AnalyserNode;
+}
+
+/**
+ * 마이크 스트림을 AudioWorklet으로 PCM 16kHz mono 청크로 변환합니다.
+ * `public/audio-processor.js`의 프로세서 이름은 `pcm-capture`입니다.
+ */
+export async function startPcmRecording(
+  onPcmChunk: OnPcmChunk,
+): Promise<PcmRecordingSession> {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const ctx = new AudioContext();
+
+  try {
+    await ctx.audioWorklet.addModule("/audio-processor.js");
+  } catch (err) {
+    stream.getTracks().forEach((t) => t.stop());
+    await ctx.close().catch(() => {});
+    throw err;
+  }
+
+  const source = ctx.createMediaStreamSource(stream);
+  const worklet = new AudioWorkletNode(ctx, "pcm-capture");
+
+  worklet.port.onmessage = (ev: MessageEvent<ArrayBuffer>) => {
+    if (ev.data instanceof ArrayBuffer) {
+      onPcmChunk(ev.data);
+    }
+  };
+
+  const monitorGain = ctx.createGain();
+  monitorGain.gain.value = 0;
+  worklet.connect(monitorGain);
+  monitorGain.connect(ctx.destination);
+
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.4;
+  source.connect(analyser);
+  source.connect(worklet);
+
+  if (ctx.state === "suspended") {
+    await ctx.resume();
+  }
+
+  const stop = async () => {
+    worklet.port.onmessage = null;
+    worklet.disconnect();
+    source.disconnect();
+    analyser.disconnect();
+    monitorGain.disconnect();
+    stream.getTracks().forEach((t) => t.stop());
+    await ctx.close().catch(() => {});
+  };
+
+  return { stop, analyser };
+}

@@ -18,7 +18,7 @@
 
 ### Feature 2: 웹 오디오 녹음 및 마이크 캡처
 
-- [ ] [오디오 캡처 및 녹음 제어 UI 구현](./feature-2-audio-recording.md)
+- [✅ 완료] [오디오 캡처 및 녹음 제어 UI 구현](./feature-2-audio-recording.md)
 
 ### Feature 3: AssemblyAI 실시간 STT 연동
 

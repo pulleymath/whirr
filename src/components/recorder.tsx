@@ -1,0 +1,68 @@
+"use client";
+
+import { useRecorder, formatElapsed } from "@/hooks/use-recorder";
+
+export function Recorder() {
+  const { status, errorMessage, elapsedMs, level, start, stop } = useRecorder();
+
+  const recording = status === "recording";
+
+  return (
+    <section
+      className="flex w-full max-w-md flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+      aria-label="마이크 녹음"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <p className="font-mono text-2xl tabular-nums text-zinc-900 dark:text-zinc-50">
+          {formatElapsed(elapsedMs)}
+        </p>
+        <div className="flex gap-2">
+          {!recording ? (
+            <button
+              type="button"
+              onClick={() => void start()}
+              className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+              aria-label="녹음 시작"
+            >
+              녹음 시작
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => void stop()}
+              className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500"
+              aria-label="녹음 중지"
+            >
+              중지
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+          입력 레벨
+        </span>
+        <div
+          className="h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+          role="meter"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(level * 100)}
+          aria-label="마이크 레벨"
+        >
+          <div
+            className="h-full rounded-full bg-emerald-500 transition-[width] duration-75 ease-out"
+            style={{ width: `${Math.round(level * 100)}%` }}
+          />
+        </div>
+      </div>
+
+      {errorMessage ? (
+        <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">
+          {errorMessage}
+        </p>
+      ) : null}
+    </section>
+  );
+}

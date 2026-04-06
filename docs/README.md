@@ -7,7 +7,7 @@
 ## 자주 쓰는 명령
 
 - `npm run dev` — 로컬 개발 서버
-- `npm test` — Vitest 단위·구조 테스트
+- `npm test` — Vitest 단위·구조 테스트(훅 테스트는 해당 파일의 `@vitest-environment happy-dom` 지시 사용)
 - `npm run build` — 프로덕션 빌드
 
 ## 문서 목차
