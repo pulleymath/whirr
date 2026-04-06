@@ -6,14 +6,14 @@ Next.js 프로젝트를 ARCHITECTURE.md에 정의된 `src/` 기반 디렉토리 
 
 **변경 대상 요약:**
 
-| 영역 | 내용 |
-| --- | --- |
-| 테스트 환경 | Vitest 설치 및 설정 |
-| 디렉토리 구조 | `app/` → `src/app/` 마이그레이션, `src/{components,hooks,lib,types}` 생성 |
-| TypeScript 설정 | `tsconfig.json` path alias를 `src/` 기준으로 갱신 |
-| STT 추상화 | `src/lib/stt/types.ts`에 `TranscriptionProvider` 인터페이스 정의 |
-| 환경 변수 | `.env.example` 템플릿 작성 |
-| 배포 | Vercel 배포 절차 문서화 |
+| 영역            | 내용                                                                      |
+| --------------- | ------------------------------------------------------------------------- |
+| 테스트 환경     | Vitest 설치 및 설정                                                       |
+| 디렉토리 구조   | `app/` → `src/app/` 마이그레이션, `src/{components,hooks,lib,types}` 생성 |
+| TypeScript 설정 | `tsconfig.json` path alias를 `src/` 기준으로 갱신                         |
+| STT 추상화      | `src/lib/stt/types.ts`에 `TranscriptionProvider` 인터페이스 정의          |
+| 환경 변수       | `.env.example` 템플릿 작성                                                |
+| 배포            | Vercel 배포 절차 문서화                                                   |
 
 ## 기술적 접근 방식
 

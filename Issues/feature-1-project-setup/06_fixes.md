@@ -11,11 +11,11 @@
 
 ## 미수정 항목 (사유 포함)
 
-| 항목 | 사유 |
-| --- | --- |
-| `tsconfig`에 `vitest/globals` 추가 | 테스트 파일에서 `vitest` 명시 import를 사용 중이며 Next와의 `types` 배열 충돌을 피하기 위해 생략. |
-| ARCHITECTURE §7 전체 파일 트리 | Feature 1 범위는 프로젝트 셋업 및 STT 타입 정의까지이며, API·AssemblyAI 구현 등은 이후 이슈에서 진행. |
-| `@/lib/stt` import 통일 | LOW; 후속 스타일 PR에서 정리 가능. |
+| 항목                               | 사유                                                                                                  |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `tsconfig`에 `vitest/globals` 추가 | 테스트 파일에서 `vitest` 명시 import를 사용 중이며 Next와의 `types` 배열 충돌을 피하기 위해 생략.     |
+| ARCHITECTURE §7 전체 파일 트리     | Feature 1 범위는 프로젝트 셋업 및 STT 타입 정의까지이며, API·AssemblyAI 구현 등은 이후 이슈에서 진행. |
+| `@/lib/stt` import 통일            | LOW; 후속 스타일 PR에서 정리 가능.                                                                    |
 
 ## 수정 후 테스트 결과
 

@@ -6,17 +6,17 @@
 
 ## Plan Compliance
 
-| Plan Item | Status | Notes |
-| --- | --- | --- |
-| Vitest 설치·`vitest.config.ts`·`package.json` test 스크립트 | PASS | `test` / `test:watch` 구성됨 |
-| `tsconfig.json`에 `vitest/globals` 타입 (REFACTOR) | FAIL | 명시적 `vitest` import로 대체; globals 미사용 |
-| `app/` → `src/app/` 및 루트 `app/` 제거 | PASS | `structure.test` 검증 |
-| 플레이스홀더 디렉터리 | PASS | `.gitkeep` + structure 테스트 |
-| `paths`: `@/*` → `./src/*` | PASS | |
-| `TranscriptionProvider` | PASS | ARCHITECTURE §2.1 일치 |
-| `.env.example` + `!.env.example` | PASS | |
-| `docs/ARCHITECTURE.md` §8 보강 | PASS | |
-| 완료 조건 `npm test`, `npm run build` | PASS | |
+| Plan Item                                                   | Status | Notes                                         |
+| ----------------------------------------------------------- | ------ | --------------------------------------------- |
+| Vitest 설치·`vitest.config.ts`·`package.json` test 스크립트 | PASS   | `test` / `test:watch` 구성됨                  |
+| `tsconfig.json`에 `vitest/globals` 타입 (REFACTOR)          | FAIL   | 명시적 `vitest` import로 대체; globals 미사용 |
+| `app/` → `src/app/` 및 루트 `app/` 제거                     | PASS   | `structure.test` 검증                         |
+| 플레이스홀더 디렉터리                                       | PASS   | `.gitkeep` + structure 테스트                 |
+| `paths`: `@/*` → `./src/*`                                  | PASS   |                                               |
+| `TranscriptionProvider`                                     | PASS   | ARCHITECTURE §2.1 일치                        |
+| `.env.example` + `!.env.example`                            | PASS   |                                               |
+| `docs/ARCHITECTURE.md` §8 보강                              | PASS   |                                               |
+| 완료 조건 `npm test`, `npm run build`                       | PASS   |                                               |
 
 ## Findings
 

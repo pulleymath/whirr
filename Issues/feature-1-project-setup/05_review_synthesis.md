@@ -16,10 +16,10 @@
 
 ### Recommended Improvements (MEDIUM)
 
-| # | Finding | Source | Category |
-| --- | --- | --- | --- |
-| 1 | `vitest/globals` 미사용 — 명시 import로 충분하나 팀 정책에 따라 `tsconfig` 정리 가능 | impl | TypeScript / 테스트 |
-| 2 | `satisfies` 케이스의 런타임 단언 보강 여지 | impl | 테스트 품질 |
+| #   | Finding                                                                              | Source | Category            |
+| --- | ------------------------------------------------------------------------------------ | ------ | ------------------- |
+| 1   | `vitest/globals` 미사용 — 명시 import로 충분하나 팀 정책에 따라 `tsconfig` 정리 가능 | impl   | TypeScript / 테스트 |
+| 2   | `satisfies` 케이스의 런타임 단언 보강 여지                                           | impl   | 테스트 품질         |
 
 ### Optional Enhancements (LOW)
 

@@ -55,7 +55,7 @@ interface TranscriptionProvider {
   connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
   ): Promise<void>;
   sendAudio(pcmData: ArrayBuffer): void;
   stop(): Promise<void>;
