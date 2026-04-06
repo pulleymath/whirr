@@ -17,6 +17,11 @@
 
 - API 라우트(fetch mock), AssemblyAI Provider(WebSocket mock), `useTranscription`, `TranscriptView`, `@/lib/stt` export, Recorder STT 호출 순서.
 
+## 코드 리뷰 (subagent 재생성)
+
+- `02_review_implementation.md` ~ `05_review_synthesis.md`는 issue-driven-dev Phase 3에 맞춰 **병렬 subagent**(implementation-reviewer, security-reviewer, architecture-reviewer)와 이어서 **review-synthesizer**로 다시 작성한 버전이다.
+- 분석 대상 diff: `git diff 1739ce9..HEAD -- src/ docs/README.md Issues/STATUS.md`, 계획서 `01_plan.md`, 아키텍처 리뷰 시 `docs/ARCHITECTURE.md` 참조.
+
 ## 파일 변경 목록
 
 - 신규: `src/app/api/stt/token/route.ts`, `src/app/api/stt/token/__tests__/route.test.ts`, `src/lib/stt/assemblyai.ts`, `src/lib/stt/__tests__/assemblyai.test.ts`, `src/hooks/use-transcription.ts`, `src/hooks/__tests__/use-transcription.test.tsx`, `src/components/transcript-view.tsx`, `src/components/__tests__/transcript-view.test.tsx`, `src/components/__tests__/recorder-stt-integration.test.tsx`, `Issues/feature-3-realtime-stt/*`
