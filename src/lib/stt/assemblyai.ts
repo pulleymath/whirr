@@ -1,27 +1,71 @@
 import type { TranscriptionProvider } from "./types";
 
-const WS_BASE = "wss://api.assemblyai.com/v2/realtime/ws";
+/** Universal Streaming v3 — 브라우저 번들에 주입(선택). EU 등은 `wss://streaming.eu.assemblyai.com` */
+const DEFAULT_WS_ORIGIN = "wss://streaming.assemblyai.com";
 
-function arrayBufferToBase64(buf: ArrayBuffer): string {
-  const bytes = new Uint8Array(buf);
-  const chunkSize = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += chunkSize) {
-    const chunk = bytes.subarray(i, i + chunkSize);
-    binary += String.fromCharCode.apply(null, chunk as unknown as number[]);
+/** 16kHz 모노 PCM(Worklet)과 일치. 한국어 등 다국어는 multilingual 모델 권장 */
+const DEFAULT_SPEECH_MODEL = "universal-streaming-multilingual";
+
+export type AssemblyAIStreamingOptions = {
+  /** 예: `wss://streaming.eu.assemblyai.com` */
+  wsOrigin?: string;
+  speechModel?: string;
+  sampleRate?: number;
+};
+
+function resolveWsOrigin(override?: string): string {
+  if (override) {
+    return override.replace(/\/$/, "");
   }
-  if (typeof globalThis.btoa === "function") {
-    return globalThis.btoa(binary);
+  if (typeof process !== "undefined") {
+    const o = process.env.NEXT_PUBLIC_ASSEMBLYAI_STREAMING_WS_ORIGIN?.trim();
+    if (o) {
+      return o.replace(/\/$/, "");
+    }
   }
-  return Buffer.from(bytes).toString("base64");
+  return DEFAULT_WS_ORIGIN;
 }
 
-function parseWsMessage(data: unknown): Record<string, unknown> | null {
-  if (typeof data !== "string") {
+function resolveSpeechModel(override?: string): string {
+  if (override) {
+    return override;
+  }
+  if (typeof process !== "undefined") {
+    const m = process.env.NEXT_PUBLIC_ASSEMBLYAI_SPEECH_MODEL?.trim();
+    if (m) {
+      return m;
+    }
+  }
+  return DEFAULT_SPEECH_MODEL;
+}
+
+function buildV3WsUrl(
+  token: string,
+  opts: AssemblyAIStreamingOptions | undefined,
+): string {
+  const origin = resolveWsOrigin(opts?.wsOrigin);
+  const speechModel = resolveSpeechModel(opts?.speechModel);
+  const sampleRate = opts?.sampleRate ?? 16_000;
+  const u = new URL("/v3/ws", origin);
+  u.searchParams.set("token", token);
+  u.searchParams.set("sample_rate", String(sampleRate));
+  u.searchParams.set("format_turns", "true");
+  u.searchParams.set("speech_model", speechModel);
+  return u.toString();
+}
+
+function parseWsJsonMessage(data: unknown): Record<string, unknown> | null {
+  let text: string | null = null;
+  if (typeof data === "string") {
+    text = data;
+  } else if (data instanceof ArrayBuffer) {
+    text = new TextDecoder().decode(data);
+  }
+  if (text == null) {
     return null;
   }
   try {
-    const v = JSON.parse(data) as unknown;
+    const v = JSON.parse(text) as unknown;
     return v && typeof v === "object" ? (v as Record<string, unknown>) : null;
   } catch {
     return null;
@@ -30,7 +74,7 @@ function parseWsMessage(data: unknown): Record<string, unknown> | null {
 
 export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   private ws: WebSocket | null = null;
-  private readonly pendingAudio: string[] = [];
+  private readonly pendingAudio: ArrayBuffer[] = [];
   private stopResolver: (() => void) | null = null;
   private stopTimeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -40,6 +84,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   constructor(
     private readonly token: string,
     private readonly WebSocketImpl: typeof WebSocket = WebSocket,
+    private readonly streamingOptions?: AssemblyAIStreamingOptions,
   ) {}
 
   connect(
@@ -49,7 +94,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
-      const url = `${WS_BASE}?token=${encodeURIComponent(this.token)}`;
+      const url = buildV3WsUrl(this.token, this.streamingOptions);
       const ws = new this.WebSocketImpl(url);
       this.ws = ws;
 
@@ -85,9 +130,14 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
     onFinal: (text: string) => void,
     onError: (error: Error) => void,
   ) {
-    const msg = parseWsMessage(event.data);
+    const msg = parseWsJsonMessage(event.data);
     if (!msg) {
       onError(new Error("Invalid WebSocket message"));
+      return;
+    }
+
+    if (msg.type === "Error") {
+      onError(new Error("STT_PROVIDER_ERROR"));
       return;
     }
 
@@ -96,16 +146,26 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
       return;
     }
 
-    const type = msg.message_type;
-    if (type === "PartialTranscript" && typeof msg.text === "string") {
-      onPartial(msg.text);
+    const type = msg.type;
+    if (type === "Begin") {
       return;
     }
-    if (type === "FinalTranscript" && typeof msg.text === "string") {
-      onFinal(msg.text);
+
+    if (type === "Turn") {
+      const transcript =
+        typeof msg.transcript === "string" ? msg.transcript : "";
+      const endOfTurn = msg.end_of_turn === true;
+      if (endOfTurn) {
+        if (transcript.length > 0) {
+          onFinal(transcript);
+        }
+        return;
+      }
+      onPartial(transcript);
       return;
     }
-    if (type === "SessionTerminated") {
+
+    if (type === "Termination") {
       this.clearStopTimeout();
       if (this.stopResolver) {
         const r = this.stopResolver;
@@ -135,22 +195,20 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   }
 
   sendAudio(pcmData: ArrayBuffer): void {
-    const payload = JSON.stringify({
-      audio_data: arrayBufferToBase64(pcmData),
-    });
+    const copy = pcmData.slice(0);
     const ws = this.ws;
     if (!ws) {
       return;
     }
     if (ws.readyState === this.WebSocketImpl.OPEN) {
-      ws.send(payload);
+      ws.send(copy);
     } else if (ws.readyState === this.WebSocketImpl.CONNECTING) {
       while (
         this.pendingAudio.length >= AssemblyAIRealtimeProvider.MAX_PENDING_AUDIO
       ) {
         this.pendingAudio.shift();
       }
-      this.pendingAudio.push(payload);
+      this.pendingAudio.push(copy);
     }
   }
 
@@ -162,7 +220,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
     return new Promise((resolve) => {
       this.clearStopTimeout();
       this.stopResolver = resolve;
-      ws.send(JSON.stringify({ terminate_session: true }));
+      ws.send(JSON.stringify({ type: "Terminate" }));
       this.stopTimeoutId = setTimeout(() => {
         this.stopTimeoutId = null;
         if (this.stopResolver === resolve) {

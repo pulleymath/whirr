@@ -4,8 +4,25 @@ import {
   isSttTokenRateLimited,
 } from "@/lib/api/stt-token-rate-limit";
 
-const ASSEMBLYAI_REALTIME_TOKEN_URL =
-  "https://api.assemblyai.com/v2/realtime/token";
+/**
+ * Universal Streaming v3 임시 토큰.
+ * @see https://www.assemblyai.com/docs/api-reference/streaming-api/generate-streaming-token
+ */
+function streamingApiOrigin(): string {
+  const raw = process.env.ASSEMBLYAI_STREAMING_API_BASE?.trim();
+  if (raw) {
+    return raw.replace(/\/$/, "");
+  }
+  return "https://streaming.assemblyai.com";
+}
+
+function tokenExpiresSeconds(): number {
+  const n = Number(process.env.STT_TOKEN_EXPIRES_SECONDS ?? 120);
+  if (!Number.isFinite(n)) {
+    return 120;
+  }
+  return Math.min(600, Math.max(1, Math.floor(n)));
+}
 
 export async function POST(request: Request) {
   const clientKey = getClientKeyFromRequest(request);
@@ -24,13 +41,15 @@ export async function POST(request: Request) {
     );
   }
 
-  const upstream = await fetch(ASSEMBLYAI_REALTIME_TOKEN_URL, {
-    method: "POST",
+  const origin = streamingApiOrigin();
+  const tokenUrl = new URL("/v3/token", origin);
+  tokenUrl.searchParams.set("expires_in_seconds", String(tokenExpiresSeconds()));
+
+  const upstream = await fetch(tokenUrl.toString(), {
+    method: "GET",
     headers: {
       Authorization: apiKey,
-      "Content-Type": "application/json",
     },
-    body: JSON.stringify({}),
   });
 
   if (!upstream.ok) {

@@ -30,8 +30,9 @@ describe("POST /api/stt/token", () => {
     expect(body).toEqual({ error: "STT token service unavailable" });
   });
 
-  it("AssemblyAI에 올바른 URL·Authorization으로 POST한다", async () => {
+  it("AssemblyAI streaming에 v3/token GET·Authorization으로 요청한다", async () => {
     vi.stubEnv("ASSEMBLYAI_API_KEY", "secret-key");
+    vi.stubEnv("STT_TOKEN_EXPIRES_SECONDS", "90");
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
@@ -42,15 +43,36 @@ describe("POST /api/stt/token", () => {
     const res = await POST(tokenPost());
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.assemblyai.com/v2/realtime/token",
+      "https://streaming.assemblyai.com/v3/token?expires_in_seconds=90",
       expect.objectContaining({
-        method: "POST",
+        method: "GET",
         headers: expect.objectContaining({
           Authorization: "secret-key",
         }),
       }),
     );
     expect(await res.json()).toEqual({ token: "t1" });
+  });
+
+  it("ASSEMBLYAI_STREAMING_API_BASE가 있으면 해당 origin으로 v3/token을 호출한다", async () => {
+    vi.stubEnv("ASSEMBLYAI_API_KEY", "k");
+    vi.stubEnv(
+      "ASSEMBLYAI_STREAMING_API_BASE",
+      "https://streaming.eu.assemblyai.com/",
+    );
+    vi.stubEnv("STT_TOKEN_EXPIRES_SECONDS", "60");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ token: "eu" }), { status: 200 }),
+      );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await POST(tokenPost());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://streaming.eu.assemblyai.com/v3/token?expires_in_seconds=60",
+      expect.objectContaining({ method: "GET" }),
+    );
   });
 
   it("업스트림이 token 없이 오면 502를 반환한다", async () => {
