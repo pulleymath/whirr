@@ -42,7 +42,7 @@ function copyFrameToArrayBuffer(frame: Uint8Array): ArrayBuffer {
 /** pending에서 조건을 만족하는 프레임만 잘라내어 send에 넘긴다. 남은 tail을 반환한다. */
 function drainPcmFrames(
   pending: Uint8Array,
-  send: (ab: ArrayBuffer) => void,
+  send: (ab: ArrayBuffer) => void
 ): Uint8Array {
   let p = pending;
   while (p.length >= PCM_FRAME_MIN_BYTES) {
@@ -60,7 +60,7 @@ function drainPcmFrames(
 /** 연결 종료 전: 남은 PCM을 규격에 맞게 보낸다(부족하면 무음 패딩). */
 function flushPcmTail(
   pending: Uint8Array,
-  send: (ab: ArrayBuffer) => void,
+  send: (ab: ArrayBuffer) => void
 ): void {
   if (pending.length === 0) {
     return;
@@ -100,11 +100,11 @@ async function defaultFetchToken(): Promise<string> {
 export function useTranscription(options?: UseTranscriptionOptions) {
   const fetchToken = useMemo(
     () => options?.fetchToken ?? defaultFetchToken,
-    [options?.fetchToken],
+    [options?.fetchToken]
   );
   const createProvider = useMemo(
     () => options?.createProvider ?? createOpenAiRealtimeProvider,
-    [options?.createProvider],
+    [options?.createProvider]
   );
 
   const useAssemblyAiPcmFraming = options?.useAssemblyAiPcmFraming === true;
@@ -112,31 +112,14 @@ export function useTranscription(options?: UseTranscriptionOptions) {
   const [partial, setPartial] = useState("");
   const [finals, setFinals] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  /** STT로 전송한 PCM 배치 수(AssemblyAI: 50–1000ms 프레임 수, OpenAI: 청크 수). UI 진단용 */
-  const [sttPcmFramesSent, setSttPcmFramesSent] = useState(0);
   const providerRef = useRef<TranscriptionProvider | null>(null);
   const pcmChunkCountRef = useRef(0);
   const pcmPendingRef = useRef<Uint8Array>(new Uint8Array(0));
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development") {
-      return;
-    }
-    console.log("[transcription] partial:", partial);
-  }, [partial]);
-
-  useEffect(() => {
-    if (process.env.NODE_ENV !== "development") {
-      return;
-    }
-    console.log("[transcription] finals:", finals);
-  }, [finals]);
 
   const disconnectProvider = useCallback(() => {
     pcmPendingRef.current = new Uint8Array(0);
     providerRef.current?.disconnect();
     providerRef.current = null;
-    setSttPcmFramesSent(0);
   }, []);
 
   useEffect(() => {
@@ -161,9 +144,10 @@ export function useTranscription(options?: UseTranscriptionOptions) {
           setPartial("");
         },
         (err) => {
+          console.error("[transcription] provider error:", err);
           setErrorMessage(userFacingSttError(err.message));
           disconnectProvider();
-        },
+        }
       );
       return true;
     } catch (e) {
@@ -183,21 +167,15 @@ export function useTranscription(options?: UseTranscriptionOptions) {
       pcmChunkCountRef.current += 1;
       if (!useAssemblyAiPcmFraming) {
         prov.sendAudio(buf.slice(0));
-        setSttPcmFramesSent((c) => c + 1);
         return;
       }
       const incoming = new Uint8Array(buf);
       const merged = concatUint8(pcmPendingRef.current, incoming);
-      let sentFrames = 0;
       pcmPendingRef.current = drainPcmFrames(merged, (ab) => {
-        sentFrames += 1;
         prov.sendAudio(ab);
       });
-      if (sentFrames > 0) {
-        setSttPcmFramesSent((c) => c + sentFrames);
-      }
     },
-    [useAssemblyAiPcmFraming],
+    [useAssemblyAiPcmFraming]
   );
 
   const finalizeStreaming = useCallback(async () => {
@@ -220,7 +198,6 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     partial,
     finals,
     errorMessage,
-    sttPcmFramesSent,
     prepareStreaming,
     sendPcm,
     finalizeStreaming,

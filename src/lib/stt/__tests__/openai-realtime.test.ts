@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   OpenAIRealtimeProvider,
   OPENAI_REALTIME_TRANSCRIBE_MODEL,
+  openAiGaTranscriptionSession,
   resamplePcmS16Mono16kTo24k,
 } from "../openai-realtime";
 
@@ -108,7 +109,7 @@ describe("OpenAIRealtimeProvider", () => {
     ]);
   });
 
-  it("연결 후 transcription_session.update에 mini transcribe 모델을 보낸다", async () => {
+  it("연결 후 session.update에 GA transcription 세션을 보낸다", async () => {
     const p = new OpenAIRealtimeProvider(
       "tok",
       MockWebSocket as unknown as typeof WebSocket,
@@ -117,11 +118,35 @@ describe("OpenAIRealtimeProvider", () => {
     const ws = await openAndConnect(p);
     const first = ws.sent[0];
     expect(first).toBeDefined();
-    const msg = JSON.parse(first!) as Record<string, unknown>;
-    expect(msg.type).toBe("transcription_session.update");
-    const tr = msg.input_audio_transcription as Record<string, unknown>;
+    const msg = JSON.parse(first!) as {
+      type: string;
+      session: Record<string, unknown>;
+    };
+    expect(msg.type).toBe("session.update");
+    expect(msg.session).toEqual(openAiGaTranscriptionSession());
+    const tr = (msg.session.audio as { input: { transcription: unknown } }).input
+      .transcription as Record<string, unknown>;
     expect(tr.model).toBe(OPENAI_REALTIME_TRANSCRIBE_MODEL);
     expect(tr.language).toBe("ko");
+  });
+
+  it("error 이벤트 시 onError를 호출한다", async () => {
+    const onError = vi.fn();
+    const p = new OpenAIRealtimeProvider(
+      "t",
+      MockWebSocket as unknown as typeof WebSocket,
+      { stopFlushMs: 10 },
+    );
+    const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
+    await ws.simulateMessageAsync({
+      type: "error",
+      error: { message: "upstream failed" },
+    });
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
+    expect((onError.mock.calls[0]![0] as Error).message).toBe(
+      "upstream failed",
+    );
   });
 
   it("resamplePcmS16Mono16kTo24k는 16k 샘플 수에 맞춰 24k 길이를 만든다", () => {
@@ -175,7 +200,69 @@ describe("OpenAIRealtimeProvider", () => {
     expect(onFinal).toHaveBeenCalledWith("안녕하세요");
   });
 
-  it("stop은 input_audio_buffer.commit을 보내고 종료된다", async () => {
+  const VAD_TAIL_BYTES = (24_000 * 2 * 600) / 1000;
+
+  it("stop은 server_vad용 tail 무음 append만 하고 commit은 보내지 않는다", async () => {
+    vi.useFakeTimers();
+    try {
+      const p = new OpenAIRealtimeProvider(
+        "t",
+        MockWebSocket as unknown as typeof WebSocket,
+        { stopFlushMs: 5 },
+      );
+      const ws = await openAndConnect(p);
+      ws.sent.length = 0;
+      const pcm16 = new Int16Array(1600);
+      pcm16.fill(100);
+      p.sendAudio(pcm16.buffer);
+      const stopP = p.stop();
+      const appends = ws.sent.filter((s) =>
+        s.includes("input_audio_buffer.append"),
+      );
+      expect(appends.length).toBe(2);
+      const tail = JSON.parse(appends[1]!) as { audio: string };
+      expect(Buffer.from(tail.audio, "base64").length).toBe(VAD_TAIL_BYTES);
+      expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
+        false,
+      );
+      await vi.advanceTimersByTimeAsync(20);
+      await stopP;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("짧은 오디오만 있어도 동일한 tail 무음 후 commit 없이 종료한다", async () => {
+    vi.useFakeTimers();
+    try {
+      const p = new OpenAIRealtimeProvider(
+        "t",
+        MockWebSocket as unknown as typeof WebSocket,
+        { stopFlushMs: 5 },
+      );
+      const ws = await openAndConnect(p);
+      ws.sent.length = 0;
+      const pcm16 = new Int16Array(400);
+      pcm16.fill(1);
+      p.sendAudio(pcm16.buffer);
+      const stopP = p.stop();
+      const appends = ws.sent.filter((s) =>
+        s.includes("input_audio_buffer.append"),
+      );
+      expect(appends.length).toBe(2);
+      const pad = JSON.parse(appends[1]!) as { audio: string };
+      expect(Buffer.from(pad.audio, "base64").length).toBe(VAD_TAIL_BYTES);
+      expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
+        false,
+      );
+      await vi.advanceTimersByTimeAsync(20);
+      await stopP;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("오디오가 없어도 tail 무음만 append하고 commit은 보내지 않는다", async () => {
     vi.useFakeTimers();
     try {
       const p = new OpenAIRealtimeProvider(
@@ -186,10 +273,15 @@ describe("OpenAIRealtimeProvider", () => {
       const ws = await openAndConnect(p);
       ws.sent.length = 0;
       const stopP = p.stop();
-      const commit = ws.sent.find((s) =>
-        s.includes("input_audio_buffer.commit"),
+      const appends = ws.sent.filter((s) =>
+        s.includes("input_audio_buffer.append"),
       );
-      expect(commit).toBeDefined();
+      expect(appends.length).toBe(1);
+      const only = JSON.parse(appends[0]!) as { audio: string };
+      expect(Buffer.from(only.audio, "base64").length).toBe(VAD_TAIL_BYTES);
+      expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
+        false,
+      );
       await vi.advanceTimersByTimeAsync(20);
       await stopP;
     } finally {

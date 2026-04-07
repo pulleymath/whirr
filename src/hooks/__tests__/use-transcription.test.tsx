@@ -26,6 +26,39 @@ describe("useTranscription", () => {
     });
   });
 
+  it("Provider connect의 onError 호출 시 사용자용 에러 메시지를 설정한다", async () => {
+    let onError: (e: Error) => void = () => {};
+    const mockProvider: TranscriptionProvider = {
+      connect: async (_op, _of, oe) => {
+        onError = oe;
+      },
+      sendAudio: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+    };
+
+    const { result } = renderHook(() =>
+      useTranscription({
+        fetchToken: vi.fn().mockResolvedValue("t"),
+        createProvider: () => mockProvider,
+      }),
+    );
+
+    await act(async () => {
+      expect(await result.current.prepareStreaming()).toBe(true);
+    });
+
+    act(() => {
+      onError(new Error("STT_PROVIDER_ERROR"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.errorMessage).toBe(
+        "음성 인식 서버에서 오류가 반환되었습니다. 잠시 후 다시 시도해 주세요.",
+      );
+    });
+  });
+
   it("prepareStreaming 후 partial·final 콜백이 상태를 갱신한다", async () => {
     let onPartial: (text: string) => void = () => {};
     let onFinal: (text: string) => void = () => {};

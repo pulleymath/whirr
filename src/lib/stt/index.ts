@@ -6,6 +6,7 @@ export { AssemblyAIRealtimeProvider } from "./assemblyai";
 export {
   OpenAIRealtimeProvider,
   OPENAI_REALTIME_TRANSCRIBE_MODEL,
+  openAiGaTranscriptionSession,
 } from "./openai-realtime";
 export type { TranscriptionProvider } from "./types";
 

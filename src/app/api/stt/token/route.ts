@@ -3,26 +3,7 @@ import {
   getClientKeyFromRequest,
   isSttTokenRateLimited,
 } from "@/lib/api/stt-token-rate-limit";
-import { OPENAI_REALTIME_TRANSCRIBE_MODEL } from "@/lib/stt/openai-realtime";
-
-function buildTranscriptionSessionBody(): Record<string, unknown> {
-  return {
-    input_audio_format: "pcm16",
-    input_audio_transcription: {
-      model: OPENAI_REALTIME_TRANSCRIBE_MODEL,
-      language: "ko",
-    },
-    turn_detection: {
-      type: "server_vad",
-      threshold: 0.5,
-      prefix_padding_ms: 300,
-      silence_duration_ms: 500,
-    },
-    input_audio_noise_reduction: {
-      type: "near_field",
-    },
-  };
-}
+import { openAiGaTranscriptionSession } from "@/lib/stt/openai-realtime";
 
 export async function POST(request: Request) {
   const clientKey = getClientKeyFromRequest(request);
@@ -42,14 +23,14 @@ export async function POST(request: Request) {
   }
 
   const upstream = await fetch(
-    "https://api.openai.com/v1/realtime/transcription_sessions",
+    "https://api.openai.com/v1/realtime/client_secrets",
     {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(buildTranscriptionSessionBody()),
+      body: JSON.stringify({ session: openAiGaTranscriptionSession() }),
     },
   );
 
@@ -70,19 +51,24 @@ export async function POST(request: Request) {
     );
   }
 
-  const secret =
-    data && typeof data === "object" && data !== null && "client_secret" in data
-      ? (data as { client_secret?: unknown }).client_secret
-      : null;
-
-  const token =
-    secret &&
-    typeof secret === "object" &&
-    secret !== null &&
-    "value" in secret &&
-    typeof (secret as { value: unknown }).value === "string"
-      ? (secret as { value: string }).value
-      : null;
+  let token: string | null = null;
+  if (data && typeof data === "object" && data !== null) {
+    const d = data as { value?: unknown; client_secret?: unknown };
+    if (typeof d.value === "string") {
+      token = d.value;
+    } else {
+      const secret = d.client_secret;
+      if (
+        secret &&
+        typeof secret === "object" &&
+        secret !== null &&
+        "value" in secret &&
+        typeof (secret as { value: unknown }).value === "string"
+      ) {
+        token = (secret as { value: string }).value;
+      }
+    }
+  }
 
   if (!token) {
     return NextResponse.json(

@@ -13,8 +13,9 @@ function tokenPost(headers?: Record<string, string>) {
 function openAiSuccessResponse(secret = "ek_test") {
   return new Response(
     JSON.stringify({
-      id: "sess_x",
-      client_secret: { value: secret, expires_at: 1_700_000_000 },
+      value: secret,
+      expires_at: "2026-01-01T00:00:00Z",
+      session: {},
     }),
     { status: 200 },
   );
@@ -41,7 +42,7 @@ describe("POST /api/stt/token", () => {
     expect(body).toEqual({ error: "STT token service unavailable" });
   });
 
-  it("OpenAI realtime/transcription_sessions에 POST·Bearer로 요청한다", async () => {
+  it("OpenAI realtime/client_secrets에 POST·Bearer로 요청한다", async () => {
     vi.stubEnv("OPENAI_API_KEY", "sk-secret");
     const fetchMock = vi.fn().mockResolvedValue(openAiSuccessResponse("t1"));
     globalThis.fetch = fetchMock as unknown as typeof fetch;
@@ -49,7 +50,7 @@ describe("POST /api/stt/token", () => {
     const res = await POST(tokenPost());
     expect(res.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://api.openai.com/v1/realtime/transcription_sessions",
+      "https://api.openai.com/v1/realtime/client_secrets",
       expect.objectContaining({
         method: "POST",
         headers: expect.objectContaining({
@@ -60,16 +61,20 @@ describe("POST /api/stt/token", () => {
     );
     const [, init] = fetchMock.mock.calls[0]!;
     const body = JSON.parse((init as { body: string }).body) as {
-      input_audio_transcription: { model: string; language: string };
+      session: {
+        type: string;
+        audio: { input: { transcription: { model: string; language: string } } };
+      };
     };
-    expect(body.input_audio_transcription.model).toBe(
+    expect(body.session.type).toBe("transcription");
+    expect(body.session.audio.input.transcription.model).toBe(
       OPENAI_REALTIME_TRANSCRIBE_MODEL,
     );
-    expect(body.input_audio_transcription.language).toBe("ko");
+    expect(body.session.audio.input.transcription.language).toBe("ko");
     expect(await res.json()).toEqual({ token: "t1" });
   });
 
-  it("업스트림이 client_secret 없이 오면 502를 반환한다", async () => {
+  it("업스트림이 value 없이 오면 502를 반환한다", async () => {
     vi.stubEnv("OPENAI_API_KEY", "k");
     globalThis.fetch = vi
       .fn()

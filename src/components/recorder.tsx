@@ -1,9 +1,9 @@
 "use client";
 
+import { useCallback } from "react";
 import { TranscriptView } from "@/components/transcript-view";
 import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
-import { useCallback } from "react";
 
 export function Recorder() {
   const {
@@ -23,8 +23,6 @@ export function Recorder() {
     start: startRecording,
     stop: stopRecording,
   } = useRecorder(sendPcm);
-
-  const recording = status === "recording";
 
   const start = useCallback(async () => {
     const ok = await prepareStreaming();
@@ -48,7 +46,6 @@ export function Recorder() {
         partial={partial}
         finals={finals}
         errorMessage={sttError}
-        recording={recording}
       />
 
       <section
@@ -60,7 +57,7 @@ export function Recorder() {
             {formatElapsed(elapsedMs)}
           </p>
           <div className="flex gap-2">
-            {!recording ? (
+            {status !== "recording" ? (
               <button
                 type="button"
                 onClick={() => void start()}

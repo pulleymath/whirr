@@ -10,12 +10,18 @@
 
 - OpenAI `pcm16` = 24kHz mono s16le → Provider에서 16kHz Worklet 출력을 선형 리샘플.
 - WebSocket: `wss://api.openai.com/v1/realtime?intent=transcription` + 서브프로토콜 인증.
+- **`openAiTranscriptionSessionBody()`**: REST `transcription_sessions` 요청 바디와 WSS `transcription_session.update`가 동일 필드를 공유(모델 드리프트 방지).
+
+## 코드 리뷰 (에이전트)
+
+- `implementation-reviewer`, `security-reviewer`, `architecture-reviewer` 병렬 실행 후 `review-synthesizer`로 종합.
+- 산출물: `02_review_implementation.md` ~ `05_review_synthesis.md`, 반영 기록 `06_fixes.md`.
 
 ## 테스트 커버리지
 
-- `src/lib/stt/__tests__/openai-realtime.test.ts` (Mock WebSocket)
+- `src/lib/stt/__tests__/openai-realtime.test.ts` (URL·세션 바디·리샘플·append·delta·completed·**error**·commit)
 - `src/app/api/stt/token/__tests__/route.test.ts`
-- `src/hooks/__tests__/use-transcription.test.tsx` (passthrough + AssemblyAI 프레이밍)
+- `src/hooks/__tests__/use-transcription.test.tsx` (토큰 실패·**Provider onError**·passthrough·AssemblyAI 프레이밍·언마운트)
 
 ## 파일 변경 목록
 

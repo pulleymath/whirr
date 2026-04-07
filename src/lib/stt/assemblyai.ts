@@ -1,7 +1,5 @@
 import type { TranscriptionProvider } from "./types";
 
-const isDev = process.env.NODE_ENV === "development";
-
 function messageTypeLower(msg: Record<string, unknown>): string {
   const t = msg.type;
   return typeof t === "string" ? t.toLowerCase() : "";
@@ -154,28 +152,6 @@ function parseWsJsonText(text: string): Record<string, unknown> | null {
     return tryParse(firstLine);
   }
   return null;
-}
-
-function summarizeWsData(data: unknown): string {
-  if (typeof data === "string") {
-    const max = 160;
-    const head = data.length > max ? `${data.slice(0, max)}…` : data;
-    return `string(len=${data.length}): ${head}`;
-  }
-  if (data instanceof ArrayBuffer) {
-    return `ArrayBuffer(byteLength=${data.byteLength})`;
-  }
-  if (ArrayBuffer.isView(data)) {
-    const v = data as ArrayBufferView;
-    return `${data.constructor.name}(byteLength=${v.byteLength})`;
-  }
-  if (typeof Blob !== "undefined" && data instanceof Blob) {
-    return `Blob(size=${data.size}, type=${data.type || "?"})`;
-  }
-  if (data === null || data === undefined) {
-    return String(data);
-  }
-  return `${Object.prototype.toString.call(data)}`;
 }
 
 async function parseWsMessageData(
