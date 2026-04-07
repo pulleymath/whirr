@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback } from "react";
-import { useRecorder, formatElapsed } from "@/hooks/use-recorder";
-import { useTranscription } from "@/hooks/use-transcription";
 import { TranscriptView } from "@/components/transcript-view";
+import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
+import { useTranscription } from "@/hooks/use-transcription";
+import { useCallback } from "react";
 
 export function Recorder() {
   const {
@@ -48,6 +48,7 @@ export function Recorder() {
         partial={partial}
         finals={finals}
         errorMessage={sttError}
+        recording={recording}
       />
 
       <section

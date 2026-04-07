@@ -1,16 +1,78 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  createAssemblyAiRealtimeProvider,
+  createOpenAiRealtimeProvider,
   type TranscriptionProvider,
 } from "@/lib/stt";
 import { userFacingSttError } from "@/lib/stt/user-facing-error";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type UseTranscriptionOptions = {
   fetchToken?: () => Promise<string>;
   createProvider?: (token: string) => TranscriptionProvider;
+  /**
+   * true면 AssemblyAI Universal Streaming용 50–1000ms PCM 프레이밍을 적용한다.
+   * OpenAI Realtime(기본)은 passthrough로 청크를 그대로 보낸다.
+   */
+  useAssemblyAiPcmFraming?: boolean;
 };
+
+/**
+ * AssemblyAI Universal Streaming 전용: 각 바이너리 프레임은 약 50–1000ms PCM.
+ * 16 kHz · 모노 · s16le → 50ms = 1600 bytes, 1000ms = 32000 bytes.
+ * OpenAI Realtime(기본)은 `useAssemblyAiPcmFraming` 없이 청크를 그대로 보낸다.
+ * @see close code 3007 Input Duration Violation (AssemblyAI)
+ */
+const PCM_FRAME_MIN_BYTES = (16_000 * 2 * 50) / 1000;
+const PCM_FRAME_MAX_BYTES = (16_000 * 2 * 1000) / 1000;
+
+function concatUint8(a: Uint8Array, b: Uint8Array): Uint8Array {
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a, 0);
+  out.set(b, a.length);
+  return out;
+}
+
+function copyFrameToArrayBuffer(frame: Uint8Array): ArrayBuffer {
+  const out = new Uint8Array(frame.byteLength);
+  out.set(frame);
+  return out.buffer;
+}
+
+/** pending에서 조건을 만족하는 프레임만 잘라내어 send에 넘긴다. 남은 tail을 반환한다. */
+function drainPcmFrames(
+  pending: Uint8Array,
+  send: (ab: ArrayBuffer) => void,
+): Uint8Array {
+  let p = pending;
+  while (p.length >= PCM_FRAME_MIN_BYTES) {
+    let take = Math.min(p.length, PCM_FRAME_MAX_BYTES);
+    if (p.length - take > 0 && p.length - take < PCM_FRAME_MIN_BYTES) {
+      take = p.length - PCM_FRAME_MIN_BYTES;
+    }
+    const frame = p.subarray(0, take);
+    send(copyFrameToArrayBuffer(frame));
+    p = p.subarray(take);
+  }
+  return p;
+}
+
+/** 연결 종료 전: 남은 PCM을 규격에 맞게 보낸다(부족하면 무음 패딩). */
+function flushPcmTail(
+  pending: Uint8Array,
+  send: (ab: ArrayBuffer) => void,
+): void {
+  if (pending.length === 0) {
+    return;
+  }
+  const rest = drainPcmFrames(pending, send);
+  if (rest.length === 0) {
+    return;
+  }
+  const padded = new Uint8Array(PCM_FRAME_MIN_BYTES);
+  padded.set(rest, 0);
+  send(padded.buffer);
+}
 
 async function defaultFetchToken(): Promise<string> {
   const res = await fetch("/api/stt/token", { method: "POST" });
@@ -41,18 +103,40 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     [options?.fetchToken],
   );
   const createProvider = useMemo(
-    () => options?.createProvider ?? createAssemblyAiRealtimeProvider,
+    () => options?.createProvider ?? createOpenAiRealtimeProvider,
     [options?.createProvider],
   );
+
+  const useAssemblyAiPcmFraming = options?.useAssemblyAiPcmFraming === true;
 
   const [partial, setPartial] = useState("");
   const [finals, setFinals] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  /** STT로 전송한 PCM 배치 수(AssemblyAI: 50–1000ms 프레임 수, OpenAI: 청크 수). UI 진단용 */
+  const [sttPcmFramesSent, setSttPcmFramesSent] = useState(0);
   const providerRef = useRef<TranscriptionProvider | null>(null);
+  const pcmChunkCountRef = useRef(0);
+  const pcmPendingRef = useRef<Uint8Array>(new Uint8Array(0));
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+    console.log("[transcription] partial:", partial);
+  }, [partial]);
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") {
+      return;
+    }
+    console.log("[transcription] finals:", finals);
+  }, [finals]);
 
   const disconnectProvider = useCallback(() => {
+    pcmPendingRef.current = new Uint8Array(0);
     providerRef.current?.disconnect();
     providerRef.current = null;
+    setSttPcmFramesSent(0);
   }, []);
 
   useEffect(() => {
@@ -64,6 +148,8 @@ export function useTranscription(options?: UseTranscriptionOptions) {
   const prepareStreaming = useCallback(async (): Promise<boolean> => {
     setErrorMessage(null);
     disconnectProvider();
+    pcmChunkCountRef.current = 0;
+    pcmPendingRef.current = new Uint8Array(0);
     try {
       const token = await fetchToken();
       const provider = createProvider(token);
@@ -88,14 +174,39 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     }
   }, [createProvider, disconnectProvider, fetchToken]);
 
-  const sendPcm = useCallback((buf: ArrayBuffer) => {
-    providerRef.current?.sendAudio(buf);
-  }, []);
+  const sendPcm = useCallback(
+    (buf: ArrayBuffer) => {
+      const prov = providerRef.current;
+      if (!prov) {
+        return;
+      }
+      pcmChunkCountRef.current += 1;
+      if (!useAssemblyAiPcmFraming) {
+        prov.sendAudio(buf.slice(0));
+        setSttPcmFramesSent((c) => c + 1);
+        return;
+      }
+      const incoming = new Uint8Array(buf);
+      const merged = concatUint8(pcmPendingRef.current, incoming);
+      let sentFrames = 0;
+      pcmPendingRef.current = drainPcmFrames(merged, (ab) => {
+        sentFrames += 1;
+        prov.sendAudio(ab);
+      });
+      if (sentFrames > 0) {
+        setSttPcmFramesSent((c) => c + sentFrames);
+      }
+    },
+    [useAssemblyAiPcmFraming],
+  );
 
   const finalizeStreaming = useCallback(async () => {
     const p = providerRef.current;
     if (p) {
       try {
+        const tail = pcmPendingRef.current;
+        pcmPendingRef.current = new Uint8Array(0);
+        flushPcmTail(tail, (ab) => p.sendAudio(ab));
         await p.stop();
       } finally {
         p.disconnect();
@@ -109,6 +220,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     partial,
     finals,
     errorMessage,
+    sttPcmFramesSent,
     prepareStreaming,
     sendPcm,
     finalizeStreaming,

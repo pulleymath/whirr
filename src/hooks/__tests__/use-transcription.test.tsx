@@ -1,7 +1,7 @@
 /** @vitest-environment happy-dom */
+import type { TranscriptionProvider } from "@/lib/stt/types";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { TranscriptionProvider } from "@/lib/stt/types";
 import { useTranscription } from "../use-transcription";
 
 describe("useTranscription", () => {
@@ -65,7 +65,7 @@ describe("useTranscription", () => {
     expect(result.current.partial).toBe("");
   });
 
-  it("sendPcm이 sendAudio로 위임된다", async () => {
+  it("sendPcm은 기본(OpenAI)에서 청크를 즉시 sendAudio로 보낸다", async () => {
     const sendAudio = vi.fn();
     const mockProvider: TranscriptionProvider = {
       connect: async () => {},
@@ -85,11 +85,45 @@ describe("useTranscription", () => {
       expect(await result.current.prepareStreaming()).toBe(true);
     });
 
-    const buf = new ArrayBuffer(8);
     act(() => {
-      result.current.sendPcm(buf);
+      result.current.sendPcm(new ArrayBuffer(800));
     });
-    expect(sendAudio).toHaveBeenCalledWith(buf);
+    expect(sendAudio).toHaveBeenCalledTimes(1);
+    expect((sendAudio.mock.calls[0]![0] as ArrayBuffer).byteLength).toBe(800);
+  });
+
+  it("useAssemblyAiPcmFraming이면 최소 50ms PCM까지 모아 sendAudio로 보낸다", async () => {
+    const sendAudio = vi.fn();
+    const mockProvider: TranscriptionProvider = {
+      connect: async () => {},
+      sendAudio,
+      stop: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+    };
+
+    const { result } = renderHook(() =>
+      useTranscription({
+        fetchToken: vi.fn().mockResolvedValue("t"),
+        createProvider: () => mockProvider,
+        useAssemblyAiPcmFraming: true,
+      }),
+    );
+
+    await act(async () => {
+      expect(await result.current.prepareStreaming()).toBe(true);
+    });
+
+    /* 16kHz mono s16le 50ms = 1600 bytes */
+    act(() => {
+      result.current.sendPcm(new ArrayBuffer(800));
+    });
+    expect(sendAudio).not.toHaveBeenCalled();
+
+    act(() => {
+      result.current.sendPcm(new ArrayBuffer(800));
+    });
+    expect(sendAudio).toHaveBeenCalledTimes(1);
+    expect((sendAudio.mock.calls[0]![0] as ArrayBuffer).byteLength).toBe(1600);
   });
 
   it("언마운트 시 disconnect를 호출한다", async () => {

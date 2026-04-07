@@ -44,7 +44,7 @@
 
 **근거**:
 
-- AssemblyAI가 브라우저 직접 연결(WebSocket)을 지원하므로, 백엔드가 오디오를 중계할 필요가 없다
+- OpenAI Realtime Transcription이 브라우저 WebSocket(에피메랄 토큰)을 지원하므로, 백엔드가 오디오를 중계할 필요가 없다
 - 서버가 필요한 유일한 작업(API 키 보호를 위한 임시 토큰 발급)은 Next.js API Route로 충분하다
 - 운영할 인프라가 줄어들어 복잡도와 비용이 낮아진다
 
@@ -103,3 +103,17 @@
 **결정**: 업스트림·WebSocket의 원문 오류는 UI에 직접 노출하지 않고 `userFacingSttError`로 고정 한국어 메시지에 매핑한다. AssemblyAI JSON의 `error` 필드는 내부 코드 `STT_PROVIDER_ERROR`로만 전달한다.
 
 **근거**: 내부 구현 단서 노출 완화 및 일관된 UX.
+
+---
+
+## D9. 기본 STT 엔진 — OpenAI Realtime Transcription (`gpt-4o-mini-transcribe-2025-12-15`)
+
+**결정**: 기본 실시간 전사는 OpenAI Realtime API transcription 모드로 수행한다. 전사 모델 ID는 **`gpt-4o-mini-transcribe-2025-12-15`** 를 사용한다. 서버는 `POST /v1/realtime/transcription_sessions`로 에피메랄 `client_secret`을 발급하고, 브라우저는 `wss://api.openai.com/v1/realtime?intent=transcription`에 서브프로토콜로 인증한다.
+
+**근거**:
+
+- AssemblyAI Whisper Streaming 경로가 안정적으로 동작하지 않아 교체가 필요했음 (Feature 6).
+- OpenAI 측 `pcm16` 입력은 **24kHz** mono s16le이므로, 앱의 16kHz Worklet 출력은 Provider에서 리샘플링한다.
+- `AssemblyAIRealtimeProvider`는 코드베이스에 유지하여 필요 시 훅 옵션으로 재사용 가능.
+
+**한계**: 에피메랄 토큰 TTL이 짧다(약 1분). 장시간 녹음 시 토큰 재발급 전략이 필요할 수 있다.

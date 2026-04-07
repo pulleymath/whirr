@@ -24,6 +24,10 @@
 
 - [✅ 완료] [WebSocket 스트리밍 및 실시간 전사 텍스트 표시](./feature-3-realtime-stt.md)
 
+### Feature 6: OpenAI GPT-4o Realtime API 기반 STT 전환
+
+- [✅ 완료] [AssemblyAI → OpenAI Realtime Transcription (`gpt-4o-mini-transcribe-2025-12-15`)](./feature-6-openai-stt.md)
+
 ### Feature 4: IndexedDB 기반 세션 저장소 연동
 
 - [ ] [녹음 종료 시 텍스트 로컬 자동 저장](./feature-4-session-storage.md)

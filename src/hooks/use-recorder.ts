@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   mapMediaErrorToMessage,
   startPcmRecording,
   type OnPcmChunk,
 } from "@/lib/audio";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type RecorderStatus = "idle" | "recording" | "error";
 

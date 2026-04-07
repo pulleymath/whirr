@@ -1,5 +1,32 @@
 export type OnPcmChunk = (pcm: ArrayBuffer) => void;
 
+/**
+ * AudioWorklet → main `postMessage` 페이로드는 환경에 따라 `ArrayBuffer`가 아니거나
+ * `instanceof ArrayBuffer`가 실패할 수 있어, 뷰 타입까지 허용한다.
+ */
+function arrayBufferFromWorkletMessage(data: unknown): ArrayBuffer {
+  if (data instanceof ArrayBuffer) {
+    return data;
+  }
+  if (ArrayBuffer.isView(data)) {
+    const v = data;
+    const copy = new Uint8Array(v.byteLength);
+    copy.set(new Uint8Array(v.buffer, v.byteOffset, v.byteLength));
+    return copy.buffer;
+  }
+  /* AudioWorklet 다른 글로벌에서 온 ArrayBuffer는 instanceof 실패할 수 있음 */
+  if (
+    data != null &&
+    typeof data === "object" &&
+    Object.prototype.toString.call(data) === "[object ArrayBuffer]" &&
+    typeof (data as ArrayBuffer).byteLength === "number"
+  ) {
+    const raw = data as ArrayBuffer;
+    return raw.byteLength > 0 ? raw.slice(0) : raw;
+  }
+  return new ArrayBuffer(0);
+}
+
 export function mapMediaErrorToMessage(error: unknown): string {
   if (error && typeof error === "object" && "name" in error) {
     const name = String((error as { name?: string }).name);
@@ -39,9 +66,10 @@ export async function startPcmRecording(
   const source = ctx.createMediaStreamSource(stream);
   const worklet = new AudioWorkletNode(ctx, "pcm-capture");
 
-  worklet.port.onmessage = (ev: MessageEvent<ArrayBuffer>) => {
-    if (ev.data instanceof ArrayBuffer) {
-      onPcmChunk(ev.data);
+  worklet.port.onmessage = (ev: MessageEvent<unknown>) => {
+    const buf = arrayBufferFromWorkletMessage(ev.data);
+    if (buf.byteLength > 0) {
+      onPcmChunk(buf);
     }
   };
 

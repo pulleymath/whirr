@@ -3,25 +3,25 @@ import {
   getClientKeyFromRequest,
   isSttTokenRateLimited,
 } from "@/lib/api/stt-token-rate-limit";
+import { OPENAI_REALTIME_TRANSCRIBE_MODEL } from "@/lib/stt/openai-realtime";
 
-/**
- * Universal Streaming v3 임시 토큰.
- * @see https://www.assemblyai.com/docs/api-reference/streaming-api/generate-streaming-token
- */
-function streamingApiOrigin(): string {
-  const raw = process.env.ASSEMBLYAI_STREAMING_API_BASE?.trim();
-  if (raw) {
-    return raw.replace(/\/$/, "");
-  }
-  return "https://streaming.assemblyai.com";
-}
-
-function tokenExpiresSeconds(): number {
-  const n = Number(process.env.STT_TOKEN_EXPIRES_SECONDS ?? 120);
-  if (!Number.isFinite(n)) {
-    return 120;
-  }
-  return Math.min(600, Math.max(1, Math.floor(n)));
+function buildTranscriptionSessionBody(): Record<string, unknown> {
+  return {
+    input_audio_format: "pcm16",
+    input_audio_transcription: {
+      model: OPENAI_REALTIME_TRANSCRIBE_MODEL,
+      language: "ko",
+    },
+    turn_detection: {
+      type: "server_vad",
+      threshold: 0.5,
+      prefix_padding_ms: 300,
+      silence_duration_ms: 500,
+    },
+    input_audio_noise_reduction: {
+      type: "near_field",
+    },
+  };
 }
 
 export async function POST(request: Request) {
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const apiKey = process.env.ASSEMBLYAI_API_KEY?.trim();
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     return NextResponse.json(
       { error: "STT token service unavailable" },
@@ -41,16 +41,17 @@ export async function POST(request: Request) {
     );
   }
 
-  const origin = streamingApiOrigin();
-  const tokenUrl = new URL("/v3/token", origin);
-  tokenUrl.searchParams.set("expires_in_seconds", String(tokenExpiresSeconds()));
-
-  const upstream = await fetch(tokenUrl.toString(), {
-    method: "GET",
-    headers: {
-      Authorization: apiKey,
+  const upstream = await fetch(
+    "https://api.openai.com/v1/realtime/transcription_sessions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(buildTranscriptionSessionBody()),
     },
-  });
+  );
 
   if (!upstream.ok) {
     return NextResponse.json(
@@ -69,12 +70,18 @@ export async function POST(request: Request) {
     );
   }
 
+  const secret =
+    data && typeof data === "object" && data !== null && "client_secret" in data
+      ? (data as { client_secret?: unknown }).client_secret
+      : null;
+
   const token =
-    data &&
-    typeof data === "object" &&
-    "token" in data &&
-    typeof (data as { token: unknown }).token === "string"
-      ? (data as { token: string }).token
+    secret &&
+    typeof secret === "object" &&
+    secret !== null &&
+    "value" in secret &&
+    typeof (secret as { value: unknown }).value === "string"
+      ? (secret as { value: string }).value
       : null;
 
   if (!token) {

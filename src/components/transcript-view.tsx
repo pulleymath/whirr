@@ -2,12 +2,15 @@ type TranscriptViewProps = {
   partial: string;
   finals: string[];
   errorMessage?: string | null;
+  /** 녹음 중이면 빈 전사일 때 안내 문구를 바꿉니다 */
+  recording?: boolean;
 };
 
 export function TranscriptView({
   partial,
   finals,
   errorMessage,
+  recording = false,
 }: TranscriptViewProps) {
   const hasContent = finals.length > 0 || partial.length > 0;
 
@@ -38,7 +41,11 @@ export function TranscriptView({
           </span>
         ) : (
           <span className="text-zinc-400 dark:text-zinc-500">
-            {hasContent ? "" : "녹음을 시작하면 전사가 표시됩니다."}
+            {hasContent
+              ? ""
+              : recording
+                ? "전사 문구가 오면 여기에 실시간으로 표시됩니다."
+                : "녹음을 시작하면 전사가 표시됩니다."}
           </span>
         )}
       </div>
