@@ -22,6 +22,97 @@ description: Issue-driven development workflow with TDD, parallel code review, a
 | 6    | `06_fixes.md`                 | 리뷰 반영 수정 기록          | Phase 5   |
 | 7    | `07_summary.md`               | 전체 작업 요약               | Phase 7   |
 
+## 금지 사항 및 게이트 (Subagent 필수 구간)
+
+아래 구간에서는 **메인 에이전트가 동일 역할을 대신 수행하는 것을 금지**한다. 산출물은 **지정된 Task(subagent)의 반환값**을 기준으로만 작성한다.
+
+### Phase 1 (계획)
+
+- **금지**: 메인 에이전트가 `01_plan.md`의 본문(개발 범위, TDD Step, 파일 계획 등)을 **직접 작성·요약·재작성**하는 것.
+- **게이트**: `Task`(`subagent_type: generalPurpose`)를 **먼저** 호출하고, 그 **응답 전문**(아래 [검증 가능한 흔적](#검증-가능한-흔적-산출물-메타데이터)에 맞는 형식 포함)을 `01_plan.md`에 저장한 뒤에만 Phase 2로 진행한다.
+- **예외 없음**: Task 실패·타임아웃 시에는 Phase 2로 넘어가지 않고 Task를 재시도하거나 사용자에게 보고한다.
+- **금지**: `Task`를 호출할 때 `claude-4.6-opus-max-thinking`외 다른 모델을 사용하는 것.
+
+### Phase 3 (병렬 리뷰)
+
+- **금지**: 메인 에이전트가 `02_review_*.md`, `03_review_*.md`, `04_review_*.md` 내용을 **직접 작성**하는 것.
+- **게이트**: **동일한 assistant 메시지(턴)**에서 `Task`를 **정확히 3번** 병렬 호출한 뒤, 각 Task 응답을 해당 파일에 저장한다. 3번이 아니면 파일을 쓰지 않는다.
+- **금지**: 한 번에 한 리뷰만 Task로 돌리고 나머지는 직접 쓰는 것.
+- **금지**: `Task`를 호출할 때 `auto`외 다른 모델을 사용하는 것.
+
+### Phase 4 (리뷰 종합)
+
+- **금지**: 메인 에이전트가 `05_review_synthesis.md`를 **직접 작성**하는 것.
+- **게이트**: `Task`(`subagent_type: generalPurpose` + review-synthesizer 프롬프트) 응답을 저장한 뒤에만 Phase 5로 진행한다.
+
+### Phase 2·5·6·7
+
+- Subagent 강제 구간이 아니다. 다만 Phase 5는 **`05_review_synthesis.md`가 Phase 4 게이트를 통과한 파일**일 때만 수행한다.
+
+## 검증 가능한 흔적 (산출물 메타데이터)
+
+Subagent가 만든 문서는 **파일 최상단에 YAML 프론트 매터 한 블록**을 두어 출처를 남긴다. 메인 에이전트는 Task 프롬프트에 **반드시** 아래 형식을 출력하라고 명시한다.
+
+공통 키(모든 해당 파일):
+
+| 키                                | 필수 | 설명                                                |
+| --------------------------------- | ---- | --------------------------------------------------- |
+| `issue_driven_dev.source`         | 예   | 항상 문자열 `subagent`                              |
+| `issue_driven_dev.phase`          | 예   | `plan` \| `review` \| `synthesis`                   |
+| `issue_driven_dev.subagent_type`  | 예   | Task에 사용한 `subagent_type` 값 (문자열)           |
+| `issue_driven_dev.subagent_model` | 예   | Task에 사용한 subagent의 모델명 (문자열)            |
+| `issue_driven_dev.feature`        | 예   | `Issues/{feature}/`의 `{feature}` 디렉터리명과 동일 |
+
+리뷰 전용(`02`/`03`/`04`):
+
+| 키                             | 필수 | 설명                                                                     |
+| ------------------------------ | ---- | ------------------------------------------------------------------------ |
+| `issue_driven_dev.review_kind` | 예   | `implementation` \| `security` \| `architecture` (`02`/`03`/`04`와 일치) |
+
+### `01_plan.md` 예시 (파일 맨 앞)
+
+```yaml
+---
+issue_driven_dev:
+  source: subagent
+  phase: plan
+  subagent_type: generalPurpose
+  subagent_model: "{subagent_model}"
+  feature: "{feature-directory-name}"
+---
+```
+
+### `02` / `03` / `04` 예시 (각 파일 맨 앞)
+
+```yaml
+---
+issue_driven_dev:
+  source: subagent
+  phase: review
+  subagent_type: code-reviewer
+  subagent_model: "{subagent_model}"
+  feature: "{feature-directory-name}"
+  review_kind: implementation
+---
+```
+
+`03`은 `subagent_type: security-reviewer`, `review_kind: security`.  
+`04`는 `subagent_type: code-reviewer`, `review_kind: architecture`.
+
+### `05_review_synthesis.md` 예시 (파일 맨 앞)
+
+```yaml
+---
+issue_driven_dev:
+  source: subagent
+  phase: synthesis
+  subagent_type: generalPurpose
+  feature: "{feature-directory-name}"
+---
+```
+
+**검증**: PR·셀프체크 시 위 프론트 매터 존재 및 `review_kind`·파일명 일치를 확인하면, Subagent 생략 여부를 기계적으로 걸러내기 쉽다.
+
 ## Phase 0: 준비
 
 1. 이슈 파일 읽기 (`Issues/{issue-file}.md`)
@@ -51,7 +142,17 @@ git checkout -b {feature-name}
 
 ### 계획서 필수 포함 사항
 
+파일 **첫 줄부터** [검증 가능한 흔적](#검증-가능한-흔적-산출물-메타데이터)의 `01_plan.md` YAML 블록을 두고, 이어서 본문을 작성한다.
+
 ```markdown
+---
+issue_driven_dev:
+  source: subagent
+  phase: plan
+  subagent_type: generalPurpose
+  feature: "{feature-directory-name}"
+---
+
 # {Feature Name} — 개발 계획서
 
 ## 개발 범위
@@ -87,7 +188,7 @@ git checkout -b {feature-name}
 
 ### 산출물
 
-`Issues/{feature}/01_plan.md`에 Write 도구로 작성. 에이전트의 응답 전문을 파일에 저장한다.
+`Issues/{feature}/01_plan.md`에 Write 도구로 작성한다. 내용은 **계획 Task의 응답 전문**이며, [금지 사항 및 게이트](#금지-사항-및-게이트-subagent-필수-구간) 및 [검증 가능한 흔적](#검증-가능한-흔적-산출물-메타데이터)을 만족해야 한다.
 
 ## Phase 2: 구현
 
@@ -105,7 +206,9 @@ git checkout -b {feature-name}
 
 ## Phase 3: 병렬 코드 리뷰
 
-**3개의 Task를 동시에 실행한다.** 반드시 하나의 메시지에서 3개의 Task 도구를 병렬 호출한다.
+**3개의 Task를 동시에 실행한다.** 반드시 하나의 메시지에서 3개의 Task 도구를 병렬 호출한다. [금지 사항 및 게이트](#금지-사항-및-게이트-subagent-필수-구간)를 위반하지 않는다.
+
+각 리뷰 Task 프롬프트에 [검증 가능한 흔적](#검증-가능한-흔적-산출물-메타데이터)에 따라 해당 `review_kind`와 YAML 프론트 매터를 **응답 맨 앞**에 출력하도록 지시한다.
 
 ### 공통 컨텍스트 (모든 리뷰어에게 전달)
 
@@ -134,12 +237,12 @@ git checkout -b {feature-name}
 
 ## Phase 4: 리뷰 종합
 
-3개 리뷰가 모두 완료된 후 실행한다.
+3개 리뷰가 모두 완료된 후 실행한다. [금지 사항 및 게이트](#금지-사항-및-게이트-subagent-필수-구간)에 따라 메인 에이전트가 종합문을 직접 쓰지 않는다.
 
 - Task `subagent_type`: `generalPurpose`
 - `.cursor/agents/review-synthesizer.md`의 시스템 프롬프트를 프롬프트에 포함
 - 입력: 3개 리뷰 문서 (`02_review_implementation.md`, `03_review_security.md`, `04_review_architecture.md`) 전문
-- 산출물: `Issues/{feature}/05_review_synthesis.md`
+- 산출물: `Issues/{feature}/05_review_synthesis.md` — [검증 가능한 흔적](#검증-가능한-흔적-산출물-메타데이터)의 `05` YAML 블록으로 시작해야 한다. Task 프롬프트에 동일 형식을 요구한다.
 
 ## Phase 5: 수정
 
