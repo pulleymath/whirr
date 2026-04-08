@@ -30,7 +30,7 @@
 
 ### Feature 4: IndexedDB 기반 세션 저장소 연동
 
-- [ ] [녹음 종료 시 텍스트 로컬 자동 저장](./feature-4-session-storage.md)
+- [✅ 완료] [녹음 종료 시 텍스트 로컬 자동 저장](./feature-4-session-storage.md)
 
 ### Feature 5: 과거 세션 목록 및 상세 보기 UI
 

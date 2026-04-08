@@ -1,9 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { TranscriptView } from "@/components/transcript-view";
 import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
+import { buildSessionText } from "@/lib/build-session-text";
+import { saveSession } from "@/lib/db";
 
 export function Recorder() {
   const {
@@ -24,6 +26,13 @@ export function Recorder() {
     stop: stopRecording,
   } = useRecorder(sendPcm);
 
+  const finalsRef = useRef(finals);
+  const partialRef = useRef(partial);
+  useEffect(() => {
+    finalsRef.current = finals;
+    partialRef.current = partial;
+  }, [finals, partial]);
+
   const start = useCallback(async () => {
     const ok = await prepareStreaming();
     if (!ok) {
@@ -36,7 +45,16 @@ export function Recorder() {
     try {
       await stopRecording();
     } finally {
+      const snapshot = buildSessionText(finalsRef.current, partialRef.current);
       await finalizeStreaming();
+      const trimmed = snapshot.trim();
+      if (trimmed) {
+        try {
+          await saveSession(trimmed);
+        } catch (e) {
+          console.error("[session-storage] save failed:", e);
+        }
+      }
     }
   }, [finalizeStreaming, stopRecording]);
 

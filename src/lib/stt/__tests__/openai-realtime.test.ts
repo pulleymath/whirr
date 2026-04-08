@@ -124,8 +124,8 @@ describe("OpenAIRealtimeProvider", () => {
     };
     expect(msg.type).toBe("session.update");
     expect(msg.session).toEqual(openAiGaTranscriptionSession());
-    const tr = (msg.session.audio as { input: { transcription: unknown } }).input
-      .transcription as Record<string, unknown>;
+    const tr = (msg.session.audio as { input: { transcription: unknown } })
+      .input.transcription as Record<string, unknown>;
     expect(tr.model).toBe(OPENAI_REALTIME_TRANSCRIBE_MODEL);
     expect(tr.language).toBe("ko");
   });

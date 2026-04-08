@@ -101,13 +101,13 @@ Provider 교체 시 UI 코드 변경은 **없다**. 설정(환경 변수 등)으
 
 ### 3.2. 역할
 
-| 책임        | 설명                                                    |
-| ----------- | ------------------------------------------------------- |
-| 마이크 캡처 | `getUserMedia` → `AudioWorklet`으로 PCM 16kHz mono 변환 |
-| 오디오 전송 | STT Provider를 통해 WebSocket으로 PCM 청크 스트리밍     |
-| 실시간 표시 | Provider에서 push된 부분 전사 텍스트를 UI에 반영        |
-| 세션 저장   | 녹음 종료 시 확정 텍스트를 IndexedDB에 저장             |
-| 세션 열람   | IndexedDB에서 세션 목록 조회·상세 보기                  |
+| 책임        | 설명                                                             |
+| ----------- | ---------------------------------------------------------------- |
+| 마이크 캡처 | `getUserMedia` → `AudioWorklet`으로 PCM 16kHz mono 변환          |
+| 오디오 전송 | STT Provider를 통해 WebSocket으로 PCM 청크 스트리밍              |
+| 실시간 표시 | Provider에서 push된 부분 전사 텍스트를 UI에 반영                 |
+| 세션 저장   | 녹음 종료 시 `finals`·`partial` 스냅샷 텍스트를 IndexedDB에 저장 |
+| 세션 열람   | IndexedDB에서 세션 목록 조회·상세 보기                           |
 
 ### 3.3. IndexedDB 스키마
 
@@ -115,11 +115,11 @@ Provider 교체 시 UI 코드 변경은 **없다**. 설정(환경 변수 등)으
 
 **Object Store**: `sessions`
 
-| 필드        | 타입                  | 설명               |
-| ----------- | --------------------- | ------------------ |
-| `id`        | string (UUID)         | Primary key        |
-| `createdAt` | number (timestamp ms) | 세션 생성 시각     |
-| `text`      | string                | 확정된 전사 텍스트 |
+| 필드        | 타입                  | 설명                                                        |
+| ----------- | --------------------- | ----------------------------------------------------------- |
+| `id`        | string (UUID)         | Primary key                                                 |
+| `createdAt` | number (timestamp ms) | 세션 생성 시각                                              |
+| `text`      | string                | 중지 시점까지의 전사 텍스트(확정 세그먼트 + 마지막 partial) |
 
 인덱스: `createdAt` (날짜별 정렬·그룹화 용도)
 

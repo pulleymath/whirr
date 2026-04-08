@@ -63,7 +63,9 @@ describe("POST /api/stt/token", () => {
     const body = JSON.parse((init as { body: string }).body) as {
       session: {
         type: string;
-        audio: { input: { transcription: { model: string; language: string } } };
+        audio: {
+          input: { transcription: { model: string; language: string } };
+        };
       };
     };
     expect(body.session.type).toBe("transcription");
