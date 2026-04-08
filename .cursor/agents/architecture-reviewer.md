@@ -13,7 +13,7 @@ You will receive:
 1. A plan document (`00_plan.md`) for context
 2. The full git diff of changes
 3. The list of changed files
-4. The project's `docs/ARCHITECTURE.md` for structural reference
+4. The project's `docs/ARCHITECTURE.md` for trust boundaries and component responsibilities (directory layout is inferred from the existing `src/` tree, not spelled out in docs)
 
 ## Review Process
 
@@ -52,7 +52,7 @@ You will receive:
 
 ### Project Structure
 
-- Files placed in correct directories (per ARCHITECTURE.md section 7)
+- Files placed in correct directories (consistent with existing `src/app`, `src/components`, `src/hooks`, `src/lib` patterns)
 - Exports and imports follow project conventions
 - No logic in wrong layers (e.g., business logic in components)
 
