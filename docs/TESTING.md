@@ -4,10 +4,10 @@
 
 ## 러너와 스크립트
 
-| 스크립트 | 설명 |
-|----------|------|
-| `npm run test` | 한 번 실행 후 종료 (`vitest run`) |
-| `npm run test:watch` | 파일 변경 시 재실행 (`vitest`) |
+| 스크립트             | 설명                              |
+| -------------------- | --------------------------------- |
+| `npm run test`       | 한 번 실행 후 종료 (`vitest run`) |
+| `npm run test:watch` | 파일 변경 시 재실행 (`vitest`)    |
 
 관련 의존성: `vitest`, `@testing-library/react`, `happy-dom`, `fake-indexeddb`.
 

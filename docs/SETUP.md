@@ -17,12 +17,12 @@
 
 ## 자주 쓰는 스크립트 (`package.json`)
 
-| 명령 | 용도 |
-|------|------|
-| `npm run dev` | 개발 서버 |
-| `npm run build` | 프로덕션 빌드 |
-| `npm run lint` | ESLint |
-| `npm run test` | Vitest 일회 실행 |
+| 명령            | 용도             |
+| --------------- | ---------------- |
+| `npm run dev`   | 개발 서버        |
+| `npm run build` | 프로덕션 빌드    |
+| `npm run lint`  | ESLint           |
+| `npm run test`  | Vitest 일회 실행 |
 
 (참고: `start`, `format`, `test:watch` 등도 동일 파일에 정의되어 있습니다.)
 

@@ -2,12 +2,15 @@ type TranscriptViewProps = {
   partial: string;
   finals: string[];
   errorMessage?: string | null;
+  /** false면 내부「전사」제목을 숨긴다(탭 레이블과 중복 방지). */
+  showHeading?: boolean;
 };
 
 export function TranscriptView({
   partial,
   finals,
   errorMessage,
+  showHeading = true,
 }: TranscriptViewProps) {
   const hasContent = finals.length > 0 || partial.length > 0;
 
@@ -16,9 +19,11 @@ export function TranscriptView({
       className="flex w-full max-w-md flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
       aria-label="실시간 전사"
     >
-      <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        전사
-      </h2>
+      {showHeading ? (
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          전사
+        </h2>
+      ) : null}
 
       {errorMessage ? (
         <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">

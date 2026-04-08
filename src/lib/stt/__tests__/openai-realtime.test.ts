@@ -73,7 +73,7 @@ async function openAndConnect(
   p: OpenAIRealtimeProvider,
   onPartial = vi.fn(),
   onFinal = vi.fn(),
-  onError = vi.fn()
+  onError = vi.fn(),
 ) {
   const connectPromise = p.connect(onPartial, onFinal, onError);
   const ws = MockWebSocket.instances[MockWebSocket.instances.length - 1]!;
@@ -98,12 +98,12 @@ describe("OpenAIRealtimeProvider", () => {
     const p = new OpenAIRealtimeProvider(
       "ek_test",
       MockWebSocket as unknown as typeof WebSocket,
-      { stopFlushMs: 10 }
+      { stopFlushMs: 10 },
     );
     await openAndConnect(p);
     const ws = MockWebSocket.instances[0]!;
     expect(ws.url).toBe(
-      "wss://api.openai.com/v1/realtime?intent=transcription"
+      "wss://api.openai.com/v1/realtime?intent=transcription",
     );
     expect(ws.requestedProtocols).toEqual([
       "realtime",
@@ -115,7 +115,7 @@ describe("OpenAIRealtimeProvider", () => {
     const p = new OpenAIRealtimeProvider(
       "tok",
       MockWebSocket as unknown as typeof WebSocket,
-      { stopFlushMs: 10 }
+      { stopFlushMs: 10 },
     );
     const ws = await openAndConnect(p);
     const first = ws.sent[0];
@@ -138,7 +138,7 @@ describe("OpenAIRealtimeProvider", () => {
     const p = new OpenAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      { stopFlushMs: 10 }
+      { stopFlushMs: 10 },
     );
     const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
     await ws.simulateMessageAsync({
@@ -148,7 +148,7 @@ describe("OpenAIRealtimeProvider", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
     expect((onError.mock.calls[0]![0] as Error).message).toBe(
-      "upstream failed"
+      "upstream failed",
     );
   });
 
@@ -165,7 +165,7 @@ describe("OpenAIRealtimeProvider", () => {
     const p = new OpenAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      { stopFlushMs: 10 }
+      { stopFlushMs: 10 },
     );
     const ws = await openAndConnect(p);
     ws.sent.length = 0;
@@ -173,7 +173,7 @@ describe("OpenAIRealtimeProvider", () => {
     pcm16.fill(1000);
     p.sendAudio(pcm16.buffer);
     const appendRaw = ws.sent.find((s) =>
-      s.includes("input_audio_buffer.append")
+      s.includes("input_audio_buffer.append"),
     );
     expect(appendRaw).toBeDefined();
     const body = JSON.parse(appendRaw!) as { type: string; audio: string };
@@ -188,7 +188,7 @@ describe("OpenAIRealtimeProvider", () => {
     const p = new OpenAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      { stopFlushMs: 10 }
+      { stopFlushMs: 10 },
     );
     const ws = await openAndConnect(p, onPartial, onFinal, vi.fn());
     await ws.simulateMessageAsync({
@@ -211,7 +211,7 @@ describe("OpenAIRealtimeProvider", () => {
       const p = new OpenAIRealtimeProvider(
         "t",
         MockWebSocket as unknown as typeof WebSocket,
-        { stopFlushMs: 5 }
+        { stopFlushMs: 5 },
       );
       const ws = await openAndConnect(p);
       ws.sent.length = 0;
@@ -220,13 +220,13 @@ describe("OpenAIRealtimeProvider", () => {
       p.sendAudio(pcm16.buffer);
       const stopP = p.stop();
       const appends = ws.sent.filter((s) =>
-        s.includes("input_audio_buffer.append")
+        s.includes("input_audio_buffer.append"),
       );
       expect(appends.length).toBe(2);
       const tail = JSON.parse(appends[1]!) as { audio: string };
       expect(Buffer.from(tail.audio, "base64").length).toBe(VAD_TAIL_BYTES);
       expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
-        false
+        false,
       );
       await vi.advanceTimersByTimeAsync(20);
       await stopP;
@@ -241,7 +241,7 @@ describe("OpenAIRealtimeProvider", () => {
       const p = new OpenAIRealtimeProvider(
         "t",
         MockWebSocket as unknown as typeof WebSocket,
-        { stopFlushMs: 5 }
+        { stopFlushMs: 5 },
       );
       const ws = await openAndConnect(p);
       ws.sent.length = 0;
@@ -250,13 +250,13 @@ describe("OpenAIRealtimeProvider", () => {
       p.sendAudio(pcm16.buffer);
       const stopP = p.stop();
       const appends = ws.sent.filter((s) =>
-        s.includes("input_audio_buffer.append")
+        s.includes("input_audio_buffer.append"),
       );
       expect(appends.length).toBe(2);
       const pad = JSON.parse(appends[1]!) as { audio: string };
       expect(Buffer.from(pad.audio, "base64").length).toBe(VAD_TAIL_BYTES);
       expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
-        false
+        false,
       );
       await vi.advanceTimersByTimeAsync(20);
       await stopP;
@@ -271,19 +271,19 @@ describe("OpenAIRealtimeProvider", () => {
       const p = new OpenAIRealtimeProvider(
         "t",
         MockWebSocket as unknown as typeof WebSocket,
-        { stopFlushMs: 5 }
+        { stopFlushMs: 5 },
       );
       const ws = await openAndConnect(p);
       ws.sent.length = 0;
       const stopP = p.stop();
       const appends = ws.sent.filter((s) =>
-        s.includes("input_audio_buffer.append")
+        s.includes("input_audio_buffer.append"),
       );
       expect(appends.length).toBe(1);
       const only = JSON.parse(appends[0]!) as { audio: string };
       expect(Buffer.from(only.audio, "base64").length).toBe(VAD_TAIL_BYTES);
       expect(ws.sent.some((s) => s.includes("input_audio_buffer.commit"))).toBe(
-        false
+        false,
       );
       await vi.advanceTimersByTimeAsync(20);
       await stopP;

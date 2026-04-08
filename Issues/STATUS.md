@@ -38,6 +38,10 @@
 
 ## 향후 계획 (Phase 2)
 
+### Feature 7: 메인 UI 셸 (브랜딩, History, 전사·요약 탭)
+
+- [✅ 완료] [메인 UI 셸 — 브랜딩, History, 전사·요약 탭](./feature-7-main-ui-shell/00_issue.md)
+
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

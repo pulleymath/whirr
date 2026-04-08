@@ -1,8 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
+import {
+  SummaryTabPanel,
+  type SummaryTabUiState,
+} from "@/components/summary-tab-panel";
 import { TranscriptView } from "@/components/transcript-view";
-import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
+import {
+  formatElapsed,
+  useRecorder,
+  type RecorderStatus,
+} from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession } from "@/lib/db";
@@ -10,6 +19,28 @@ import { saveSession } from "@/lib/db";
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
 };
+
+type SummaryAfterSave = "none" | "summarizing" | "complete";
+
+function deriveSummaryTabState(
+  recorderStatus: RecorderStatus,
+  afterSave: SummaryAfterSave,
+  summaryError: string | null,
+): SummaryTabUiState {
+  if (summaryError) {
+    return "error";
+  }
+  if (afterSave === "summarizing") {
+    return "summarizing";
+  }
+  if (afterSave === "complete") {
+    return "complete";
+  }
+  if (recorderStatus === "recording") {
+    return "recording";
+  }
+  return "idle";
+}
 
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const {
@@ -30,6 +61,13 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     stop: stopRecording,
   } = useRecorder(sendPcm);
 
+  const [afterSave, setAfterSave] = useState<SummaryAfterSave>("none");
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [placeholderSummary, setPlaceholderSummary] = useState<string | null>(
+    null,
+  );
+  const summarizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const finalsRef = useRef(finals);
   const partialRef = useRef(partial);
   useEffect(() => {
@@ -37,7 +75,22 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     partialRef.current = partial;
   }, [finals, partial]);
 
+  useEffect(() => {
+    return () => {
+      if (summarizeTimerRef.current) {
+        clearTimeout(summarizeTimerRef.current);
+      }
+    };
+  }, []);
+
   const start = useCallback(async () => {
+    setAfterSave("none");
+    setSummaryError(null);
+    setPlaceholderSummary(null);
+    if (summarizeTimerRef.current) {
+      clearTimeout(summarizeTimerRef.current);
+      summarizeTimerRef.current = null;
+    }
     const ok = await prepareStreaming();
     if (!ok) {
       return;
@@ -56,21 +109,30 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         try {
           const id = await saveSession(trimmed);
           onSessionSaved?.(id);
+          setAfterSave("summarizing");
+          setPlaceholderSummary(
+            "이번 세션 요약(플레이스홀더): 핵심 논점이 여기에 표시됩니다.",
+          );
+          if (summarizeTimerRef.current) {
+            clearTimeout(summarizeTimerRef.current);
+          }
+          summarizeTimerRef.current = setTimeout(() => {
+            setAfterSave("complete");
+            summarizeTimerRef.current = null;
+          }, 400);
         } catch (e) {
-          console.error("[session-storage] save failed:", e);
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[session-storage] save failed:", msg);
+          setSummaryError("세션을 저장하지 못했습니다.");
         }
       }
     }
   }, [finalizeStreaming, onSessionSaved, stopRecording]);
 
+  const summaryUiState = deriveSummaryTabState(status, afterSave, summaryError);
+
   return (
     <div className="flex w-full max-w-md flex-col gap-6">
-      <TranscriptView
-        partial={partial}
-        finals={finals}
-        errorMessage={sttError}
-      />
-
       <section
         className="flex w-full flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
         aria-label="마이크 녹음"
@@ -127,6 +189,24 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           </p>
         ) : null}
       </section>
+
+      <MainTranscriptTabs
+        transcriptPanel={
+          <TranscriptView
+            partial={partial}
+            finals={finals}
+            errorMessage={sttError}
+            showHeading={false}
+          />
+        }
+        summaryPanel={
+          <SummaryTabPanel
+            state={summaryUiState}
+            summaryText={placeholderSummary ?? undefined}
+            errorMessage={summaryError}
+          />
+        }
+      />
     </div>
   );
 }

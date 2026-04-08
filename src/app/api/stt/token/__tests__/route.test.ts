@@ -21,7 +21,7 @@ function openAiSuccessResponse(secret = "ek_test") {
       expires_at: "2026-01-01T00:00:00Z",
       session: {},
     }),
-    { status: 200 }
+    { status: 200 },
   );
 }
 
@@ -61,7 +61,7 @@ describe("POST /api/stt/token", () => {
           Authorization: "Bearer sk-secret",
           "Content-Type": "application/json",
         }),
-      })
+      }),
     );
     const [, init] = fetchMock.mock.calls[0]!;
     const body = JSON.parse((init as { body: string }).body) as {
@@ -76,13 +76,13 @@ describe("POST /api/stt/token", () => {
     };
     expect(body.session.type).toBe("transcription");
     expect(body.session.audio.input.transcription.model).toBe(
-      OPENAI_REALTIME_TRANSCRIBE_MODEL
+      OPENAI_REALTIME_TRANSCRIBE_MODEL,
     );
     expect(body.session.audio.input.transcription.language).toBe(
-      OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE
+      OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
     );
     expect(body.session.audio.input.transcription.prompt).toBe(
-      OPENAI_REALTIME_TRANSCRIPTION_PROMPT
+      OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
     );
     expect(await res.json()).toEqual({ token: "t1" });
   });
@@ -92,7 +92,7 @@ describe("POST /api/stt/token", () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(
-        new Response(JSON.stringify({}), { status: 200 })
+        new Response(JSON.stringify({}), { status: 200 }),
       ) as unknown as typeof fetch;
 
     const res = await POST(tokenPost());
@@ -105,7 +105,7 @@ describe("POST /api/stt/token", () => {
     globalThis.fetch = vi
       .fn()
       .mockResolvedValue(
-        new Response(null, { status: 500 })
+        new Response(null, { status: 500 }),
       ) as unknown as typeof fetch;
 
     const res = await POST(tokenPost());
@@ -120,7 +120,7 @@ describe("POST /api/stt/token", () => {
     globalThis.fetch = vi
       .fn()
       .mockImplementation(() =>
-        openAiSuccessResponse()
+        openAiSuccessResponse(),
       ) as unknown as typeof fetch;
 
     expect((await POST(tokenPost())).status).toBe(200);
