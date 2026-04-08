@@ -34,7 +34,7 @@
 
 ### Feature 5: 과거 세션 목록 및 상세 보기 UI
 
-- [ ] [날짜별 세션 그룹화 및 상세 열람 화면 구현](./feature-5-session-list.md)
+- [✅ 완료] [날짜별 세션 그룹화 및 상세 열람 화면 구현](./feature-5-session-list.md)
 
 ## 향후 계획 (Phase 2)
 

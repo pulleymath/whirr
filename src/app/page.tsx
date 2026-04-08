@@ -1,4 +1,4 @@
-import { Recorder } from "@/components/recorder";
+import { HomeContent } from "@/components/home-content";
 
 export default function Home() {
   return (
@@ -11,7 +11,7 @@ export default function Home() {
           실시간 음성 전사 앱입니다. 마이크를 허용한 뒤 녹음을 시작하세요.
         </p>
       </div>
-      <Recorder />
+      <HomeContent />
     </main>
   );
 }

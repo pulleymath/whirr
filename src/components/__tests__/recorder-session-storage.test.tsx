@@ -124,4 +124,26 @@ describe("Recorder 세션 저장", () => {
 
     expect(saveSession).not.toHaveBeenCalled();
   });
+
+  it("onSessionSaved는 saveSession 성공 후 id와 함께 호출된다", async () => {
+    const onSessionSaved = vi.fn();
+    const { rerender } = render(<Recorder onSessionSaved={onSessionSaved} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(testRecorderState.status).toBe("recording");
+    });
+
+    transcriptionState.finals = ["hi"];
+    transcriptionState.partial = "";
+    rerender(<Recorder onSessionSaved={onSessionSaved} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+    await vi.waitFor(() => {
+      expect(saveSession).toHaveBeenCalled();
+    });
+
+    expect(onSessionSaved).toHaveBeenCalledTimes(1);
+    expect(onSessionSaved).toHaveBeenCalledWith("saved-id");
+  });
 });

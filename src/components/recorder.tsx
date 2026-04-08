@@ -7,7 +7,11 @@ import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession } from "@/lib/db";
 
-export function Recorder() {
+export type RecorderProps = {
+  onSessionSaved?: (id: string) => void;
+};
+
+export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const {
     partial,
     finals,
@@ -50,13 +54,14 @@ export function Recorder() {
       const trimmed = snapshot.trim();
       if (trimmed) {
         try {
-          await saveSession(trimmed);
+          const id = await saveSession(trimmed);
+          onSessionSaved?.(id);
         } catch (e) {
           console.error("[session-storage] save failed:", e);
         }
       }
     }
-  }, [finalizeStreaming, stopRecording]);
+  }, [finalizeStreaming, onSessionSaved, stopRecording]);
 
   return (
     <div className="flex w-full max-w-md flex-col gap-6">

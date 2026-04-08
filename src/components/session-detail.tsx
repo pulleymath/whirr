@@ -1,0 +1,160 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { getSessionById, type Session } from "@/lib/db";
+
+type DetailState =
+  | { status: "loading" }
+  | { status: "missing" }
+  | { status: "error" }
+  | { status: "ready"; session: Session };
+
+function SessionDetailBody({
+  id,
+  onRetry,
+}: {
+  id: string;
+  onRetry: () => void;
+}) {
+  const router = useRouter();
+  const [state, setState] = useState<DetailState>({ status: "loading" });
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const row = await getSessionById(id);
+        if (cancelled) {
+          return;
+        }
+        if (row) {
+          setState({ status: "ready", session: row });
+        } else {
+          setState({ status: "missing" });
+        }
+      } catch {
+        if (!cancelled) {
+          setState({ status: "error" });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  if (state.status === "loading") {
+    return (
+      <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
+    );
+  }
+
+  if (state.status === "missing") {
+    return (
+      <div className="flex w-full max-w-2xl flex-col gap-4">
+        <p className="text-zinc-800 dark:text-zinc-200">
+          세션을 찾을 수 없습니다.
+        </p>
+        <Link
+          href="/"
+          className="w-fit text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+        >
+          홈으로
+        </Link>
+      </div>
+    );
+  }
+
+  if (state.status === "error") {
+    return (
+      <div className="flex w-full max-w-2xl flex-col gap-4">
+        <p className="text-zinc-800 dark:text-zinc-200" role="alert">
+          세션을 불러오지 못했습니다.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="button"
+            onClick={onRetry}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
+          >
+            다시 시도
+          </button>
+          <Link
+            href="/"
+            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+          >
+            홈으로
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { session } = state;
+
+  return (
+    <div className="flex w-full max-w-2xl flex-col gap-6">
+      <div className="flex flex-wrap items-center gap-3">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+        >
+          뒤로
+        </button>
+        <Link
+          href="/"
+          className="text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+        >
+          홈
+        </Link>
+      </div>
+      <article
+        className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+        aria-label="세션 전사"
+      >
+        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+          전사
+        </h1>
+        <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+          {session.text}
+        </p>
+      </article>
+    </div>
+  );
+}
+
+export function SessionDetail() {
+  const params = useParams();
+  const rawId = params?.id;
+  const id =
+    typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+
+  const [retryToken, setRetryToken] = useState(0);
+
+  if (!id) {
+    return (
+      <div className="flex w-full max-w-2xl flex-col gap-4">
+        <p className="text-zinc-800 dark:text-zinc-200">
+          세션을 찾을 수 없습니다.
+        </p>
+        <Link
+          href="/"
+          className="w-fit text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+        >
+          홈으로
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <SessionDetailBody
+      key={`${id}-${retryToken}`}
+      id={id}
+      onRetry={() => setRetryToken((t) => t + 1)}
+    />
+  );
+}
