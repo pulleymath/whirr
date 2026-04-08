@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState, type ReactNode } from "react";
+import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export type MainTranscriptTabsProps = {
   transcriptPanel: ReactNode;
@@ -16,6 +17,7 @@ export function MainTranscriptTabs({
 }: MainTranscriptTabsProps) {
   const baseId = useId();
   const [active, setActive] = useState<"transcript" | "summary">("transcript");
+  const reducedMotion = usePrefersReducedMotion();
 
   const transcriptPanelId = `${baseId}-panel-transcript`;
   const summaryPanelId = `${baseId}-panel-summary`;
@@ -70,7 +72,20 @@ export function MainTranscriptTabs({
         hidden={active !== "transcript"}
         className={active === "transcript" ? "w-full" : "hidden"}
       >
-        {transcriptPanel}
+        {active === "transcript" ? (
+          <div
+            key="transcript"
+            className="w-full"
+            style={
+              reducedMotion
+                ? undefined
+                : { animation: "tab-panel-in 180ms ease-out both" }
+            }
+            data-testid="tab-panel-motion-wrap"
+          >
+            {transcriptPanel}
+          </div>
+        ) : null}
       </div>
 
       <div
@@ -80,7 +95,20 @@ export function MainTranscriptTabs({
         hidden={active !== "summary"}
         className={active === "summary" ? "w-full" : "hidden"}
       >
-        {summaryPanel}
+        {active === "summary" ? (
+          <div
+            key="summary"
+            className="w-full"
+            style={
+              reducedMotion
+                ? undefined
+                : { animation: "tab-panel-in 180ms ease-out both" }
+            }
+            data-testid="tab-panel-motion-wrap"
+          >
+            {summaryPanel}
+          </div>
+        ) : null}
       </div>
     </div>
   );

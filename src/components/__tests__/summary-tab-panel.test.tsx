@@ -11,6 +11,7 @@ describe("SummaryTabPanel", () => {
   it("idle이면 녹음 전 안내를 보여준다", () => {
     render(<SummaryTabPanel state="idle" />);
     expect(screen.getByText(/녹음을 시작하면 전사가 쌓이고/)).toBeTruthy();
+    expect(screen.getByTestId("tab-panel-body")).toBeTruthy();
   });
 
   it("recording이면 녹음 중 안내를 보여준다", () => {

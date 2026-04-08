@@ -46,7 +46,9 @@ describe("History 사이드바", () => {
 
   it("데스크톱용 aside는 md 이상에서만 보이도록 클래스가 있다", () => {
     const { container } = render(
-      <HomeContent drawerOpen={false} onCloseDrawer={vi.fn()} />,
+      <HomeContent drawerOpen={false} onCloseDrawer={vi.fn()}>
+        <div data-testid="main-slot" />
+      </HomeContent>,
     );
     const aside = container.querySelector("aside");
     expect(aside).toBeTruthy();

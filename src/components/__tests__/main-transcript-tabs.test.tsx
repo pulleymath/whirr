@@ -1,10 +1,30 @@
 /** @vitest-environment happy-dom */
-import { cleanup, render, screen, fireEvent } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainTranscriptTabs } from "../main-transcript-tabs";
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
+});
+
+beforeEach(() => {
+  vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  }));
 });
 
 describe("MainTranscriptTabs", () => {
@@ -55,10 +75,52 @@ describe("MainTranscriptTabs", () => {
     const summaryPanel = screen
       .getByTestId("summary-slot")
       .closest('[role="tabpanel"]');
-    const transcriptPanel = screen
-      .getByTestId("transcript-slot")
-      .closest('[role="tabpanel"]');
+    const transcriptTab = screen.getByRole("tab", {
+      name: "실시간 전사 텍스트",
+    });
+    const transcriptPanelId = transcriptTab.getAttribute("aria-controls");
+    const transcriptPanel = document.getElementById(transcriptPanelId ?? "");
+    expect(transcriptPanel).toBeTruthy();
     expect(summaryPanel!.hasAttribute("hidden")).toBe(false);
     expect(transcriptPanel!.hasAttribute("hidden")).toBe(true);
+  });
+
+  it("모션 허용 시 활성 패널 래퍼에 tab-panel-in 애니메이션이 설정된다", async () => {
+    render(
+      <MainTranscriptTabs
+        transcriptPanel={<div data-testid="transcript-slot">T</div>}
+        summaryPanel={<div data-testid="summary-slot">S</div>}
+      />,
+    );
+
+    await waitFor(() => {
+      const wrap = screen.getByTestId("tab-panel-motion-wrap");
+      expect(wrap.getAttribute("style")).toMatch(/tab-panel-in/);
+    });
+  });
+
+  it("reduced-motion이면 패널 래퍼에 애니메이션 스타일이 없다", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation((query) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }));
+
+    render(
+      <MainTranscriptTabs
+        transcriptPanel={<div data-testid="transcript-slot">T</div>}
+        summaryPanel={<div data-testid="summary-slot">S</div>}
+      />,
+    );
+
+    await waitFor(() => {
+      const wrap = screen.getByTestId("tab-panel-motion-wrap");
+      expect(wrap.getAttribute("style")).toBeNull();
+    });
   });
 });

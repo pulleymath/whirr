@@ -60,9 +60,12 @@ describe("HomePageShell", () => {
     pathnameRef.current = "/sessions/test-id";
     rerender(<HomePageShell />);
 
-    await vi.waitFor(() => {
-      expect(screen.queryByRole("dialog")).toBeNull();
-    });
+    await vi.waitFor(
+      () => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      },
+      { timeout: 500 },
+    );
   });
 
   it("햄버거 트리거는 md:hidden 클래스로 데스크톱에서 숨김 처리된다", () => {

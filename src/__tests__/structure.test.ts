@@ -9,8 +9,16 @@ describe("프로젝트 구조 (ARCHITECTURE)", () => {
     expect(fs.existsSync(path.join(root, "src/app/layout.tsx"))).toBe(true);
   });
 
-  it("src/app/page.tsx가 존재한다", () => {
-    expect(fs.existsSync(path.join(root, "src/app/page.tsx"))).toBe(true);
+  it("src/app/(main)/page.tsx가 존재한다", () => {
+    expect(fs.existsSync(path.join(root, "src/app/(main)/page.tsx"))).toBe(
+      true,
+    );
+  });
+
+  it("src/app/(main)/sessions/[id]/page.tsx가 존재한다", () => {
+    expect(
+      fs.existsSync(path.join(root, "src/app/(main)/sessions/[id]/page.tsx")),
+    ).toBe(true);
   });
 
   it("필수 디렉토리가 존재한다", () => {

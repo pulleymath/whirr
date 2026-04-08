@@ -4,6 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionList } from "@/components/session-list";
 import { getAllSessions } from "@/lib/db";
 
+const pathnameRef = vi.hoisted(() => ({ current: "/" as string }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => pathnameRef.current,
+}));
+
 vi.mock("@/lib/db", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/db")>();
   return {
@@ -18,6 +24,7 @@ afterEach(() => {
 
 describe("SessionList", () => {
   beforeEach(() => {
+    pathnameRef.current = "/";
     vi.mocked(getAllSessions).mockResolvedValue([]);
   });
 
@@ -52,6 +59,60 @@ describe("SessionList", () => {
 
     await waitFor(() => {
       expect(screen.getByText("hello preview")).toBeTruthy();
+    });
+  });
+
+  it("현재 경로와 id가 같으면 해당 링크에 aria-current=page가 있다", async () => {
+    vi.mocked(getAllSessions).mockResolvedValue([
+      {
+        id: "abc",
+        createdAt: new Date(2024, 5, 15, 14, 30, 0).getTime(),
+        text: "메모",
+      },
+    ]);
+    pathnameRef.current = "/sessions/abc";
+
+    render(<SessionList />);
+
+    await waitFor(() => {
+      const link = screen.getByRole("link");
+      expect(link.getAttribute("aria-current")).toBe("page");
+    });
+  });
+
+  it("홈 경로일 때 세션 링크에 aria-current가 없다", async () => {
+    pathnameRef.current = "/";
+    vi.mocked(getAllSessions).mockResolvedValue([
+      {
+        id: "x",
+        createdAt: new Date(2024, 5, 15, 9, 0, 0).getTime(),
+        text: "t",
+      },
+    ]);
+
+    render(<SessionList />);
+
+    await waitFor(() => {
+      const link = screen.getByRole("link");
+      expect(link.getAttribute("aria-current")).toBeNull();
+    });
+  });
+
+  it("활성 세션 링크에 포커스 링 클래스가 포함된다", async () => {
+    vi.mocked(getAllSessions).mockResolvedValue([
+      {
+        id: "abc",
+        createdAt: new Date(2024, 5, 15, 14, 30, 0).getTime(),
+        text: "메모",
+      },
+    ]);
+    pathnameRef.current = "/sessions/abc";
+
+    render(<SessionList />);
+
+    await waitFor(() => {
+      const link = screen.getByRole("link");
+      expect(link.className).toMatch(/focus-visible:ring/);
     });
   });
 

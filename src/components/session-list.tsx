@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { getAllSessions } from "@/lib/db";
 import {
   formatSessionListTime,
@@ -12,11 +13,16 @@ import {
   SESSION_LIST_PREVIEW_MAX,
 } from "@/lib/session-preview";
 
+function sessionHref(id: string): string {
+  return `/sessions/${encodeURIComponent(id)}`;
+}
+
 export type SessionListProps = {
   refreshTrigger?: number;
 };
 
 export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
+  const pathname = usePathname();
   const [groups, setGroups] = useState<ReturnType<typeof groupSessionsByDate>>(
     [],
   );
@@ -46,6 +52,18 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
     };
   }, [refreshTrigger]);
 
+  const pathnameDecoded = useMemo(() => {
+    if (!pathname?.startsWith("/sessions/")) {
+      return null;
+    }
+    const raw = pathname.slice("/sessions/".length);
+    try {
+      return decodeURIComponent(raw);
+    } catch {
+      return raw;
+    }
+  }, [pathname]);
+
   if (loading) {
     return (
       <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
@@ -61,38 +79,48 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
   }
 
   return (
-    <nav
-      aria-label="저장된 녹음 세션"
-      className="flex w-full max-w-md flex-col gap-6"
-    >
+    <nav aria-label="저장된 녹음 세션" className="flex w-full flex-col gap-5">
       {groups.map((g) => (
         <section key={g.dateKey} aria-labelledby={`session-day-${g.dateKey}`}>
           <h2
             id={`session-day-${g.dateKey}`}
-            className="mb-3 text-xs font-semibold tracking-wide text-zinc-500 dark:text-zinc-400"
+            className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500"
           >
             {g.label}
           </h2>
-          <ul className="flex flex-col gap-2">
+          <ul
+            className="flex flex-col border-t border-zinc-200/90 dark:border-zinc-700/80"
+            role="list"
+          >
             {g.sessions.map((s) => {
               const preview = previewSessionText(
                 s.text,
                 SESSION_LIST_PREVIEW_MAX,
               );
               const timeLabel = formatSessionListTime(s.createdAt);
+              const href = sessionHref(s.id);
+              const isActive = pathnameDecoded === s.id;
               return (
-                <li key={s.id}>
+                <li
+                  key={s.id}
+                  className="border-b border-zinc-200/90 last:border-b-0 dark:border-zinc-700/80"
+                >
                   <Link
-                    href={`/sessions/${encodeURIComponent(s.id)}`}
-                    className="block rounded-lg border border-zinc-200 bg-white p-4 shadow-sm transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-600"
+                    href={href}
+                    aria-current={isActive ? "page" : undefined}
+                    className={
+                      isActive
+                        ? "block bg-zinc-100/90 px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
+                        : "block px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-900/60"
+                    }
                     aria-label={`${timeLabel}, ${preview || "빈 전사"}`}
                   >
                     <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
                         {timeLabel}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm text-zinc-800 dark:text-zinc-200">
+                    <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
                       {preview || "—"}
                     </p>
                   </Link>

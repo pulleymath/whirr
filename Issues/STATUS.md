@@ -42,6 +42,10 @@
 
 - [✅ 완료] [메인 UI 셸 — 브랜딩, History, 전사·요약 탭](./feature-7-main-ui-shell/00_issue.md)
 
+### Feature 8: UI 개선 (History 스타일, 모션, 탭 일관성, sessions 레이아웃)
+
+- [✅ 완료] [UI 개선 — History 스타일, 모션, 탭 본문 일관성, sessions 공통 레이아웃](./feature-8-ui-refinement/00_issue.md)
+
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

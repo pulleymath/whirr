@@ -37,4 +37,9 @@ describe("TranscriptView", () => {
     const live = screen.getByTestId("transcript-partial");
     expect(live.getAttribute("aria-live")).toBe("polite");
   });
+
+  it("탭 본문 스캐폴드 tab-panel-body를 쓴다", () => {
+    render(<TranscriptView partial="" finals={[]} showHeading={false} />);
+    expect(screen.getByTestId("tab-panel-body")).toBeTruthy();
+  });
 });
