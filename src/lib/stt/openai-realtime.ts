@@ -4,6 +4,19 @@ import type { TranscriptionProvider } from "./types";
 export const OPENAI_REALTIME_TRANSCRIBE_MODEL =
   "gpt-4o-mini-transcribe-2025-12-15" as const;
 
+/**
+ * `language`는 ISO-639-1 하나만 지정 가능(다국어 화이트리스트 API 없음).
+ * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields
+ */
+export const OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE = "ko" as const;
+
+/**
+ * 모델이 허용할 언어 범위를 프롬프트로 보조(동작은 모델·버전에 따름).
+ * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields — transcription.prompt
+ */
+export const OPENAI_REALTIME_TRANSCRIPTION_PROMPT =
+  "Transcribe only in Korean or English. Do not output Japanese, Chinese, or other languages." as const;
+
 const REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 
 const DEFAULT_STOP_FLUSH_MS = 4_000;
@@ -107,7 +120,8 @@ export function openAiGaTranscriptionSession(): Record<string, unknown> {
         },
         transcription: {
           model: OPENAI_REALTIME_TRANSCRIBE_MODEL,
-          language: "ko",
+          language: OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
+          prompt: OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
         },
         turn_detection: {
           type: "server_vad",
