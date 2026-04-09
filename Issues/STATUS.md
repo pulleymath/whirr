@@ -56,7 +56,7 @@
 
 ### Feature 11: Web Speech API 전사 지원
 
-- [📝 할 일] [브라우저 내장 Web Speech API 기반 전사 모드](./feature-11-web-speech-api/00_issue.md)
+- [✅ 완료] [브라우저 내장 Web Speech API 기반 전사 모드](./feature-11-web-speech-api/00_issue.md)
 
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)

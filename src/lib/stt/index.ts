@@ -21,3 +21,5 @@ export function createOpenAiRealtimeProvider(
 ): TranscriptionProvider {
   return new OpenAIRealtimeProvider(token);
 }
+
+export { createWebSpeechProvider, isWebSpeechApiSupported } from "./web-speech";

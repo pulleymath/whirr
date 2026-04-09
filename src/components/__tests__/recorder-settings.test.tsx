@@ -9,6 +9,8 @@ const lastTranscriptionOptions = vi.hoisted(() => ({
   current: null as Record<string, unknown> | null,
 }));
 
+const isWebSpeechApiSupported = vi.hoisted(() => vi.fn(() => true));
+
 const prepareStreaming = vi.fn(async () => true);
 
 const startBlobRecording = vi.hoisted(() =>
@@ -24,6 +26,11 @@ const startBlobRecording = vi.hoisted(() =>
 vi.mock("@/lib/audio", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/audio")>();
   return { ...mod, startBlobRecording };
+});
+
+vi.mock("@/lib/stt", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/stt")>();
+  return { ...mod, isWebSpeechApiSupported };
 });
 
 vi.mock("@/hooks/use-transcription", () => ({
@@ -56,6 +63,7 @@ afterEach(() => {
   cleanup();
   localStorage.clear();
   lastTranscriptionOptions.current = null;
+  isWebSpeechApiSupported.mockReturnValue(true);
   vi.clearAllMocks();
 });
 
@@ -136,5 +144,66 @@ describe("Recorder + 설정", () => {
     });
     expect(prepareStreaming).not.toHaveBeenCalled();
     expect(startBlobRecording).toHaveBeenCalled();
+  });
+
+  it("webSpeechApi 모드이면 tokenlessProvider가 전달된다", async () => {
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ mode: "webSpeechApi", language: "ko" }),
+    );
+
+    render(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(lastTranscriptionOptions.current?.tokenlessProvider).toBeTypeOf(
+        "function",
+      );
+    });
+  });
+
+  it("webSpeechApi + 지원 브라우저면 녹음 시작 시 prepareStreaming을 호출한다", async () => {
+    isWebSpeechApiSupported.mockReturnValue(true);
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ mode: "webSpeechApi" }),
+    );
+
+    render(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+
+    await vi.waitFor(() => {
+      expect(prepareStreaming).toHaveBeenCalled();
+    });
+    expect(screen.queryByText(/이 브라우저에서는 Web Speech API/)).toBeNull();
+  });
+
+  it("webSpeechApi + 미지원 브라우저면 안내하고 prepareStreaming을 호출하지 않는다", async () => {
+    isWebSpeechApiSupported.mockReturnValue(false);
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ mode: "webSpeechApi" }),
+    );
+
+    render(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+
+    await vi.waitFor(() => {
+      expect(screen.getByText(/이 브라우저에서는 Web Speech API/)).toBeTruthy();
+    });
+    expect(prepareStreaming).not.toHaveBeenCalled();
   });
 });

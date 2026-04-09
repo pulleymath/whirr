@@ -1,3 +1,48 @@
+const WEB_SPEECH_ERROR_MESSAGES: Record<string, string> = {
+  "not-allowed":
+    "마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용해 주세요.",
+  "no-speech": "음성이 감지되지 않았습니다. 마이크를 확인해 주세요.",
+  "audio-capture": "마이크를 찾을 수 없습니다.",
+  network: "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해 주세요.",
+};
+
+const WEB_SPEECH_GENERIC = "음성 인식 중 오류가 발생했습니다." as const;
+
+/** Web Speech API `SpeechRecognitionErrorEvent.error` 코드 → UI 문구 */
+export function userFacingWebSpeechErrorCode(code: string): string {
+  return WEB_SPEECH_ERROR_MESSAGES[code] ?? WEB_SPEECH_GENERIC;
+}
+
+/** `no-speech` 반복 알림을 windowMs 안에서 한 번만 허용한다. */
+export function createWebSpeechNoSpeechDebouncer(windowMs: number) {
+  let lastReportAt = -Infinity;
+  return {
+    shouldReport(nowMs: number): boolean {
+      if (nowMs - lastReportAt < windowMs) {
+        return false;
+      }
+      lastReportAt = nowMs;
+      return true;
+    },
+    reset(): void {
+      lastReportAt = -Infinity;
+    },
+  };
+}
+
+export const WEB_SPEECH_ERROR_PREFIX = "WEB_SPEECH:" as const;
+
+export function formatWebSpeechProviderError(code: string): string {
+  return `${WEB_SPEECH_ERROR_PREFIX}${code}`;
+}
+
+export function parseWebSpeechProviderError(message: string): string | null {
+  if (!message.startsWith(WEB_SPEECH_ERROR_PREFIX)) {
+    return null;
+  }
+  return message.slice(WEB_SPEECH_ERROR_PREFIX.length);
+}
+
 /**
  * STT 관련 내부/업스트림 메시지를 UI용 한국어 문구로 정규화한다.
  * 알 수 없는 문자열은 일반 문구로만 노출한다.

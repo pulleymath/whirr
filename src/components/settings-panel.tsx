@@ -2,6 +2,8 @@
 
 import { useSettings } from "@/lib/settings/context";
 import type { RealtimeEngine, TranscriptionMode } from "@/lib/settings/types";
+import { isWebSpeechApiSupported } from "@/lib/stt";
+import { useSyncExternalStore } from "react";
 
 export type SettingsPanelProps = {
   open: boolean;
@@ -27,7 +29,7 @@ const MODE_OPTIONS: {
   {
     value: "webSpeechApi",
     label: "Web Speech API",
-    hint: "브라우저 내장 음성 인식을 사용합니다.",
+    hint: "브라우저 내장 음성 인식을 사용합니다. 일부 환경(예: Chrome)에서는 음성이 클라우드로 전송될 수 있으며, 입력 레벨 미터용으로 별도 마이크 캡처가 함께 동작할 수 있습니다.",
   },
 ];
 
@@ -59,6 +61,11 @@ export function SettingsPanel({
   isRecording,
 }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettings();
+  const webSpeechSupported = useSyncExternalStore(
+    () => () => {},
+    () => isWebSpeechApiSupported(),
+    () => true,
+  );
 
   if (!open) {
     return null;
@@ -66,6 +73,7 @@ export function SettingsPanel({
 
   const disabled = isRecording;
   const autoLanguageDisabled = settings.mode !== "batch" || disabled;
+  const webSpeechOptionDisabled = disabled || !webSpeechSupported;
 
   return (
     <div
@@ -115,38 +123,59 @@ export function SettingsPanel({
             <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
               전사 모드
             </legend>
-            {MODE_OPTIONS.map((opt) => (
-              <label
-                key={opt.value}
-                className="flex cursor-pointer gap-3 rounded-lg border border-transparent p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
-              >
-                <input
-                  type="radio"
-                  name="transcription-mode"
-                  value={opt.value}
-                  checked={settings.mode === opt.value}
-                  onChange={() => {
-                    const nextMode = opt.value;
-                    updateSettings({
-                      mode: nextMode,
-                      ...(settings.language === "auto" && nextMode !== "batch"
-                        ? { language: "ko" }
-                        : {}),
-                    });
-                  }}
-                  className="mt-1"
-                  data-testid={`mode-${opt.value}`}
-                />
-                <span>
-                  <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                    {opt.label}
+            {MODE_OPTIONS.map((opt) => {
+              const isWebSpeech = opt.value === "webSpeechApi";
+              const optionDisabled =
+                opt.value === "webSpeechApi"
+                  ? webSpeechOptionDisabled
+                  : disabled;
+              return (
+                <label
+                  key={opt.value}
+                  className={`flex gap-3 rounded-lg border border-transparent p-2 ${
+                    optionDisabled
+                      ? "cursor-not-allowed opacity-60"
+                      : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="transcription-mode"
+                    value={opt.value}
+                    checked={settings.mode === opt.value}
+                    disabled={optionDisabled}
+                    aria-disabled={optionDisabled}
+                    onChange={() => {
+                      const nextMode = opt.value;
+                      updateSettings({
+                        mode: nextMode,
+                        ...(settings.language === "auto" && nextMode !== "batch"
+                          ? { language: "ko" }
+                          : {}),
+                      });
+                    }}
+                    className="mt-1"
+                    data-testid={`mode-${opt.value}`}
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
+                      {opt.label}
+                      {isWebSpeech && !webSpeechSupported ? (
+                        <span
+                          className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400"
+                          data-testid="web-speech-unsupported-hint"
+                        >
+                          (이 브라우저에서 지원되지 않습니다)
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
+                      {opt.hint}
+                    </span>
                   </span>
-                  <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                    {opt.hint}
-                  </span>
-                </span>
-              </label>
-            ))}
+                </label>
+              );
+            })}
           </fieldset>
 
           {settings.mode === "realtime" ? (

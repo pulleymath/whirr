@@ -21,6 +21,8 @@ import { useSettings } from "@/lib/settings/context";
 import {
   createAssemblyAiRealtimeProvider,
   createOpenAiRealtimeProvider,
+  createWebSpeechProvider,
+  isWebSpeechApiSupported,
 } from "@/lib/stt";
 
 export type RecorderProps = {
@@ -65,6 +67,11 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   });
 
   const transcriptionOptions = useMemo(() => {
+    if (settings.mode === "webSpeechApi") {
+      return {
+        tokenlessProvider: () => createWebSpeechProvider(settings.language),
+      };
+    }
     if (settings.realtimeEngine === "assemblyai") {
       return {
         createProvider: createAssemblyAiRealtimeProvider,
@@ -75,7 +82,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       createProvider: createOpenAiRealtimeProvider,
       useAssemblyAiPcmFraming: false as const,
     };
-  }, [settings.realtimeEngine]);
+  }, [settings.mode, settings.realtimeEngine, settings.language]);
 
   const {
     partial,
@@ -141,7 +148,17 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       summarizeTimerRef.current = null;
     }
     if (settings.mode === "webSpeechApi") {
-      setUnsupportedModeMessage("아직 지원되지 않는 모드입니다.");
+      if (!isWebSpeechApiSupported()) {
+        setUnsupportedModeMessage(
+          "이 브라우저에서는 Web Speech API를 사용할 수 없습니다.",
+        );
+        return;
+      }
+      const ok = await prepareStreaming();
+      if (!ok) {
+        return;
+      }
+      await startRecording();
       return;
     }
     if (settings.mode === "batch") {

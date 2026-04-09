@@ -35,7 +35,7 @@
 - **상태**: 전사 모드·실시간 엔진·일괄 모델·언어는 **React Context**(`SettingsProvider`)로 보관하고, 브라우저 **`localStorage`** 키 `whirr:transcription-settings`에 JSON으로 영속화한다.
 - **SSR**: 저장소 읽기는 **마운트 이후**에만 수행해 서버 렌더와 하이드레이션 오류를 피한다.
 - **일괄 전사(batch)**: 브라우저 `MediaRecorder`로 webm/opus 등 **임시 Blob**만 메모리에 둔 뒤 `POST /api/stt/transcribe`가 OpenAI **REST 전사**로 프록시한다. 오디오 원본은 앱·서버에 장기 보관하지 않으며, 업로드 한도에 맞춰 **약 1시간**을 소프트(55분)·하드(60분) 타이머로 안내·자동 종료한다. **서버는 허용 모델 ID 화이트리스트**로만 업스트림을 호출한다.
-- **`webSpeechApi`**: 아직 제품 경로에 연결하지 않는다.
+- **`webSpeechApi`**: 브라우저 **Web Speech API**(`SpeechRecognition`)로 전사한다. API 키·토큰 없이 동작하나, 브라우저·OS에 따라 품질이 들쭉날쭉하고(Chrome은 클라우드 전사 경유 가능) 외부 STT 대비 기능이 제한된다. `TranscriptionProvider`와 동일한 부분/최종 콜백으로 UI에 붙인다.
 - **원칙**: 저장값(`batchModel` 등)이 임의 문자열이 될 수 있으므로, **서버 API에 넘긴 뒤**에도 허용 목록으로 다시 검증한다.
 
 ## 과거 검토(요지)

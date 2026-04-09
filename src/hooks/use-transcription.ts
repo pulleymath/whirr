@@ -4,12 +4,20 @@ import {
   createOpenAiRealtimeProvider,
   type TranscriptionProvider,
 } from "@/lib/stt";
-import { userFacingSttError } from "@/lib/stt/user-facing-error";
+import {
+  parseWebSpeechProviderError,
+  userFacingSttError,
+  userFacingWebSpeechErrorCode,
+} from "@/lib/stt/user-facing-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type UseTranscriptionOptions = {
   fetchToken?: () => Promise<string>;
   createProvider?: (token: string) => TranscriptionProvider;
+  /**
+   * 토큰 없이 STT에 연결할 때. **현재 제품에서는 Web Speech API 전용**이며, Provider는 `Error.message`에 `WEB_SPEECH:` 접두 오류 코드를 올리는 것을 전제로 훅이 사용자 문구를 매핑한다.
+   */
+  tokenlessProvider?: () => TranscriptionProvider;
   /**
    * true면 AssemblyAI Universal Streaming용 50–1000ms PCM 프레이밍을 적용한다.
    * OpenAI Realtime(기본)은 passthrough로 청크를 그대로 보낸다.
@@ -133,6 +141,38 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     disconnectProvider();
     pcmChunkCountRef.current = 0;
     pcmPendingRef.current = new Uint8Array(0);
+
+    const tokenless = options?.tokenlessProvider;
+    if (tokenless) {
+      try {
+        const provider = tokenless();
+        providerRef.current = provider;
+        await provider.connect(
+          (text) => setPartial(text),
+          (text) => {
+            setFinals((prev) => [...prev, text]);
+            setPartial("");
+          },
+          (err) => {
+            console.error("[transcription] provider error:", err);
+            const code = parseWebSpeechProviderError(err.message);
+            setErrorMessage(
+              code !== null
+                ? userFacingWebSpeechErrorCode(code)
+                : userFacingSttError(err.message),
+            );
+            disconnectProvider();
+          },
+        );
+        return true;
+      } catch (e) {
+        const raw = e instanceof Error ? e.message : "Unknown error";
+        setErrorMessage(userFacingSttError(raw));
+        disconnectProvider();
+        return false;
+      }
+    }
+
     try {
       const token = await fetchToken();
       const provider = createProvider(token);
@@ -156,7 +196,12 @@ export function useTranscription(options?: UseTranscriptionOptions) {
       disconnectProvider();
       return false;
     }
-  }, [createProvider, disconnectProvider, fetchToken]);
+  }, [
+    createProvider,
+    disconnectProvider,
+    fetchToken,
+    options?.tokenlessProvider,
+  ]);
 
   const sendPcm = useCallback(
     (buf: ArrayBuffer) => {

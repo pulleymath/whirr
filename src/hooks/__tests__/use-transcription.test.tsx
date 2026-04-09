@@ -159,6 +159,70 @@ describe("useTranscription", () => {
     expect((sendAudio.mock.calls[0]![0] as ArrayBuffer).byteLength).toBe(1600);
   });
 
+  it("tokenlessProvider가 있으면 fetchToken·createProvider 없이 연결된다", async () => {
+    const fetchToken = vi.fn();
+    const createProvider = vi.fn();
+    let onError: (e: Error) => void = () => {};
+    const mockProvider: TranscriptionProvider = {
+      connect: async (_op, _of, oe) => {
+        onError = oe;
+      },
+      sendAudio: vi.fn(),
+      stop: vi.fn().mockResolvedValue(undefined),
+      disconnect: vi.fn(),
+    };
+    const tokenlessProvider = vi.fn(() => mockProvider);
+
+    const { result } = renderHook(() =>
+      useTranscription({ fetchToken, createProvider, tokenlessProvider }),
+    );
+
+    await act(async () => {
+      expect(await result.current.prepareStreaming()).toBe(true);
+    });
+
+    expect(fetchToken).not.toHaveBeenCalled();
+    expect(createProvider).not.toHaveBeenCalled();
+    expect(tokenlessProvider).toHaveBeenCalled();
+
+    act(() => {
+      onError(new Error("WEB_SPEECH:network"));
+    });
+
+    await waitFor(() => {
+      expect(result.current.errorMessage).toBe(
+        "네트워크 오류가 발생했습니다. 인터넷 연결을 확인해 주세요.",
+      );
+    });
+  });
+
+  it("tokenless 경로에서 finalizeStreaming이 stop·disconnect를 호출한다", async () => {
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const disconnect = vi.fn();
+    const mockProvider: TranscriptionProvider = {
+      connect: async () => {},
+      sendAudio: vi.fn(),
+      stop,
+      disconnect,
+    };
+    const { result } = renderHook(() =>
+      useTranscription({
+        tokenlessProvider: () => mockProvider,
+      }),
+    );
+
+    await act(async () => {
+      expect(await result.current.prepareStreaming()).toBe(true);
+    });
+
+    await act(async () => {
+      await result.current.finalizeStreaming();
+    });
+
+    expect(stop).toHaveBeenCalled();
+    expect(disconnect).toHaveBeenCalled();
+  });
+
   it("언마운트 시 disconnect를 호출한다", async () => {
     const disconnect = vi.fn();
     const mockProvider: TranscriptionProvider = {
