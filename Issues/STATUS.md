@@ -52,7 +52,7 @@
 
 ### Feature 10: 녹음 후 일괄 전사 (Batch Transcription)
 
-- [📝 할 일] [MediaRecorder + Whisper REST API 기반 녹음 후 전사 모드](./feature-10-batch-transcription/00_issue.md)
+- [✅ 완료] [MediaRecorder + Whisper REST API 기반 녹음 후 전사 모드](./feature-10-batch-transcription/00_issue.md)
 
 ### Feature 11: Web Speech API 전사 지원
 

@@ -106,3 +106,100 @@ export async function startPcmRecording(
 
   return { stop, analyser };
 }
+
+const PREFERRED_WEBM_MIME = "audio/webm;codecs=opus";
+const FALLBACK_WEBM_MIME = "audio/webm";
+
+export function pickWebmRecordingMimeType(): string {
+  if (
+    typeof MediaRecorder !== "undefined" &&
+    MediaRecorder.isTypeSupported(PREFERRED_WEBM_MIME)
+  ) {
+    return PREFERRED_WEBM_MIME;
+  }
+  return FALLBACK_WEBM_MIME;
+}
+
+export interface BlobRecordingSession {
+  stop: () => Promise<Blob>;
+  analyser: AnalyserNode;
+}
+
+/**
+ * MediaRecorder로 압축 오디오(webm/opus 우선)를 녹음합니다.
+ * PCM 경로 `startPcmRecording`과 별도로 동작합니다.
+ */
+export async function startBlobRecording(): Promise<BlobRecordingSession> {
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  });
+
+  const mimeType = pickWebmRecordingMimeType();
+  const ctx = new AudioContext();
+  const source = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser();
+  analyser.fftSize = 256;
+  analyser.smoothingTimeConstant = 0.4;
+  source.connect(analyser);
+
+  const chunks: BlobPart[] = [];
+  let recorder: MediaRecorder;
+  try {
+    recorder = new MediaRecorder(stream, { mimeType });
+  } catch (err) {
+    stream.getTracks().forEach((t) => t.stop());
+    await ctx.close().catch(() => {});
+    throw err;
+  }
+
+  recorder.ondataavailable = (ev: BlobEvent) => {
+    if (ev.data && ev.data.size > 0) {
+      chunks.push(ev.data);
+    }
+  };
+
+  try {
+    recorder.start();
+  } catch (err) {
+    stream.getTracks().forEach((t) => t.stop());
+    await ctx.close().catch(() => {});
+    throw err;
+  }
+
+  if (ctx.state === "suspended") {
+    await ctx.resume();
+  }
+
+  const stop = async (): Promise<Blob> => {
+    await new Promise<void>((resolve, reject) => {
+      if (recorder.state === "inactive") {
+        resolve();
+        return;
+      }
+      recorder.addEventListener("stop", () => resolve(), { once: true });
+      recorder.addEventListener(
+        "error",
+        () => reject(new Error("MediaRecorder error")),
+        { once: true },
+      );
+      try {
+        recorder.stop();
+      } catch (e) {
+        reject(e);
+      }
+    });
+
+    stream.getTracks().forEach((t) => t.stop());
+    source.disconnect();
+    analyser.disconnect();
+    await ctx.close().catch(() => {});
+
+    return new Blob(chunks, { type: mimeType || FALLBACK_WEBM_MIME });
+  };
+
+  return { stop, analyser };
+}

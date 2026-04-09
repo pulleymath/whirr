@@ -11,6 +11,21 @@ const lastTranscriptionOptions = vi.hoisted(() => ({
 
 const prepareStreaming = vi.fn(async () => true);
 
+const startBlobRecording = vi.hoisted(() =>
+  vi.fn(async () => ({
+    analyser: {
+      frequencyBinCount: 128,
+      getByteTimeDomainData: vi.fn(),
+    },
+    stop: vi.fn(async () => new Blob([], { type: "audio/webm" })),
+  })),
+);
+
+vi.mock("@/lib/audio", async (importOriginal) => {
+  const mod = await importOriginal<typeof import("@/lib/audio")>();
+  return { ...mod, startBlobRecording };
+});
+
 vi.mock("@/hooks/use-transcription", () => ({
   useTranscription: (opts?: Record<string, unknown>) => {
     lastTranscriptionOptions.current = opts ?? null;
@@ -92,7 +107,7 @@ describe("Recorder + 설정", () => {
     });
   });
 
-  it("batch 모드면 미지원 메시지를 보이고 prepareStreaming을 호출하지 않는다", async () => {
+  it("batch 모드면 prepareStreaming 없이 배치 녹음을 시작한다", async () => {
     localStorage.setItem(
       SETTINGS_STORAGE_KEY,
       JSON.stringify({ mode: "batch" }),
@@ -115,8 +130,11 @@ describe("Recorder + 설정", () => {
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
     await vi.waitFor(() => {
-      expect(screen.getByText(/아직 지원되지 않는 모드/)).toBeTruthy();
+      expect(
+        screen.getByText(/녹음 중입니다\. 녹음을 종료하면 전사가 시작됩니다/),
+      ).toBeTruthy();
     });
     expect(prepareStreaming).not.toHaveBeenCalled();
+    expect(startBlobRecording).toHaveBeenCalled();
   });
 });

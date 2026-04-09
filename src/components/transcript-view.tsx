@@ -6,6 +6,10 @@ type TranscriptViewProps = {
   errorMessage?: string | null;
   /** false면 내부「전사」제목을 숨긴다(탭 레이블과 중복 방지). */
   showHeading?: boolean;
+  /** partial·finals가 비었을 때 기본 안내 대신 표시할 문구(예: 배치 녹음 중 안내) */
+  emptyStateHint?: string | null;
+  /** 설정 시 상단 영역에 로딩 문구를 표시한다(예: 일괄 전사 중) */
+  loadingMessage?: string | null;
 };
 
 export function TranscriptView({
@@ -13,6 +17,8 @@ export function TranscriptView({
   finals,
   errorMessage,
   showHeading = true,
+  emptyStateHint = null,
+  loadingMessage = null,
 }: TranscriptViewProps) {
   const hasContent = finals.length > 0 || partial.length > 0;
 
@@ -40,13 +46,23 @@ export function TranscriptView({
           aria-atomic="true"
           data-testid="transcript-partial"
         >
-          {partial ? (
+          {loadingMessage ? (
+            <span
+              className="text-zinc-600 dark:text-zinc-400"
+              role="status"
+              data-testid="transcript-loading"
+            >
+              {loadingMessage}
+            </span>
+          ) : partial ? (
             <span className="italic text-zinc-600 dark:text-zinc-400">
               {partial}
             </span>
           ) : (
             <span className="text-zinc-400 dark:text-zinc-500">
-              {hasContent ? "" : "녹음을 시작하면 전사가 표시됩니다."}
+              {hasContent
+                ? ""
+                : (emptyStateHint ?? "녹음을 시작하면 전사가 표시됩니다.")}
             </span>
           )}
         </div>

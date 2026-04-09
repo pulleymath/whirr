@@ -11,6 +11,17 @@ export function userFacingSttError(raw: string): string {
       return "음성 인식을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.";
     case "Too many STT token requests":
       return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+    case "STT transcription service unavailable":
+      return "일괄 전사 서비스가 설정되지 않았습니다. 관리자에게 문의하세요.";
+    case "Failed to transcribe audio":
+    case "Invalid transcription response":
+      return "녹음 전사에 실패했습니다. 잠시 후 다시 시도해 주세요.";
+    case "Audio file too large":
+      return "녹음 파일이 너무 큽니다. 더 짧게 녹음해 주세요.";
+    case "Unsupported audio type":
+      return "지원하지 않는 오디오 형식입니다.";
+    case "Unsupported transcription model":
+      return "지원하지 않는 전사 모델입니다.";
     case "WebSocket connection failed":
       return "음성 인식 서버에 연결하지 못했습니다. 네트워크를 확인해 주세요.";
     case "Invalid WebSocket message":

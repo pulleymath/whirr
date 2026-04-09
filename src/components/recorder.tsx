@@ -7,6 +7,7 @@ import {
   type SummaryTabUiState,
 } from "@/components/summary-tab-panel";
 import { TranscriptView } from "@/components/transcript-view";
+import { useBatchTranscription } from "@/hooks/use-batch-transcription";
 import {
   formatElapsed,
   useRecorder,
@@ -32,6 +33,7 @@ function deriveSummaryTabState(
   recorderStatus: RecorderStatus,
   afterSave: SummaryAfterSave,
   summaryError: string | null,
+  batchRecording: boolean,
 ): SummaryTabUiState {
   if (summaryError) {
     return "error";
@@ -42,7 +44,7 @@ function deriveSummaryTabState(
   if (afterSave === "complete") {
     return "complete";
   }
-  if (recorderStatus === "recording") {
+  if (recorderStatus === "recording" || batchRecording) {
     return "recording";
   }
   return "idle";
@@ -51,6 +53,16 @@ function deriveSummaryTabState(
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const { settings } = useSettings();
   const { setIsRecording } = useRecordingActivity();
+  const isBatchMode = settings.mode === "batch";
+
+  const {
+    startRecording: startBatchRecording,
+    stopAndTranscribe: stopBatchTranscribe,
+    ...batch
+  } = useBatchTranscription({
+    model: settings.batchModel,
+    language: settings.language,
+  });
 
   const transcriptionOptions = useMemo(() => {
     if (settings.realtimeEngine === "assemblyai") {
@@ -88,11 +100,14 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   >(null);
 
   useEffect(() => {
-    setIsRecording(status === "recording");
+    const recording = isBatchMode
+      ? batch.status === "recording"
+      : status === "recording";
+    setIsRecording(recording);
     return () => {
       setIsRecording(false);
     };
-  }, [status, setIsRecording]);
+  }, [batch.status, isBatchMode, setIsRecording, status]);
 
   const [afterSave, setAfterSave] = useState<SummaryAfterSave>("none");
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -125,8 +140,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       clearTimeout(summarizeTimerRef.current);
       summarizeTimerRef.current = null;
     }
-    if (settings.mode !== "realtime") {
+    if (settings.mode === "webSpeechApi") {
       setUnsupportedModeMessage("아직 지원되지 않는 모드입니다.");
+      return;
+    }
+    if (settings.mode === "batch") {
+      await startBatchRecording();
       return;
     }
     const ok = await prepareStreaming();
@@ -134,40 +153,88 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       return;
     }
     await startRecording();
-  }, [prepareStreaming, settings.mode, startRecording]);
+  }, [prepareStreaming, settings.mode, startBatchRecording, startRecording]);
+
+  const persistAfterTranscript = useCallback(
+    async (trimmed: string) => {
+      if (!trimmed) {
+        return;
+      }
+      try {
+        const id = await saveSession(trimmed);
+        onSessionSaved?.(id);
+        setAfterSave("summarizing");
+        setPlaceholderSummary(
+          "이번 세션 요약(플레이스홀더): 핵심 논점이 여기에 표시됩니다.",
+        );
+        if (summarizeTimerRef.current) {
+          clearTimeout(summarizeTimerRef.current);
+        }
+        summarizeTimerRef.current = setTimeout(() => {
+          setAfterSave("complete");
+          summarizeTimerRef.current = null;
+        }, 400);
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[session-storage] save failed:", msg);
+        setSummaryError("세션을 저장하지 못했습니다.");
+      }
+    },
+    [onSessionSaved],
+  );
 
   const stop = useCallback(async () => {
+    if (settings.mode === "batch") {
+      const text = await stopBatchTranscribe();
+      const trimmed = (text ?? "").trim();
+      await persistAfterTranscript(trimmed);
+      return;
+    }
+
     try {
       await stopRecording();
     } finally {
       const snapshot = buildSessionText(finalsRef.current, partialRef.current);
       await finalizeStreaming();
       const trimmed = snapshot.trim();
-      if (trimmed) {
-        try {
-          const id = await saveSession(trimmed);
-          onSessionSaved?.(id);
-          setAfterSave("summarizing");
-          setPlaceholderSummary(
-            "이번 세션 요약(플레이스홀더): 핵심 논점이 여기에 표시됩니다.",
-          );
-          if (summarizeTimerRef.current) {
-            clearTimeout(summarizeTimerRef.current);
-          }
-          summarizeTimerRef.current = setTimeout(() => {
-            setAfterSave("complete");
-            summarizeTimerRef.current = null;
-          }, 400);
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e);
-          console.error("[session-storage] save failed:", msg);
-          setSummaryError("세션을 저장하지 못했습니다.");
-        }
-      }
+      await persistAfterTranscript(trimmed);
     }
-  }, [finalizeStreaming, onSessionSaved, stopRecording]);
+  }, [
+    finalizeStreaming,
+    persistAfterTranscript,
+    settings.mode,
+    stopBatchTranscribe,
+    stopRecording,
+  ]);
 
-  const summaryUiState = deriveSummaryTabState(status, afterSave, summaryError);
+  const summaryUiState = deriveSummaryTabState(
+    status,
+    afterSave,
+    summaryError,
+    isBatchMode && batch.status === "recording",
+  );
+
+  const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;
+  const displayLevel = isBatchMode ? batch.level : level;
+  const batchTranscribing = isBatchMode && batch.status === "transcribing";
+  const showStop = isBatchMode
+    ? batch.status === "recording"
+    : status === "recording";
+  const showStart = !showStop && !batchTranscribing;
+
+  const transcriptPartial = isBatchMode ? "" : partial;
+  const transcriptFinals =
+    isBatchMode && batch.transcript
+      ? [batch.transcript]
+      : isBatchMode
+        ? []
+        : finals;
+  const transcriptError = isBatchMode ? batch.errorMessage : sttError;
+  const batchRecordingHint =
+    isBatchMode && batch.status === "recording"
+      ? "녹음 중입니다. 녹음을 종료하면 전사가 시작됩니다."
+      : null;
+  const batchLoadingMessage = batchTranscribing ? "전사 중..." : null;
 
   return (
     <div
@@ -181,10 +248,10 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       >
         <div className="flex items-center justify-between gap-3">
           <p className="font-mono text-2xl tabular-nums text-zinc-900 dark:text-zinc-50">
-            {formatElapsed(elapsedMs)}
+            {formatElapsed(displayElapsedMs)}
           </p>
           <div className="flex gap-2">
-            {status !== "recording" ? (
+            {showStart ? (
               <button
                 type="button"
                 onClick={() => void start()}
@@ -193,7 +260,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
               >
                 녹음 시작
               </button>
-            ) : (
+            ) : showStop ? (
               <button
                 type="button"
                 onClick={() => void stop()}
@@ -202,7 +269,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
               >
                 중지
               </button>
-            )}
+            ) : null}
           </div>
         </div>
 
@@ -215,15 +282,24 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             role="meter"
             aria-valuemin={0}
             aria-valuemax={100}
-            aria-valuenow={Math.round(level * 100)}
+            aria-valuenow={Math.round(displayLevel * 100)}
             aria-label="마이크 레벨"
           >
             <div
               className="h-full rounded-full bg-emerald-500 transition-[width] duration-75 ease-out"
-              style={{ width: `${Math.round(level * 100)}%` }}
+              style={{ width: `${Math.round(displayLevel * 100)}%` }}
             />
           </div>
         </div>
+
+        {isBatchMode && batch.softLimitMessage ? (
+          <p
+            className="text-sm text-amber-700 dark:text-amber-300"
+            role="status"
+          >
+            {batch.softLimitMessage}
+          </p>
+        ) : null}
 
         {unsupportedModeMessage ? (
           <p
@@ -243,10 +319,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       <MainTranscriptTabs
         transcriptPanel={
           <TranscriptView
-            partial={partial}
-            finals={finals}
-            errorMessage={sttError}
+            partial={transcriptPartial}
+            finals={transcriptFinals}
+            errorMessage={transcriptError}
             showHeading={false}
+            emptyStateHint={batchRecordingHint}
+            loadingMessage={batchLoadingMessage}
           />
         }
         summaryPanel={
