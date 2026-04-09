@@ -1,6 +1,7 @@
 /** @vitest-environment happy-dom */
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { getAllSessions } from "@/lib/db";
 import { HomePageShell } from "../home-page-shell";
 
@@ -43,7 +44,16 @@ vi.mock("@/hooks/use-recorder", () => ({
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
+
+function renderHome() {
+  return render(
+    <MainAppProviders>
+      <HomePageShell />
+    </MainAppProviders>,
+  );
+}
 
 describe("HomePageShell", () => {
   beforeEach(() => {
@@ -52,13 +62,17 @@ describe("HomePageShell", () => {
   });
 
   it("History 트리거로 drawer를 연 뒤 pathname이 바뀌면 drawer가 닫힌다", async () => {
-    const { rerender } = render(<HomePageShell />);
+    const { rerender } = renderHome();
 
     fireEvent.click(screen.getByRole("button", { name: "History 열기" }));
     expect(screen.getByRole("dialog")).toBeTruthy();
 
     pathnameRef.current = "/sessions/test-id";
-    rerender(<HomePageShell />);
+    rerender(
+      <MainAppProviders>
+        <HomePageShell />
+      </MainAppProviders>,
+    );
 
     await vi.waitFor(
       () => {
@@ -69,7 +83,7 @@ describe("HomePageShell", () => {
   });
 
   it("햄버거 트리거는 md:hidden 클래스로 데스크톱에서 숨김 처리된다", () => {
-    render(<HomePageShell />);
+    renderHome();
     const trigger = screen.getByRole("button", { name: "History 열기" });
     expect(trigger.className).toMatch(/md:hidden/);
   });

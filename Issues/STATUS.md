@@ -46,6 +46,18 @@
 
 - [✅ 완료] [UI 개선 — History 스타일, 모션, 탭 본문 일관성, sessions 공통 레이아웃](./feature-8-ui-refinement/00_issue.md)
 
+### Feature 9: 설정(Settings) 인프라 및 UI
+
+- [✅ 완료] [설정 Context, 헤더 설정 버튼, 전사 모드·모델 선택 패널](./feature-9-settings-ui/00_issue.md)
+
+### Feature 10: 녹음 후 일괄 전사 (Batch Transcription)
+
+- [📝 할 일] [MediaRecorder + Whisper REST API 기반 녹음 후 전사 모드](./feature-10-batch-transcription/00_issue.md)
+
+### Feature 11: Web Speech API 전사 지원
+
+- [📝 할 일] [브라우저 내장 Web Speech API 기반 전사 모드](./feature-11-web-speech-api/00_issue.md)
+
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

@@ -1,0 +1,40 @@
+import { describe, expect, it } from "vitest";
+import {
+  DEFAULT_TRANSCRIPTION_SETTINGS,
+  parseTranscriptionSettings,
+} from "../types";
+
+describe("parseTranscriptionSettings", () => {
+  it("undefined면 전 필드 기본값", () => {
+    expect(parseTranscriptionSettings(undefined)).toEqual(
+      DEFAULT_TRANSCRIPTION_SETTINGS,
+    );
+  });
+
+  it("부분 객체면 나머지는 기본값 유지", () => {
+    expect(parseTranscriptionSettings({ mode: "batch" })).toEqual({
+      ...DEFAULT_TRANSCRIPTION_SETTINGS,
+      mode: "batch",
+    });
+  });
+
+  it("잘못된 mode 문자열은 기본값 realtime", () => {
+    expect(parseTranscriptionSettings({ mode: "nope" })).toMatchObject({
+      mode: "realtime",
+    });
+  });
+
+  it("잘못된 realtimeEngine은 기본값 openai", () => {
+    expect(
+      parseTranscriptionSettings({ realtimeEngine: "other" }),
+    ).toMatchObject({
+      realtimeEngine: "openai",
+    });
+  });
+
+  it("빈 batchModel 문자열은 무시하고 기본값", () => {
+    expect(parseTranscriptionSettings({ batchModel: "" })).toMatchObject({
+      batchModel: DEFAULT_TRANSCRIPTION_SETTINGS.batchModel,
+    });
+  });
+});

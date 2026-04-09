@@ -1,11 +1,21 @@
 /** @vitest-environment happy-dom */
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { Recorder } from "../recorder";
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
+
+function renderRecorder() {
+  return render(
+    <MainAppProviders>
+      <Recorder />
+    </MainAppProviders>,
+  );
+}
 
 const callOrder: string[] = [];
 
@@ -67,7 +77,7 @@ describe("Recorder STT 통합", () => {
   });
 
   it("녹음 시작 시 prepareStreaming 후 녹음이 시작된다", async () => {
-    render(<Recorder />);
+    renderRecorder();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
@@ -77,7 +87,7 @@ describe("Recorder STT 통합", () => {
   });
 
   it("PCM 청크가 sendPcm으로 전달된다", async () => {
-    render(<Recorder />);
+    renderRecorder();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
@@ -87,14 +97,18 @@ describe("Recorder STT 통합", () => {
   });
 
   it("녹음 중지 시 stopRecording 후 finalizeStreaming이 호출된다", async () => {
-    const { rerender } = render(<Recorder />);
+    const { rerender } = renderRecorder();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
     await vi.waitFor(() => {
       expect(callOrder).toEqual(["prepareStreaming", "startRecording"]);
     });
 
-    rerender(<Recorder />);
+    rerender(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
     expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
 
     callOrder.length = 0;

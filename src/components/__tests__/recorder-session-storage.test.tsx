@@ -1,8 +1,14 @@
 /** @vitest-environment happy-dom */
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { saveSession } from "@/lib/db";
 import { Recorder } from "../recorder";
+
+function wrapRecorder(ui: ReactElement) {
+  return <MainAppProviders>{ui}</MainAppProviders>;
+}
 
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "saved-id"),
@@ -10,6 +16,7 @@ vi.mock("@/lib/db", () => ({
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
 
 const callOrder: string[] = [];
@@ -83,7 +90,7 @@ describe("Recorder 세션 저장", () => {
   });
 
   it("중지 시 전사 스냅샷이 비어 있지 않으면 saveSession을 한 번 호출한다", async () => {
-    const { rerender } = render(<Recorder />);
+    const { rerender } = render(wrapRecorder(<Recorder />));
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
     await vi.waitFor(() => {
@@ -92,7 +99,7 @@ describe("Recorder 세션 저장", () => {
 
     transcriptionState.finals = ["hello"];
     transcriptionState.partial = " world";
-    rerender(<Recorder />);
+    rerender(wrapRecorder(<Recorder />));
 
     callOrder.length = 0;
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
@@ -106,7 +113,7 @@ describe("Recorder 세션 저장", () => {
   });
 
   it("finals와 partial이 모두 비어 있으면 saveSession을 호출하지 않는다", async () => {
-    const { rerender } = render(<Recorder />);
+    const { rerender } = render(wrapRecorder(<Recorder />));
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
     await vi.waitFor(() => {
@@ -115,7 +122,7 @@ describe("Recorder 세션 저장", () => {
 
     transcriptionState.finals = [];
     transcriptionState.partial = "";
-    rerender(<Recorder />);
+    rerender(wrapRecorder(<Recorder />));
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
     await vi.waitFor(() => {
@@ -127,7 +134,9 @@ describe("Recorder 세션 저장", () => {
 
   it("onSessionSaved는 saveSession 성공 후 id와 함께 호출된다", async () => {
     const onSessionSaved = vi.fn();
-    const { rerender } = render(<Recorder onSessionSaved={onSessionSaved} />);
+    const { rerender } = render(
+      wrapRecorder(<Recorder onSessionSaved={onSessionSaved} />),
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
     await vi.waitFor(() => {
@@ -136,7 +145,7 @@ describe("Recorder 세션 저장", () => {
 
     transcriptionState.finals = ["hi"];
     transcriptionState.partial = "";
-    rerender(<Recorder onSessionSaved={onSessionSaved} />);
+    rerender(wrapRecorder(<Recorder onSessionSaved={onSessionSaved} />));
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
     await vi.waitFor(() => {

@@ -1,10 +1,12 @@
 /** @vitest-environment happy-dom */
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { Recorder } from "../recorder";
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
 
 const prepareStreaming = vi.fn(async () => true);
@@ -40,7 +42,11 @@ describe("HomeContent 레이아웃(Recorder)", () => {
   });
 
   it("녹음 시작 버튼이 tablist보다 앞에 있다", () => {
-    render(<Recorder />);
+    render(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
 
     const start = screen.getByRole("button", { name: "녹음 시작" });
     const tablist = screen.getByRole("tablist");
@@ -49,7 +55,11 @@ describe("HomeContent 레이아웃(Recorder)", () => {
   });
 
   it("전사 영역은 tablist 뒤(탭 패널)에만 있다", () => {
-    render(<Recorder />);
+    render(
+      <MainAppProviders>
+        <Recorder />
+      </MainAppProviders>,
+    );
 
     const tablist = screen.getByRole("tablist");
     const partial = screen.getByTestId("transcript-partial");

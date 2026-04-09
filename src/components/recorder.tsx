@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import {
   SummaryTabPanel,
@@ -15,6 +15,12 @@ import {
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession } from "@/lib/db";
+import { useRecordingActivity } from "@/lib/recording-activity/context";
+import { useSettings } from "@/lib/settings/context";
+import {
+  createAssemblyAiRealtimeProvider,
+  createOpenAiRealtimeProvider,
+} from "@/lib/stt";
 
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
@@ -43,6 +49,22 @@ function deriveSummaryTabState(
 }
 
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
+  const { settings } = useSettings();
+  const { setIsRecording } = useRecordingActivity();
+
+  const transcriptionOptions = useMemo(() => {
+    if (settings.realtimeEngine === "assemblyai") {
+      return {
+        createProvider: createAssemblyAiRealtimeProvider,
+        useAssemblyAiPcmFraming: true as const,
+      };
+    }
+    return {
+      createProvider: createOpenAiRealtimeProvider,
+      useAssemblyAiPcmFraming: false as const,
+    };
+  }, [settings.realtimeEngine]);
+
   const {
     partial,
     finals,
@@ -50,7 +72,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     prepareStreaming,
     sendPcm,
     finalizeStreaming,
-  } = useTranscription();
+  } = useTranscription(transcriptionOptions);
 
   const {
     status,
@@ -60,6 +82,17 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     start: startRecording,
     stop: stopRecording,
   } = useRecorder(sendPcm);
+
+  const [unsupportedModeMessage, setUnsupportedModeMessage] = useState<
+    string | null
+  >(null);
+
+  useEffect(() => {
+    setIsRecording(status === "recording");
+    return () => {
+      setIsRecording(false);
+    };
+  }, [status, setIsRecording]);
 
   const [afterSave, setAfterSave] = useState<SummaryAfterSave>("none");
   const [summaryError, setSummaryError] = useState<string | null>(null);
@@ -84,6 +117,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   }, []);
 
   const start = useCallback(async () => {
+    setUnsupportedModeMessage(null);
     setAfterSave("none");
     setSummaryError(null);
     setPlaceholderSummary(null);
@@ -91,12 +125,16 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       clearTimeout(summarizeTimerRef.current);
       summarizeTimerRef.current = null;
     }
+    if (settings.mode !== "realtime") {
+      setUnsupportedModeMessage("아직 지원되지 않는 모드입니다.");
+      return;
+    }
     const ok = await prepareStreaming();
     if (!ok) {
       return;
     }
     await startRecording();
-  }, [prepareStreaming, startRecording]);
+  }, [prepareStreaming, settings.mode, startRecording]);
 
   const stop = useCallback(async () => {
     try {
@@ -132,7 +170,11 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const summaryUiState = deriveSummaryTabState(status, afterSave, summaryError);
 
   return (
-    <div className="flex w-full max-w-md flex-col gap-6">
+    <div
+      className="flex w-full max-w-md flex-col gap-6"
+      data-testid="recorder-root"
+      data-transcription-mode={settings.mode}
+    >
       <section
         className="flex w-full flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
         aria-label="마이크 녹음"
@@ -183,6 +225,14 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           </div>
         </div>
 
+        {unsupportedModeMessage ? (
+          <p
+            className="text-sm text-amber-700 dark:text-amber-300"
+            role="status"
+          >
+            {unsupportedModeMessage}
+          </p>
+        ) : null}
         {recorderError ? (
           <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">
             {recorderError}

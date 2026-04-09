@@ -11,13 +11,13 @@ export {
 export type { TranscriptionProvider } from "./types";
 
 export function createAssemblyAiRealtimeProvider(
-  token: string
+  token: string,
 ): TranscriptionProvider {
   return new AssemblyAIRealtimeProvider(token);
 }
 
 export function createOpenAiRealtimeProvider(
-  token: string
+  token: string,
 ): TranscriptionProvider {
   return new OpenAIRealtimeProvider(token);
 }
