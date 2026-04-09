@@ -21,7 +21,7 @@ describe("useTranscription", () => {
     expect(ok).toBe(false);
     await waitFor(() => {
       expect(result.current.errorMessage).toBe(
-        "음성 인식 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+        "음성 인식 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요."
       );
     });
   });
@@ -41,7 +41,7 @@ describe("useTranscription", () => {
       useTranscription({
         fetchToken: vi.fn().mockResolvedValue("t"),
         createProvider: () => mockProvider,
-      }),
+      })
     );
 
     await act(async () => {
@@ -54,7 +54,7 @@ describe("useTranscription", () => {
 
     await waitFor(() => {
       expect(result.current.errorMessage).toBe(
-        "음성 인식 서버에서 오류가 반환되었습니다. 잠시 후 다시 시도해 주세요.",
+        "음성 인식 서버에서 오류가 반환되었습니다. 잠시 후 다시 시도해 주세요."
       );
     });
   });
@@ -77,7 +77,7 @@ describe("useTranscription", () => {
     const createProvider = vi.fn().mockReturnValue(mockProvider);
 
     const { result } = renderHook(() =>
-      useTranscription({ fetchToken, createProvider }),
+      useTranscription({ fetchToken, createProvider })
     );
 
     let ok = false;
@@ -111,7 +111,7 @@ describe("useTranscription", () => {
       useTranscription({
         fetchToken: vi.fn().mockResolvedValue("t"),
         createProvider: () => mockProvider,
-      }),
+      })
     );
 
     await act(async () => {
@@ -139,7 +139,7 @@ describe("useTranscription", () => {
         fetchToken: vi.fn().mockResolvedValue("t"),
         createProvider: () => mockProvider,
         useAssemblyAiPcmFraming: true,
-      }),
+      })
     );
 
     await act(async () => {
@@ -172,7 +172,7 @@ describe("useTranscription", () => {
       useTranscription({
         fetchToken: vi.fn().mockResolvedValue("t"),
         createProvider: () => mockProvider,
-      }),
+      })
     );
 
     await act(async () => {

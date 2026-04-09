@@ -65,7 +65,7 @@ function resolveStreamingLanguageDetection(): boolean {
 
 function buildV3WsUrl(
   token: string,
-  opts: AssemblyAIStreamingOptions | undefined,
+  opts: AssemblyAIStreamingOptions | undefined
 ): string {
   const origin = resolveWsOrigin(opts?.wsOrigin);
   const speechModel = resolveSpeechModel(opts?.speechModel);
@@ -155,7 +155,7 @@ function parseWsJsonText(text: string): Record<string, unknown> | null {
 }
 
 async function parseWsMessageData(
-  data: unknown,
+  data: unknown
 ): Promise<Record<string, unknown> | null> {
   if (typeof data === "string") {
     return parseWsJsonText(data);
@@ -184,13 +184,13 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   constructor(
     private readonly token: string,
     private readonly WebSocketImpl: typeof WebSocket = WebSocket,
-    private readonly streamingOptions?: AssemblyAIStreamingOptions,
+    private readonly streamingOptions?: AssemblyAIStreamingOptions
   ) {}
 
   connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
@@ -214,7 +214,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
           event,
           onPartial,
           onFinal,
-          onError,
+          onError
         ).catch((err) => {
           const e = err instanceof Error ? err : new Error(String(err));
           console.error("[assemblyai] onmessage handler failed", e);
@@ -237,7 +237,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
     event: MessageEvent,
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ) {
     try {
       const msg = await parseWsMessageData(event.data);

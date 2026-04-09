@@ -1,8 +1,8 @@
 import type { TranscriptionProvider } from "./types";
 
 /** Realtime transcription 전용 transcribe 모델 ID */
-export const OPENAI_REALTIME_TRANSCRIBE_MODEL =
-  "gpt-4o-mini-transcribe-2025-12-15" as const;
+export const OPENAI_REALTIME_TRANSCRIBE_MODEL = "gpt-4o-transcribe" as const;
+// "gpt-4o-mini-transcribe-2025-12-15" as const;
 
 /**
  * `language`는 ISO-639-1 하나만 지정 가능(다국어 화이트리스트 API 없음).
@@ -11,11 +11,21 @@ export const OPENAI_REALTIME_TRANSCRIBE_MODEL =
 export const OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE = "ko" as const;
 
 /**
- * 모델이 허용할 언어 범위를 프롬프트로 보조(동작은 모델·버전에 따름).
- * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields — transcription.prompt
+ * `transcription.prompt`는 시스템 지시문이 아니다. Whisper 계열과 같이
+ * **기대 단어·고유명사·짧은 키워드 나열**로 쓰는 필드다.
+ * 긴 지시문(“전사하세요”, “하지 마세요” 등)은 모델이 출력에 그대로 섞거나 반복하는 경우가 있다.
+ * 언어는 `language`로 고정하고, 여기엔 회의·IT 용어만 쉼표로 나열한다.
+ * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields
  */
 export const OPENAI_REALTIME_TRANSCRIPTION_PROMPT =
-  "Transcribe only in Korean or English. Do not output Japanese, Chinese, or other languages." as const;
+  "회의록, 안건, 액션아이템, 의사결정, 팔로업, 스프린트, 백로그, 코드리뷰, Kubernetes, 서버리스, MSA, OKR, KPI, API" as const;
+
+/**
+ * Realtime transcription 세션·버퍼에 맞출 샘플레이트(Hz).
+ * 워클릿은 16kHz를 내므로 Provider에서 여기로 리샘플한다.
+ * `client_secrets`는 16kHz를 거부할 수 있어 24kHz를 사용한다.
+ */
+export const OPENAI_REALTIME_SESSION_PCM_RATE = 24_000 as const;
 
 const REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 
@@ -23,13 +33,14 @@ const DEFAULT_STOP_FLUSH_MS = 4_000;
 
 /**
  * `server_vad`가 켜진 transcription 세션에서는 서버가 버퍼를 자동 커밋하므로 클라이언트는
- * 클라이언트는 `input_audio_buffer.commit`을 보내지 않는다(VAD가 이미 비운 버퍼에 commit하면 오류).
+ * `input_audio_buffer.commit`을 보내지 않는다(VAD가 이미 비운 버퍼에 commit하면 오류).
  * @see https://developers.openai.com/api/docs/guides/realtime-transcription#voice-activity-detection
  *
- * 녹음 종료 시 마지막 발화를 VAD가 끝맺도록, 세션 `silence_duration_ms`(500)보다 긴 무음을 한 번 붙인다.
+ * 녹음 종료 시 마지막 발화를 VAD가 끝맺도록, 세션 `silence_duration_ms`보다 긴 무음을 한 번 붙인다.
  */
-const VAD_TAIL_SILENCE_MS = 600;
-const VAD_TAIL_PCM24K_BYTES = (24_000 * 2 * VAD_TAIL_SILENCE_MS) / 1000;
+const VAD_TAIL_SILENCE_MS = 700;
+const VAD_TAIL_PCM_BYTES =
+  (OPENAI_REALTIME_SESSION_PCM_RATE * 2 * VAD_TAIL_SILENCE_MS) / 1000;
 
 function messageType(msg: Record<string, unknown>): string {
   const t = msg.type;
@@ -52,7 +63,7 @@ function parseWsJsonText(text: string): Record<string, unknown> | null {
 }
 
 async function parseWsMessageData(
-  data: unknown,
+  data: unknown
 ): Promise<Record<string, unknown> | null> {
   if (typeof data === "string") {
     return parseWsJsonText(data);
@@ -70,8 +81,7 @@ async function parseWsMessageData(
 }
 
 /**
- * 마이크 파이프라인은 16kHz mono s16le. OpenAI `pcm16`은 24kHz mono s16le.
- * @see https://developers.openai.com/api/reference/resources/realtime
+ * 워클릿 16kHz mono s16le → Realtime API가 기대하는 24kHz mono s16le.
  */
 export function resamplePcmS16Mono16kTo24k(input: ArrayBuffer): ArrayBuffer {
   const in16 = new Int16Array(input);
@@ -113,7 +123,7 @@ export function openAiGaTranscriptionSession(): Record<string, unknown> {
       input: {
         format: {
           type: "audio/pcm",
-          rate: 24_000,
+          rate: OPENAI_REALTIME_SESSION_PCM_RATE,
         },
         noise_reduction: {
           type: "near_field",
@@ -121,13 +131,14 @@ export function openAiGaTranscriptionSession(): Record<string, unknown> {
         transcription: {
           model: OPENAI_REALTIME_TRANSCRIBE_MODEL,
           language: OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
-          prompt: OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+          prompt: "",
+          // prompt: OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
         },
         turn_detection: {
           type: "server_vad",
-          threshold: 0.5,
+          threshold: 0.6,
           prefix_padding_ms: 300,
-          silence_duration_ms: 500,
+          silence_duration_ms: 600,
         },
       },
     },
@@ -178,13 +189,13 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   private stopTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly MAX_PENDING = 256;
   private readonly stopFlushMs: number;
-  /** 24kHz mono s16le 기준으로 append된 누적 바이트(테스트·디버깅용). */
-  private sentPcm24kBytes = 0;
+  /** 세션 샘플레이트(24kHz) mono s16le 기준 append 누적 바이트(테스트·디버깅용). */
+  private sentPcmBytes = 0;
 
   constructor(
     private readonly token: string,
     private readonly WebSocketImpl: typeof WebSocket = WebSocket,
-    options?: OpenAIRealtimeProviderOptions,
+    options?: OpenAIRealtimeProviderOptions
   ) {
     this.stopFlushMs = options?.stopFlushMs ?? DEFAULT_STOP_FLUSH_MS;
   }
@@ -192,7 +203,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
@@ -220,7 +231,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
           event,
           onPartial,
           onFinal,
-          onError,
+          onError
         ).catch((e) => {
           const err = e instanceof Error ? e : new Error(String(e));
           onError(err);
@@ -242,7 +253,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     event: MessageEvent,
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ) {
     const msg = await parseWsMessageData(event.data);
     if (!msg) {
@@ -304,8 +315,8 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     this.pendingJson.length = 0;
   }
 
-  /** 이미 24kHz mono s16le인 무음 구간을 append한다(commit 최소 길이 맞출 때 사용). */
-  private appendSilentPcm24k(byteLength: number): void {
+  /** 세션 샘플레이트 mono s16le 무음을 append한다(VAD가 마지막 발화를 마무리하도록). */
+  private appendSilentPcm(byteLength: number): void {
     if (byteLength <= 0) {
       return;
     }
@@ -314,7 +325,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
       return;
     }
     const silence = new Int16Array(sampleBytes / 2);
-    this.sentPcm24kBytes += silence.byteLength;
+    this.sentPcmBytes += silence.byteLength;
     this.sendJson({
       type: "input_audio_buffer.append",
       audio: arrayBufferToBase64(silence.buffer),
@@ -322,12 +333,12 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   }
 
   sendAudio(pcmData: ArrayBuffer): void {
-    const pcm24k = resamplePcmS16Mono16kTo24k(pcmData.slice(0));
-    if (pcm24k.byteLength === 0) {
+    const pcm = resamplePcmS16Mono16kTo24k(pcmData.slice(0));
+    if (pcm.byteLength === 0) {
       return;
     }
-    this.sentPcm24kBytes += pcm24k.byteLength;
-    const audioB64 = arrayBufferToBase64(pcm24k);
+    this.sentPcmBytes += pcm.byteLength;
+    const audioB64 = arrayBufferToBase64(pcm);
     this.sendJson({
       type: "input_audio_buffer.append",
       audio: audioB64,
@@ -342,7 +353,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     return new Promise((resolve) => {
       this.clearStopTimeout();
       this.stopResolver = resolve;
-      this.appendSilentPcm24k(VAD_TAIL_PCM24K_BYTES);
+      this.appendSilentPcm(VAD_TAIL_PCM_BYTES);
       this.stopTimeoutId = setTimeout(() => {
         this.stopTimeoutId = null;
         if (this.stopResolver === resolve) {
@@ -362,7 +373,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     this.clearStopTimeout();
     this.stopResolver = null;
     this.pendingJson.length = 0;
-    this.sentPcm24kBytes = 0;
+    this.sentPcmBytes = 0;
     if (this.ws) {
       this.ws.onopen = null;
       this.ws.onmessage = null;

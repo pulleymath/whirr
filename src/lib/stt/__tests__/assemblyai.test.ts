@@ -72,7 +72,7 @@ async function openAndConnect(
   p: AssemblyAIRealtimeProvider,
   onPartial = vi.fn(),
   onFinal = vi.fn(),
-  onError = vi.fn(),
+  onError = vi.fn()
 ) {
   const connectPromise = p.connect(onPartial, onFinal, onError);
   const ws = MockWebSocket.instances[MockWebSocket.instances.length - 1]!;
@@ -97,13 +97,13 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "tok-abc",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const connectPromise = p.connect(vi.fn(), vi.fn(), vi.fn());
     const ws = MockWebSocket.instances[0]!;
     const u = new URL(ws.url);
     expect(u.origin.replace(/^http/, "ws")).toBe(
-      "wss://streaming.assemblyai.com",
+      "wss://streaming.assemblyai.com"
     );
     expect(u.pathname).toBe("/v3/ws");
     expect(u.searchParams.get("token")).toBe("tok-abc");
@@ -111,7 +111,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     expect(u.searchParams.get("encoding")).toBe("pcm_s16le");
     expect(u.searchParams.get("format_turns")).toBe("true");
     expect(u.searchParams.get("speech_model")).toBe(
-      "universal-streaming-multilingual",
+      "universal-streaming-multilingual"
     );
     ws.simulateOpen();
     await connectPromise;
@@ -120,7 +120,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
   it("streaming 옵션 생략 시 기본 speech_model은 whisper-rt이다", async () => {
     const p = new AssemblyAIRealtimeProvider(
       "tok-abc",
-      MockWebSocket as unknown as typeof WebSocket,
+      MockWebSocket as unknown as typeof WebSocket
     );
     const connectPromise = p.connect(vi.fn(), vi.fn(), vi.fn());
     const ws = MockWebSocket.instances[0]!;
@@ -134,12 +134,12 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     try {
       const p = new AssemblyAIRealtimeProvider(
         "t",
-        MockWebSocket as unknown as typeof WebSocket,
+        MockWebSocket as unknown as typeof WebSocket
       );
       const connectPromise = p.connect(vi.fn(), vi.fn(), vi.fn());
       const ws = MockWebSocket.instances[0]!;
       expect(new URL(ws.url).searchParams.get("language_detection")).toBe(
-        "true",
+        "true"
       );
       ws.simulateOpen();
       await connectPromise;
@@ -152,7 +152,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const ws = await openAndConnect(p);
 
@@ -162,7 +162,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const chunk = ws.sent[0];
     expect(chunk).toBeInstanceOf(ArrayBuffer);
     expect(
-      Buffer.from(chunk as ArrayBuffer).equals(Buffer.from([1, 2, 3])),
+      Buffer.from(chunk as ArrayBuffer).equals(Buffer.from([1, 2, 3]))
     ).toBe(true);
   });
 
@@ -170,7 +170,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onPartial = vi.fn();
     const ws = await openAndConnect(p, onPartial, vi.fn(), vi.fn());
@@ -189,7 +189,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onPartial = vi.fn();
     const ws = await openAndConnect(p, onPartial, vi.fn(), vi.fn());
@@ -206,7 +206,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onFinal = vi.fn();
     const ws = await openAndConnect(p, vi.fn(), onFinal, vi.fn());
@@ -223,7 +223,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onPartial = vi.fn();
     const ws = await openAndConnect(p, onPartial, vi.fn(), vi.fn());
@@ -241,7 +241,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onPartial = vi.fn();
     const ws = await openAndConnect(p, onPartial, vi.fn(), vi.fn());
@@ -259,7 +259,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onError = vi.fn();
     const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
@@ -274,15 +274,15 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const ws = await openAndConnect(p);
 
     const stopPromise = p.stop();
     expect(
       ws.sent.some(
-        (s) => typeof s === "string" && s.includes('"type":"Terminate"'),
-      ),
+        (s) => typeof s === "string" && s.includes('"type":"Terminate"')
+      )
     ).toBe(true);
     await ws.simulateMessageAsync({
       type: "Termination",
@@ -296,7 +296,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const ws = await openAndConnect(p);
     p.disconnect();
@@ -307,7 +307,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onError = vi.fn();
     const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
@@ -316,7 +316,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
       error: "internal detail from upstream",
     });
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "STT_PROVIDER_ERROR" }),
+      expect.objectContaining({ message: "STT_PROVIDER_ERROR" })
     );
   });
 
@@ -324,14 +324,14 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const onError = vi.fn();
     const ws = await openAndConnect(p, vi.fn(), vi.fn(), onError);
 
     await ws.simulateMessageAsync({ type: "Error", error: "x" });
     expect(onError).toHaveBeenCalledWith(
-      expect.objectContaining({ message: "STT_PROVIDER_ERROR" }),
+      expect.objectContaining({ message: "STT_PROVIDER_ERROR" })
     );
   });
 
@@ -339,7 +339,7 @@ describe("AssemblyAIRealtimeProvider (Streaming v3)", () => {
     const p = new AssemblyAIRealtimeProvider(
       "t",
       MockWebSocket as unknown as typeof WebSocket,
-      testWsOpts,
+      testWsOpts
     );
     const ws = await openAndConnect(p);
 

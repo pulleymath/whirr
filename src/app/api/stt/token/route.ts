@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   if (isSttTokenRateLimited(clientKey)) {
     return NextResponse.json(
       { error: "Too many STT token requests" },
-      { status: 429 },
+      { status: 429 }
     );
   }
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
   if (!apiKey) {
     return NextResponse.json(
       { error: "STT token service unavailable" },
-      { status: 503 },
+      { status: 503 }
     );
   }
 
@@ -31,13 +31,24 @@ export async function POST(request: Request) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ session: openAiGaTranscriptionSession() }),
-    },
+    }
   );
 
   if (!upstream.ok) {
+    let detail = "";
+    try {
+      detail = await upstream.text();
+    } catch {
+      /* ignore */
+    }
+    console.error(
+      "[stt/token] OpenAI client_secrets failed:",
+      upstream.status,
+      detail.slice(0, 500)
+    );
     return NextResponse.json(
       { error: "Failed to obtain STT token" },
-      { status: 502 },
+      { status: 502 }
     );
   }
 
@@ -47,7 +58,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json(
       { error: "Invalid token response" },
-      { status: 502 },
+      { status: 502 }
     );
   }
 
@@ -73,7 +84,7 @@ export async function POST(request: Request) {
   if (!token) {
     return NextResponse.json(
       { error: "Invalid token response" },
-      { status: 502 },
+      { status: 502 }
     );
   }
 

@@ -50,9 +50,15 @@ export interface PcmRecordingSession {
  * `public/audio-processor.js`의 프로세서 이름은 `pcm-capture`입니다.
  */
 export async function startPcmRecording(
-  onPcmChunk: OnPcmChunk,
+  onPcmChunk: OnPcmChunk
 ): Promise<PcmRecordingSession> {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  const stream = await navigator.mediaDevices.getUserMedia({
+    audio: {
+      echoCancellation: true,
+      noiseSuppression: true,
+      autoGainControl: true,
+    },
+  });
   const ctx = new AudioContext();
 
   try {

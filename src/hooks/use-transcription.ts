@@ -42,7 +42,7 @@ function copyFrameToArrayBuffer(frame: Uint8Array): ArrayBuffer {
 /** pending에서 조건을 만족하는 프레임만 잘라내어 send에 넘긴다. 남은 tail을 반환한다. */
 function drainPcmFrames(
   pending: Uint8Array,
-  send: (ab: ArrayBuffer) => void,
+  send: (ab: ArrayBuffer) => void
 ): Uint8Array {
   let p = pending;
   while (p.length >= PCM_FRAME_MIN_BYTES) {
@@ -60,7 +60,7 @@ function drainPcmFrames(
 /** 연결 종료 전: 남은 PCM을 규격에 맞게 보낸다(부족하면 무음 패딩). */
 function flushPcmTail(
   pending: Uint8Array,
-  send: (ab: ArrayBuffer) => void,
+  send: (ab: ArrayBuffer) => void
 ): void {
   if (pending.length === 0) {
     return;
@@ -100,11 +100,11 @@ async function defaultFetchToken(): Promise<string> {
 export function useTranscription(options?: UseTranscriptionOptions) {
   const fetchToken = useMemo(
     () => options?.fetchToken ?? defaultFetchToken,
-    [options?.fetchToken],
+    [options?.fetchToken]
   );
   const createProvider = useMemo(
     () => options?.createProvider ?? createOpenAiRealtimeProvider,
-    [options?.createProvider],
+    [options?.createProvider]
   );
 
   const useAssemblyAiPcmFraming = options?.useAssemblyAiPcmFraming === true;
@@ -147,7 +147,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
           console.error("[transcription] provider error:", err);
           setErrorMessage(userFacingSttError(err.message));
           disconnectProvider();
-        },
+        }
       );
       return true;
     } catch (e) {
@@ -175,7 +175,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
         prov.sendAudio(ab);
       });
     },
-    [useAssemblyAiPcmFraming],
+    [useAssemblyAiPcmFraming]
   );
 
   const finalizeStreaming = useCallback(async () => {
