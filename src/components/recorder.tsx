@@ -24,12 +24,15 @@ import {
   createWebSpeechProvider,
   isWebSpeechApiSupported,
 } from "@/lib/stt";
+import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
 
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
 };
 
 type SummaryAfterSave = "none" | "summarizing" | "complete";
+
+const STREAMING_SESSION_SOFT_MS = OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
 
 function deriveSummaryTabState(
   recorderStatus: RecorderStatus,
@@ -60,6 +63,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const {
     startRecording: startBatchRecording,
     stopAndTranscribe: stopBatchTranscribe,
+    retryTranscription: retryBatchTranscription,
     ...batch
   } = useBatchTranscription({
     model: settings.batchModel,
@@ -88,6 +92,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     partial,
     finals,
     errorMessage: sttError,
+    reconnectToast,
     prepareStreaming,
     sendPcm,
     finalizeStreaming,
@@ -253,6 +258,17 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       : null;
   const batchLoadingMessage = batchTranscribing ? "전사 중..." : null;
 
+  const streamingSessionHint =
+    !isBatchMode &&
+    status === "recording" &&
+    elapsedMs >= STREAMING_SESSION_SOFT_MS
+      ? settings.mode === "realtime"
+        ? "세션이 곧 갱신됩니다."
+        : settings.mode === "webSpeechApi"
+          ? "녹음 시간이 길어지고 있습니다. 전사가 중단될 수 있습니다."
+          : null
+      : null;
+
   return (
     <div
       className="flex w-full max-w-md flex-col gap-6"
@@ -316,6 +332,31 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           >
             {batch.softLimitMessage}
           </p>
+        ) : null}
+
+        {!isBatchMode && streamingSessionHint ? (
+          <p
+            className="text-sm text-amber-700 dark:text-amber-300"
+            role="status"
+          >
+            {streamingSessionHint}
+          </p>
+        ) : null}
+
+        {!isBatchMode && reconnectToast ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400" role="status">
+            {reconnectToast}
+          </p>
+        ) : null}
+
+        {isBatchMode && batch.status === "error" && batch.errorMessage ? (
+          <button
+            type="button"
+            onClick={() => void retryBatchTranscription()}
+            className="self-start rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-900"
+          >
+            다시 시도
+          </button>
         ) : null}
 
         {unsupportedModeMessage ? (

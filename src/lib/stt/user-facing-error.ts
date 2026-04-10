@@ -1,3 +1,16 @@
+/** OpenAI Realtime 업스트림 세션 60분 한도 메시지(문자열 일치로 분류) */
+export const OPENAI_REALTIME_SESSION_MAX_DURATION_MESSAGE =
+  "Your session hit the maximum duration of 60 minutes." as const;
+
+export const SESSION_EXPIRED_OR_DISCONNECTED =
+  "SESSION_EXPIRED_OR_DISCONNECTED" as const;
+
+/** 55분 선제 갱신 등 훅이 재연결을 트리거할 때 Provider가 올리는 내부 코드 */
+export const SESSION_PROACTIVE_RENEW = "SESSION_PROACTIVE_RENEW" as const;
+
+export const SESSION_RECONNECT_EXHAUSTED =
+  "SESSION_RECONNECT_EXHAUSTED" as const;
+
 const WEB_SPEECH_ERROR_MESSAGES: Record<string, string> = {
   "not-allowed":
     "마이크 권한이 거부되었습니다. 브라우저 설정에서 마이크를 허용해 주세요.",
@@ -44,11 +57,58 @@ export function parseWebSpeechProviderError(message: string): string | null {
 }
 
 /**
+ * 자동 재연결 루프에서 다시 시도할 만한 업스트림·연결 오류
+ */
+export function isSttReconnectRecoverableMessage(message: string): boolean {
+  if (message === OPENAI_REALTIME_SESSION_MAX_DURATION_MESSAGE) {
+    return true;
+  }
+  if (message.includes("maximum duration of 60 minutes")) {
+    return true;
+  }
+  if (message === SESSION_EXPIRED_OR_DISCONNECTED) {
+    return true;
+  }
+  if (message === SESSION_PROACTIVE_RENEW) {
+    return true;
+  }
+  if (message === "WebSocket connection failed") {
+    return true;
+  }
+  return false;
+}
+
+/** 짧은 토스트용 문구. 해당 없으면 null */
+export function userFacingSttReconnectToast(raw: string): string | null {
+  switch (raw) {
+    case SESSION_PROACTIVE_RENEW:
+      return "세션을 곧 갱신합니다.";
+    case OPENAI_REALTIME_SESSION_MAX_DURATION_MESSAGE:
+      return "세션을 갱신하는 중입니다.";
+    case SESSION_EXPIRED_OR_DISCONNECTED:
+      return "연결을 복구하는 중입니다.";
+    default:
+      if (raw.includes("maximum duration of 60 minutes")) {
+        return "세션을 갱신하는 중입니다.";
+      }
+      return null;
+  }
+}
+
+/**
  * STT 관련 내부/업스트림 메시지를 UI용 한국어 문구로 정규화한다.
  * 알 수 없는 문자열은 일반 문구로만 노출한다.
  */
 export function userFacingSttError(raw: string): string {
   switch (raw) {
+    case OPENAI_REALTIME_SESSION_MAX_DURATION_MESSAGE:
+      return "세션 시간(60분)이 만료되었습니다. 자동으로 재연결합니다.";
+    case SESSION_EXPIRED_OR_DISCONNECTED:
+      return "음성 인식 연결이 끊어졌습니다. 자동으로 재연결합니다.";
+    case SESSION_RECONNECT_EXHAUSTED:
+      return "음성 인식 연결이 끊어졌습니다. 녹음을 다시 시작해 주세요.";
+    case SESSION_PROACTIVE_RENEW:
+      return "세션을 갱신하는 중입니다.";
     case "STT token service unavailable":
       return "음성 인식 서비스가 설정되지 않았습니다. 관리자에게 문의하세요.";
     case "Failed to obtain STT token":

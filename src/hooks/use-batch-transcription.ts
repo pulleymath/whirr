@@ -19,6 +19,16 @@ const LEVEL_UI_MIN_INTERVAL_MS = 48;
 const BATCH_SOFT_LIMIT_MS = 55 * 60 * 1000;
 const BATCH_HARD_LIMIT_MS = 60 * 60 * 1000;
 
+const BATCH_TRANSCRIBE_RETRY_BACKOFF_MS = [2000, 4000] as const;
+const BATCH_TRANSCRIBE_MAX_ATTEMPTS = 3;
+
+function shouldRetryBatchTranscribeStatus(statusCode: number): boolean {
+  if (statusCode === 0) {
+    return true;
+  }
+  return statusCode >= 500;
+}
+
 export type UseBatchTranscriptionOptions = {
   model?: string;
   language?: string;
@@ -35,6 +45,8 @@ export type UseBatchTranscriptionReturn = {
   startRecording: () => Promise<void>;
   /** 성공 시 전사 텍스트, 실패·빈 결과 시 `null` */
   stopAndTranscribe: () => Promise<string | null>;
+  /** 직전 실패한 녹음 Blob으로 전사를 다시 시도한다 */
+  retryTranscription: () => Promise<string | null>;
 };
 
 export function useBatchTranscription(
@@ -62,6 +74,7 @@ export function useBatchTranscription(
   const hardStopRef = useRef(false);
   const autoHardRef = useRef(false);
   const transcribeInFlightRef = useRef(false);
+  const lastRecordingBlobRef = useRef<Blob | null>(null);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -87,6 +100,111 @@ export function useBatchTranscription(
     return session.stop();
   }, [clearTimers]);
 
+  const transcribeBlobOnce = useCallback(
+    async (
+      blob: Blob,
+    ): Promise<{
+      ok: boolean;
+      text: string | null;
+      errRaw: string;
+      status: number;
+    }> => {
+      const fd = new FormData();
+      fd.set("file", blob, "recording.webm");
+      fd.set("model", model);
+      if (language && language.toLowerCase() !== "auto") {
+        fd.set("language", language);
+      }
+      try {
+        const res = await fetch("/api/stt/transcribe", {
+          method: "POST",
+          body: fd,
+        });
+        let payload: unknown;
+        try {
+          payload = await res.json();
+        } catch {
+          payload = null;
+        }
+        const errRaw =
+          payload &&
+          typeof payload === "object" &&
+          payload !== null &&
+          "error" in payload &&
+          typeof (payload as { error: unknown }).error === "string"
+            ? (payload as { error: string }).error
+            : "";
+
+        if (!res.ok) {
+          return {
+            ok: false,
+            text: null,
+            errRaw: errRaw || "STT_PROVIDER_ERROR",
+            status: res.status,
+          };
+        }
+
+        const text =
+          payload &&
+          typeof payload === "object" &&
+          payload !== null &&
+          "text" in payload &&
+          typeof (payload as { text: unknown }).text === "string"
+            ? (payload as { text: string }).text.trim()
+            : "";
+
+        if (!text) {
+          return {
+            ok: false,
+            text: null,
+            errRaw: "Invalid transcription response",
+            status: res.status,
+          };
+        }
+        return { ok: true, text, errRaw: "", status: res.status };
+      } catch {
+        return {
+          ok: false,
+          text: null,
+          errRaw: "Failed to transcribe audio",
+          status: 0,
+        };
+      }
+    },
+    [language, model],
+  );
+
+  const runTranscribeWithRetries = useCallback(
+    async (blob: Blob): Promise<string | null> => {
+      for (
+        let attempt = 0;
+        attempt < BATCH_TRANSCRIBE_MAX_ATTEMPTS;
+        attempt++
+      ) {
+        if (attempt > 0) {
+          const delay =
+            BATCH_TRANSCRIBE_RETRY_BACKOFF_MS[attempt - 1] ??
+            BATCH_TRANSCRIBE_RETRY_BACKOFF_MS[
+              BATCH_TRANSCRIBE_RETRY_BACKOFF_MS.length - 1
+            ];
+          await new Promise((r) => setTimeout(r, delay));
+        }
+        const result = await transcribeBlobOnce(blob);
+        if (result.ok && result.text) {
+          return result.text;
+        }
+        const retry = shouldRetryBatchTranscribeStatus(result.status);
+        if (!retry || attempt === BATCH_TRANSCRIBE_MAX_ATTEMPTS - 1) {
+          setStatus("error");
+          setErrorMessage(userFacingSttError(result.errRaw));
+          return null;
+        }
+      }
+      return null;
+    },
+    [transcribeBlobOnce],
+  );
+
   const stopAndTranscribe = useCallback(async (): Promise<string | null> => {
     if (transcribeInFlightRef.current || statusRef.current === "transcribing") {
       return null;
@@ -107,77 +225,58 @@ export function useBatchTranscription(
       } catch (e) {
         setStatus("error");
         setErrorMessage(mapMediaErrorToMessage(e));
+        lastRecordingBlobRef.current = null;
         return null;
       }
 
       if (!blob || blob.size === 0) {
         setStatus("error");
         setErrorMessage("녹음 데이터가 없습니다.");
+        lastRecordingBlobRef.current = null;
         return null;
       }
 
+      lastRecordingBlobRef.current = blob;
       setStatus("transcribing");
 
-      const fd = new FormData();
-      fd.set("file", blob, "recording.webm");
-      fd.set("model", model);
-      if (language && language.toLowerCase() !== "auto") {
-        fd.set("language", language);
-      }
-
-      blob = null;
-
-      const res = await fetch("/api/stt/transcribe", {
-        method: "POST",
-        body: fd,
-      });
-      let payload: unknown;
-      try {
-        payload = await res.json();
-      } catch {
-        payload = null;
-      }
-      const errRaw =
-        payload &&
-        typeof payload === "object" &&
-        payload !== null &&
-        "error" in payload &&
-        typeof (payload as { error: unknown }).error === "string"
-          ? (payload as { error: string }).error
-          : "";
-
-      if (!res.ok) {
-        setStatus("error");
-        setErrorMessage(userFacingSttError(errRaw || "STT_PROVIDER_ERROR"));
-        return null;
-      }
-
-      const text =
-        payload &&
-        typeof payload === "object" &&
-        payload !== null &&
-        "text" in payload &&
-        typeof (payload as { text: unknown }).text === "string"
-          ? (payload as { text: string }).text.trim()
-          : "";
-
+      const text = await runTranscribeWithRetries(blob);
       if (!text) {
-        setStatus("error");
-        setErrorMessage(userFacingSttError("Invalid transcription response"));
         return null;
       }
 
+      lastRecordingBlobRef.current = null;
       setTranscript(text);
       setStatus("done");
       return text;
-    } catch {
-      setStatus("error");
-      setErrorMessage(userFacingSttError("Failed to transcribe audio"));
-      return null;
     } finally {
       transcribeInFlightRef.current = false;
     }
-  }, [language, model, stopBlobOnly]);
+  }, [runTranscribeWithRetries, stopBlobOnly]);
+
+  const retryTranscription = useCallback(async (): Promise<string | null> => {
+    if (transcribeInFlightRef.current) {
+      return null;
+    }
+    const blob = lastRecordingBlobRef.current;
+    if (!blob || statusRef.current !== "error") {
+      return null;
+    }
+    transcribeInFlightRef.current = true;
+    setErrorMessage(null);
+    setStatus("transcribing");
+    try {
+      const text = await runTranscribeWithRetries(blob);
+      if (!text) {
+        return null;
+      }
+      lastRecordingBlobRef.current = null;
+      setTranscript(text);
+      setStatus("done");
+      return text;
+    } finally {
+      transcribeInFlightRef.current = false;
+    }
+  }, [runTranscribeWithRetries]);
 
   const stopAndTranscribeRef = useRef(stopAndTranscribe);
   stopAndTranscribeRef.current = stopAndTranscribe;
@@ -188,6 +287,7 @@ export function useBatchTranscription(
     }
     cancelledRef.current = false;
     startingRef.current = true;
+    lastRecordingBlobRef.current = null;
     setErrorMessage(null);
     setTranscript(null);
     setSoftLimitMessage(null);
@@ -280,5 +380,6 @@ export function useBatchTranscription(
     softLimitMessage,
     startRecording,
     stopAndTranscribe,
+    retryTranscription,
   };
 }

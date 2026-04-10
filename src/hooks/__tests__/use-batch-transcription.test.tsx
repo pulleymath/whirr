@@ -27,6 +27,7 @@ describe("useBatchTranscription", () => {
   afterEach(() => {
     globalThis.fetch = originalFetch;
     vi.clearAllMocks();
+    vi.useRealTimers();
   });
 
   it("startRecording 성공 시 status가 recording이 된다", async () => {
@@ -73,12 +74,73 @@ describe("useBatchTranscription", () => {
     );
   });
 
-  it("HTTP 오류 시 error 상태와 메시지를 설정한다", async () => {
+  it("5xx 오류 시 자동 재시도 후 실패하면 error 상태가 된다", async () => {
+    vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(
         JSON.stringify({ error: "Failed to transcribe audio" }),
         { status: 502 },
       );
+    }) as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useBatchTranscription());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      stopPromise = result.current.stopAndTranscribe();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+    await act(async () => {
+      await stopPromise!;
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.errorMessage).toMatch(/전사/);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("fetch가 연속으로 reject되면 백오프 후 재시도하고 실패 시 error가 된다", async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError("network"))
+      .mockRejectedValueOnce(new TypeError("network"))
+      .mockRejectedValueOnce(
+        new TypeError("network"),
+      ) as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useBatchTranscription());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      stopPromise = result.current.stopAndTranscribe();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+    await act(async () => {
+      await stopPromise!;
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+  });
+
+  it("4xx 오류 시 재시도 없이 error가 된다", async () => {
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(JSON.stringify({ error: "Audio file too large" }), {
+        status: 413,
+      });
     }) as unknown as typeof fetch;
 
     const { result } = renderHook(() => useBatchTranscription());
@@ -94,7 +156,55 @@ describe("useBatchTranscription", () => {
     await waitFor(() => {
       expect(result.current.status).toBe("error");
     });
-    expect(result.current.errorMessage).toMatch(/전사/);
+    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retryTranscription으로 에러 후 Blob을 다시 전사한다", async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
+      )
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ text: "수동 재시도" }), { status: 200 }),
+      ) as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useBatchTranscription());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+
+    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      stopPromise = result.current.stopAndTranscribe();
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7000);
+    });
+    await act(async () => {
+      await stopPromise!;
+    });
+
+    expect(result.current.status).toBe("error");
+
+    let retryPromise: Promise<string | null>;
+    await act(async () => {
+      retryPromise = result.current.retryTranscription();
+    });
+    await act(async () => {
+      await retryPromise!;
+    });
+
+    expect(result.current.status).toBe("done");
+    expect(result.current.transcript).toBe("수동 재시도");
   });
 
   it("startBlobRecording 실패 시 error 상태가 된다", async () => {

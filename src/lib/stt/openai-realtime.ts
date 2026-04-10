@@ -1,4 +1,8 @@
 import type { TranscriptionProvider } from "./types";
+import {
+  SESSION_EXPIRED_OR_DISCONNECTED,
+  SESSION_PROACTIVE_RENEW,
+} from "./user-facing-error";
 
 /** Realtime transcription 전용 transcribe 모델 ID */
 export const OPENAI_REALTIME_TRANSCRIBE_MODEL = "gpt-4o-transcribe" as const;
@@ -30,6 +34,9 @@ export const OPENAI_REALTIME_SESSION_PCM_RATE = 24_000 as const;
 const REALTIME_WS_URL = "wss://api.openai.com/v1/realtime?intent=transcription";
 
 const DEFAULT_STOP_FLUSH_MS = 4_000;
+
+/** OpenAI Realtime 세션 60분 한도 전 선제 재연결(밀리초) */
+export const OPENAI_PROACTIVE_RENEWAL_AFTER_MS = 55 * 60 * 1000;
 
 /**
  * `server_vad`가 켜진 transcription 세션에서는 서버가 버퍼를 자동 커밋하므로 클라이언트는
@@ -179,6 +186,10 @@ function errorMessageFromServerEvent(msg: Record<string, unknown>): string {
 export type OpenAIRealtimeProviderOptions = {
   /** 테스트용. 기본 4000ms */
   stopFlushMs?: number;
+  /**
+   * 선제 세션 갱신 타이머. 기본 55분. `0`이면 비활성화(테스트용).
+   */
+  proactiveRenewalAfterMs?: number;
 };
 
 export class OpenAIRealtimeProvider implements TranscriptionProvider {
@@ -188,8 +199,14 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   private stopTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private static readonly MAX_PENDING = 256;
   private readonly stopFlushMs: number;
+  private readonly proactiveRenewalAfterMs: number;
   /** 세션 샘플레이트(24kHz) mono s16le 기준 append 누적 바이트(테스트·디버깅용). */
   private sentPcmBytes = 0;
+  private userInitiatedClose = false;
+  private suppressCloseError = false;
+  private proactiveRenewPending = false;
+  private proactiveRenewTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastOnError: ((error: Error) => void) | null = null;
 
   constructor(
     private readonly token: string,
@@ -197,6 +214,33 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     options?: OpenAIRealtimeProviderOptions,
   ) {
     this.stopFlushMs = options?.stopFlushMs ?? DEFAULT_STOP_FLUSH_MS;
+    this.proactiveRenewalAfterMs =
+      options?.proactiveRenewalAfterMs !== undefined
+        ? options.proactiveRenewalAfterMs
+        : OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
+  }
+
+  private clearProactiveRenewalTimer(): void {
+    if (this.proactiveRenewTimer != null) {
+      clearTimeout(this.proactiveRenewTimer);
+      this.proactiveRenewTimer = null;
+    }
+  }
+
+  private scheduleProactiveRenewal(): void {
+    this.clearProactiveRenewalTimer();
+    if (this.proactiveRenewalAfterMs <= 0) {
+      return;
+    }
+    this.proactiveRenewTimer = setTimeout(() => {
+      this.proactiveRenewTimer = null;
+      const ws = this.ws;
+      if (!ws || ws.readyState !== this.WebSocketImpl.OPEN) {
+        return;
+      }
+      this.proactiveRenewPending = true;
+      void this.stop();
+    }, this.proactiveRenewalAfterMs);
   }
 
   connect(
@@ -206,6 +250,10 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
+      this.userInitiatedClose = false;
+      this.suppressCloseError = false;
+      this.proactiveRenewPending = false;
+      this.lastOnError = onError;
       const subprotocols = [
         "realtime",
         `openai-insecure-api-key.${this.token}`,
@@ -216,10 +264,12 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
       ws.onopen = () => {
         this.sendJson(buildSessionUpdatePayload());
         this.flushPendingJson();
+        this.scheduleProactiveRenewal();
         resolve();
       };
 
       ws.onerror = () => {
+        this.suppressCloseError = true;
         const err = new Error("WebSocket connection failed");
         onError(err);
         reject(err);
@@ -244,6 +294,23 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
           this.stopResolver = null;
           r();
         }
+        if (this.proactiveRenewPending && this.lastOnError) {
+          this.proactiveRenewPending = false;
+          const notify = this.lastOnError;
+          queueMicrotask(() => {
+            notify(new Error(SESSION_PROACTIVE_RENEW));
+          });
+          this.suppressCloseError = false;
+          return;
+        }
+        if (
+          !this.userInitiatedClose &&
+          !this.suppressCloseError &&
+          this.lastOnError
+        ) {
+          this.lastOnError(new Error(SESSION_EXPIRED_OR_DISCONNECTED));
+        }
+        this.suppressCloseError = false;
       };
     });
   }
@@ -350,6 +417,8 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
+      this.clearProactiveRenewalTimer();
+      this.userInitiatedClose = true;
       this.clearStopTimeout();
       this.stopResolver = resolve;
       this.appendSilentPcm(VAD_TAIL_PCM_BYTES);
@@ -369,6 +438,9 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   }
 
   disconnect(): void {
+    this.userInitiatedClose = true;
+    this.proactiveRenewPending = false;
+    this.clearProactiveRenewalTimer();
     this.clearStopTimeout();
     this.stopResolver = null;
     this.pendingJson.length = 0;

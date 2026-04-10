@@ -58,6 +58,10 @@
 
 - [✅ 완료] [브라우저 내장 Web Speech API 기반 전사 모드](./feature-11-web-speech-api/00_issue.md)
 
+### Feature 12: STT 세션 장시간 사용 시 안정성 개선
+
+- [✅ 완료] [세션 재연결, WebSocket onclose 보강, 배치 재시도 등](./feature-12-stt-session-resilience/00_issue.md)
+
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

@@ -1,4 +1,5 @@
 import type { TranscriptionProvider } from "./types";
+import { SESSION_EXPIRED_OR_DISCONNECTED } from "./user-facing-error";
 
 function messageTypeLower(msg: Record<string, unknown>): string {
   const t = msg.type;
@@ -177,6 +178,10 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   private readonly pendingAudio: ArrayBuffer[] = [];
   private stopResolver: (() => void) | null = null;
   private stopTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  /** stop()·disconnect() 등 클라이언트가 연결 종료를 유도한 경우 onclose에서 onError를 올리지 않는다 */
+  private userInitiatedClose = false;
+  /** ws.onerror에서 이미 onError를 호출한 뒤 onclose가 이중 보고하지 않도록 */
+  private suppressCloseError = false;
 
   private static readonly STOP_TIMEOUT_MS = 15_000;
   private static readonly MAX_PENDING_AUDIO = 128;
@@ -194,6 +199,8 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
+      this.userInitiatedClose = false;
+      this.suppressCloseError = false;
       const url = buildV3WsUrl(this.token, this.streamingOptions);
       const ws = new this.WebSocketImpl(url);
       this.ws = ws;
@@ -204,6 +211,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
       };
 
       ws.onerror = () => {
+        this.suppressCloseError = true;
         const err = new Error("WebSocket connection failed");
         onError(err);
         reject(err);
@@ -229,6 +237,10 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
           this.stopResolver = null;
           r();
         }
+        if (!this.userInitiatedClose && !this.suppressCloseError) {
+          onError(new Error(SESSION_EXPIRED_OR_DISCONNECTED));
+        }
+        this.suppressCloseError = false;
       };
     });
   }
@@ -333,6 +345,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
       return Promise.resolve();
     }
     return new Promise((resolve) => {
+      this.userInitiatedClose = true;
       this.clearStopTimeout();
       this.stopResolver = resolve;
       ws.send(JSON.stringify({ type: "Terminate" }));
@@ -352,6 +365,7 @@ export class AssemblyAIRealtimeProvider implements TranscriptionProvider {
   }
 
   disconnect(): void {
+    this.userInitiatedClose = true;
     this.clearStopTimeout();
     this.stopResolver = null;
     this.pendingAudio.length = 0;

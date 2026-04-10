@@ -5,8 +5,11 @@ import {
   type TranscriptionProvider,
 } from "@/lib/stt";
 import {
+  isSttReconnectRecoverableMessage,
   parseWebSpeechProviderError,
+  SESSION_RECONNECT_EXHAUSTED,
   userFacingSttError,
+  userFacingSttReconnectToast,
   userFacingWebSpeechErrorCode,
 } from "@/lib/stt/user-facing-error";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -33,6 +36,9 @@ export type UseTranscriptionOptions = {
  */
 const PCM_FRAME_MIN_BYTES = (16_000 * 2 * 50) / 1000;
 const PCM_FRAME_MAX_BYTES = (16_000 * 2 * 1000) / 1000;
+
+const MAX_STT_RECONNECTS = 3;
+const RECONNECT_TOAST_MS = 4_000;
 
 function concatUint8(a: Uint8Array, b: Uint8Array): Uint8Array {
   const out = new Uint8Array(a.length + b.length);
@@ -120,9 +126,18 @@ export function useTranscription(options?: UseTranscriptionOptions) {
   const [partial, setPartial] = useState("");
   const [finals, setFinals] = useState<string[]>([]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reconnectToast, setReconnectToast] = useState<string | null>(null);
   const providerRef = useRef<TranscriptionProvider | null>(null);
   const pcmChunkCountRef = useRef(0);
   const pcmPendingRef = useRef<Uint8Array>(new Uint8Array(0));
+  const reconnectsUsedRef = useRef(0);
+  const reconnectToastTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const fetchTokenRef = useRef(fetchToken);
+  fetchTokenRef.current = fetchToken;
+  const createProviderRef = useRef(createProvider);
+  createProviderRef.current = createProvider;
 
   const disconnectProvider = useCallback(() => {
     pcmPendingRef.current = new Uint8Array(0);
@@ -132,15 +147,40 @@ export function useTranscription(options?: UseTranscriptionOptions) {
 
   useEffect(() => {
     return () => {
+      if (reconnectToastTimeoutRef.current != null) {
+        clearTimeout(reconnectToastTimeoutRef.current);
+        reconnectToastTimeoutRef.current = null;
+      }
       disconnectProvider();
     };
   }, [disconnectProvider]);
 
+  const showReconnectToast = useCallback((rawMessage: string) => {
+    const text = userFacingSttReconnectToast(rawMessage);
+    if (!text) {
+      return;
+    }
+    if (reconnectToastTimeoutRef.current != null) {
+      clearTimeout(reconnectToastTimeoutRef.current);
+    }
+    setReconnectToast(text);
+    reconnectToastTimeoutRef.current = setTimeout(() => {
+      setReconnectToast(null);
+      reconnectToastTimeoutRef.current = null;
+    }, RECONNECT_TOAST_MS);
+  }, []);
+
   const prepareStreaming = useCallback(async (): Promise<boolean> => {
     setErrorMessage(null);
+    setReconnectToast(null);
+    if (reconnectToastTimeoutRef.current != null) {
+      clearTimeout(reconnectToastTimeoutRef.current);
+      reconnectToastTimeoutRef.current = null;
+    }
     disconnectProvider();
     pcmChunkCountRef.current = 0;
     pcmPendingRef.current = new Uint8Array(0);
+    reconnectsUsedRef.current = 0;
 
     const tokenless = options?.tokenlessProvider;
     if (tokenless) {
@@ -173,6 +213,46 @@ export function useTranscription(options?: UseTranscriptionOptions) {
       }
     }
 
+    const handleTokenPathError = async (err: Error): Promise<void> => {
+      console.error("[transcription] provider error:", err);
+      const raw = err.message;
+      if (!isSttReconnectRecoverableMessage(raw)) {
+        setErrorMessage(userFacingSttError(raw));
+        disconnectProvider();
+        reconnectsUsedRef.current = 0;
+        return;
+      }
+      if (reconnectsUsedRef.current >= MAX_STT_RECONNECTS) {
+        setErrorMessage(userFacingSttError(SESSION_RECONNECT_EXHAUSTED));
+        disconnectProvider();
+        reconnectsUsedRef.current = 0;
+        return;
+      }
+      reconnectsUsedRef.current += 1;
+      showReconnectToast(raw);
+      setPartial("");
+      disconnectProvider();
+      try {
+        const token = await fetchTokenRef.current();
+        const provider = createProviderRef.current(token);
+        providerRef.current = provider;
+        await provider.connect(
+          (text) => setPartial(text),
+          (text) => {
+            setFinals((prev) => [...prev, text]);
+            setPartial("");
+          },
+          (e) => {
+            void handleTokenPathError(e);
+          },
+        );
+      } catch (e) {
+        const failRaw = e instanceof Error ? e.message : "Unknown error";
+        setErrorMessage(userFacingSttError(failRaw));
+        disconnectProvider();
+      }
+    };
+
     try {
       const token = await fetchToken();
       const provider = createProvider(token);
@@ -184,9 +264,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
           setPartial("");
         },
         (err) => {
-          console.error("[transcription] provider error:", err);
-          setErrorMessage(userFacingSttError(err.message));
-          disconnectProvider();
+          void handleTokenPathError(err);
         },
       );
       return true;
@@ -201,6 +279,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     disconnectProvider,
     fetchToken,
     options?.tokenlessProvider,
+    showReconnectToast,
   ]);
 
   const sendPcm = useCallback(
@@ -243,6 +322,7 @@ export function useTranscription(options?: UseTranscriptionOptions) {
     partial,
     finals,
     errorMessage,
+    reconnectToast,
     prepareStreaming,
     sendPcm,
     finalizeStreaming,

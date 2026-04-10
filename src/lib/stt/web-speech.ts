@@ -33,15 +33,21 @@ function defaultSpeechRecognitionFactory(): SpeechRecognition {
   return new Ctor();
 }
 
+const MAX_CONSECUTIVE_RESTART_FAILURES = 3;
+
 export class WebSpeechProvider implements TranscriptionProvider {
   private recognition: SpeechRecognition | null = null;
   /** 사용자가 stop()하지 않은 상태에서 onend 재시작 허용 */
   private active = false;
   /** disconnect 이후 재시작 금지 */
   private closed = false;
+  private consecutiveRestartFailures = 0;
   private readonly noSpeechDebouncer = createWebSpeechNoSpeechDebouncer(
     NO_SPEECH_DEBOUNCE_MS,
   );
+  private visibilityHandler: (() => void) | null = null;
+  /** 포그라운드 복귀 시 자동 재시도는 최대 1회 */
+  private visibilityForegroundRetryConsumed = false;
 
   constructor(
     private readonly language = "ko-KR",
@@ -63,6 +69,25 @@ export class WebSpeechProvider implements TranscriptionProvider {
     }
   }
 
+  private tryStartRecognition(
+    recognition: SpeechRecognition,
+    onError: (error: Error) => void,
+  ): boolean {
+    try {
+      recognition.start();
+      this.consecutiveRestartFailures = 0;
+      return true;
+    } catch (e) {
+      this.consecutiveRestartFailures += 1;
+      const msg = e instanceof Error ? e.message : String(e);
+      onError(new Error(msg));
+      if (this.consecutiveRestartFailures >= MAX_CONSECUTIVE_RESTART_FAILURES) {
+        this.active = false;
+      }
+      return false;
+    }
+  }
+
   async connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
@@ -71,7 +96,31 @@ export class WebSpeechProvider implements TranscriptionProvider {
     this.disconnect();
     this.closed = false;
     this.active = true;
+    this.consecutiveRestartFailures = 0;
+    this.visibilityForegroundRetryConsumed = false;
     this.noSpeechDebouncer.reset();
+
+    if (typeof document !== "undefined") {
+      const handler = () => {
+        if (
+          document.visibilityState !== "visible" ||
+          this.closed ||
+          !this.active ||
+          this.visibilityForegroundRetryConsumed ||
+          this.consecutiveRestartFailures >= MAX_CONSECUTIVE_RESTART_FAILURES
+        ) {
+          return;
+        }
+        const r = this.recognition;
+        if (!r) {
+          return;
+        }
+        this.visibilityForegroundRetryConsumed = true;
+        void this.tryStartRecognition(r, onError);
+      };
+      this.visibilityHandler = handler;
+      document.addEventListener("visibilitychange", handler);
+    }
 
     let recognition: SpeechRecognition;
     try {
@@ -118,28 +167,28 @@ export class WebSpeechProvider implements TranscriptionProvider {
       if (this.closed || !this.active) {
         return;
       }
+      if (this.consecutiveRestartFailures >= MAX_CONSECUTIVE_RESTART_FAILURES) {
+        return;
+      }
       const r = recognition;
       queueMicrotask(() => {
         if (this.closed || !this.active || this.recognition !== r) {
           return;
         }
-        try {
-          r.start();
-        } catch {
-          /* 이미 시작됨 등 — 무시 */
+        if (
+          this.consecutiveRestartFailures >= MAX_CONSECUTIVE_RESTART_FAILURES
+        ) {
+          return;
         }
+        this.tryStartRecognition(r, onError);
       });
     };
 
     this.recognition = recognition;
-    try {
-      recognition.start();
-    } catch (e) {
+    if (!this.tryStartRecognition(recognition, onError)) {
       this.releaseRecognitionResources(recognition);
       this.recognition = null;
       this.active = false;
-      const msg = e instanceof Error ? e.message : String(e);
-      onError(new Error(msg));
     }
   }
 
@@ -163,6 +212,10 @@ export class WebSpeechProvider implements TranscriptionProvider {
   disconnect(): void {
     this.closed = true;
     this.active = false;
+    if (typeof document !== "undefined" && this.visibilityHandler) {
+      document.removeEventListener("visibilitychange", this.visibilityHandler);
+      this.visibilityHandler = null;
+    }
     const r = this.recognition;
     this.recognition = null;
     if (r) {
