@@ -55,13 +55,12 @@ Subagent가 만든 문서는 **파일 최상단에 YAML 프론트 매터 한 블
 
 공통 키(모든 해당 파일):
 
-| 키                                | 필수 | 설명                                                |
-| --------------------------------- | ---- | --------------------------------------------------- |
-| `issue_driven_dev.source`         | 예   | 항상 문자열 `subagent`                              |
-| `issue_driven_dev.phase`          | 예   | `plan` \| `review` \| `synthesis`                   |
-| `issue_driven_dev.subagent_type`  | 예   | Task에 사용한 `subagent_type` 값 (문자열)           |
-| `issue_driven_dev.subagent_model` | 예   | Task에 사용한 subagent의 모델명 (문자열)            |
-| `issue_driven_dev.feature`        | 예   | `Issues/{feature}/`의 `{feature}` 디렉터리명과 동일 |
+| 키                               | 필수 | 설명                                                |
+| -------------------------------- | ---- | --------------------------------------------------- |
+| `issue_driven_dev.source`        | 예   | 항상 문자열 `subagent`                              |
+| `issue_driven_dev.phase`         | 예   | `plan` \| `review` \| `synthesis`                   |
+| `issue_driven_dev.subagent_type` | 예   | Task에 사용한 `subagent_type` 값 (문자열)           |
+| `issue_driven_dev.feature`       | 예   | `Issues/{feature}/`의 `{feature}` 디렉터리명과 동일 |
 
 리뷰 전용(`02`/`03`/`04`):
 
@@ -77,7 +76,6 @@ issue_driven_dev:
   source: subagent
   phase: plan
   subagent_type: generalPurpose
-  subagent_model: "{subagent_model}"
   feature: "{feature-directory-name}"
 ---
 ```
@@ -90,7 +88,6 @@ issue_driven_dev:
   source: subagent
   phase: review
   subagent_type: code-reviewer
-  subagent_model: "{subagent_model}"
   feature: "{feature-directory-name}"
   review_kind: implementation
 ---
