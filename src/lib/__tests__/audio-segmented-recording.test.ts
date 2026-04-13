@@ -99,10 +99,7 @@ describe("startSegmentedRecording", () => {
 
   it("rotateSegment 호출 시 기존 리코더를 중지하지 않고 requestData를 호출하며, 최종 Blob이 모든 데이터를 포함한다", async () => {
     const session = await startSegmentedRecording();
-    const recorder = recorderInstances[0] as unknown as {
-      state: string;
-      requestData: () => void;
-    };
+    const recorder = recorderInstances[0] as unknown as MediaRecorder;
     const requestDataSpy = vi.spyOn(recorder, "requestData");
 
     await session.rotateSegment();
@@ -125,7 +122,7 @@ describe("startSegmentedRecording", () => {
 
     expect(blob).toBeInstanceOf(Blob);
     expect(recorderInstances.length).toBe(1);
-    expect((recorderInstances[0] as unknown as { state: string }).state).toBe(
+    expect((recorderInstances[0] as unknown as MediaRecorder).state).toBe(
       "inactive",
     );
 
