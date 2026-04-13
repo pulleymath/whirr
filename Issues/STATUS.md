@@ -63,6 +63,7 @@
 - [✅ 완료] [세션 재연결, WebSocket onclose 보강, 배치 재시도 등](./feature-12-stt-session-resilience/00_issue.md)
 
 - [✅ 완료] [5분 세그먼트 녹음 및 디버그 오디오 저장](./feature-13-5min-segment-recording/00_issue.md)
+- [✅ 완료] [배치 전사 시스템 개선 (Phase 2)](./feature-14-batch-transcription-refinement/00_issue.md)
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

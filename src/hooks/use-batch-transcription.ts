@@ -17,8 +17,8 @@ export type BatchTranscriptionStatus =
 
 const LEVEL_UI_MIN_INTERVAL_MS = 48;
 const SEGMENT_DURATION_MS = 5 * 60 * 1000; // 5분
-const BATCH_SOFT_LIMIT_MS = 55 * 60 * 1000;
-const BATCH_HARD_LIMIT_MS = 60 * 60 * 1000;
+const BATCH_SOFT_LIMIT_MS = 235 * 60 * 1000;
+const BATCH_HARD_LIMIT_MS = 240 * 60 * 1000;
 
 const BATCH_TRANSCRIBE_RETRY_BACKOFF_MS = [2000, 4000] as const;
 const BATCH_TRANSCRIBE_MAX_ATTEMPTS = 3;
@@ -47,6 +47,14 @@ export type UseBatchTranscriptionReturn = {
   segmentProgress: number;
   /** 현재까지 녹음된 모든 세그먼트 Blob */
   segments: Blob[];
+  /** 완료된 세그먼트 수 */
+  completedCount: number;
+  /** 전체 세그먼트 수 */
+  totalCount: number;
+  /** 실패한 세그먼트 인덱스 목록 */
+  failedSegments: number[];
+  /** 내부 세션 참조 (병합된 오디오 추출용) */
+  sessionRef: React.RefObject<SegmentedRecordingSession | null>;
   startRecording: () => Promise<void>;
   /** 성공 시 전사 텍스트, 실패·빈 결과 시 `null` */
   stopAndTranscribe: () => Promise<string | null>;
@@ -69,6 +77,10 @@ export function useBatchTranscription(
   const [segmentProgress, setSegmentProgress] = useState(0);
   const [segments, setSegments] = useState<Blob[]>([]);
 
+  const [completedCount, setCompletedCount] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const [failedSegments, setFailedSegments] = useState<number[]>([]);
+
   const sessionRef = useRef<SegmentedRecordingSession | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -83,7 +95,8 @@ export function useBatchTranscription(
   const autoHardRef = useRef(false);
   const transcribeInFlightRef = useRef(false);
   const segmentsRef = useRef<Blob[]>([]);
-  const partialTranscriptsRef = useRef<string[]>([]);
+  const partialTranscriptsRef = useRef<(string | null)[]>([]);
+  const pendingPromisesRef = useRef<Set<Promise<void>>>(new Set());
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -120,6 +133,15 @@ export function useBatchTranscription(
           method: "POST",
           body: fd,
         });
+        if (res.status === 401 || res.status === 403) {
+          // 인증 에러 등은 재시도하지 않음
+          return {
+            ok: false,
+            text: null,
+            errRaw: "AUTH_ERROR",
+            status: res.status,
+          };
+        }
         let payload: unknown;
         try {
           payload = await res.json();
@@ -167,7 +189,7 @@ export function useBatchTranscription(
   );
 
   const runTranscribeWithRetries = useCallback(
-    async (blob: Blob): Promise<string | null> => {
+    async (blob: Blob, index: number): Promise<string | null> => {
       for (
         let attempt = 0;
         attempt < BATCH_TRANSCRIBE_MAX_ATTEMPTS;
@@ -183,11 +205,13 @@ export function useBatchTranscription(
         }
         const result = await transcribeBlobOnce(blob);
         if (result.ok) {
+          setCompletedCount((prev) => prev + 1);
+          setFailedSegments((prev) => prev.filter((i) => i !== index));
           return result.text || "";
         }
         const retry = shouldRetryBatchTranscribeStatus(result.status);
         if (!retry || attempt === BATCH_TRANSCRIBE_MAX_ATTEMPTS - 1) {
-          setStatus("error");
+          setFailedSegments((prev) => Array.from(new Set([...prev, index])));
           setErrorMessage(userFacingSttError(result.errRaw));
           return null;
         }
@@ -232,8 +256,20 @@ export function useBatchTranscription(
       }
 
       if (finalBlob.size > 0) {
+        const index = segmentsRef.current.length;
         segmentsRef.current.push(finalBlob);
         setSegments([...segmentsRef.current]);
+        setTotalCount((prev) => prev + 1);
+
+        const promise = runTranscribeWithRetries(finalBlob, index).then(
+          (text) => {
+            partialTranscriptsRef.current[index] = text;
+          },
+        );
+        pendingPromisesRef.current.add(promise);
+        promise.finally(() => {
+          pendingPromisesRef.current.delete(promise);
+        });
       }
 
       if (segmentsRef.current.length === 0) {
@@ -244,18 +280,19 @@ export function useBatchTranscription(
 
       setStatus("transcribing");
 
-      // 마지막 세그먼트 전사
-      const lastText = await runTranscribeWithRetries(finalBlob);
-      if (lastText === null) {
-        return null;
-      }
-      partialTranscriptsRef.current.push(lastText);
+      // 모든 진행 중인 전사 기다리기
+      await Promise.allSettled(Array.from(pendingPromisesRef.current));
 
+      const hasFailed = partialTranscriptsRef.current.some((t) => t === null);
       const fullText = partialTranscriptsRef.current
-        .filter((t) => t.length > 0)
+        .filter((t): t is string => t !== null && t.length > 0)
         .join(" ");
 
       setTranscript(fullText);
+      if (hasFailed) {
+        setStatus("error");
+        return null;
+      }
       setStatus("done");
       return fullText;
     } finally {
@@ -275,22 +312,27 @@ export function useBatchTranscription(
     setStatus("transcribing");
 
     try {
-      // 이미 전사된 부분은 제외하고 나머지만 시도하는 로직은 복잡하므로,
-      // 여기서는 마지막 세그먼트부터 다시 시도하는 단순화된 방식을 취하거나
-      // 전체를 다시 시도할 수 있음. 일단 마지막 세그먼트 실패를 가정.
-      // 실제로는 큐 기반으로 관리하는 것이 좋음.
-      const lastBlob = segmentsRef.current[segmentsRef.current.length - 1];
-      const text = await runTranscribeWithRetries(lastBlob);
-      if (text === null) {
-        return null;
-      }
-      partialTranscriptsRef.current.push(text);
+      const promises = segmentsRef.current.map((blob, index) => {
+        if (partialTranscriptsRef.current[index] === null) {
+          return runTranscribeWithRetries(blob, index).then((text) => {
+            partialTranscriptsRef.current[index] = text;
+          });
+        }
+        return Promise.resolve();
+      });
 
+      await Promise.allSettled(promises);
+
+      const hasFailed = partialTranscriptsRef.current.some((t) => t === null);
       const fullText = partialTranscriptsRef.current
-        .filter((t) => t.length > 0)
+        .filter((t): t is string => t !== null && t.length > 0)
         .join(" ");
 
       setTranscript(fullText);
+      if (hasFailed) {
+        setStatus("error");
+        return null;
+      }
       setStatus("done");
       return fullText;
     } finally {
@@ -317,6 +359,9 @@ export function useBatchTranscription(
     hardStopRef.current = false;
     setElapsedMs(0);
     setSegmentProgress(0);
+    setCompletedCount(0);
+    setTotalCount(0);
+    setFailedSegments([]);
     setStatus("idle");
 
     try {
@@ -347,15 +392,22 @@ export function useBatchTranscription(
           if (blob.size > 0) {
             segmentsRef.current.push(blob);
             setSegments([...segmentsRef.current]);
+            setTotalCount((prev) => prev + 1);
             // 백그라운드 전사 시작
-            runTranscribeWithRetries(blob).then((text) => {
-              if (text !== null) {
-                partialTranscriptsRef.current.push(text);
+            const index = segmentsRef.current.length - 1;
+            const promise = runTranscribeWithRetries(blob, index).then(
+              (text) => {
+                partialTranscriptsRef.current[index] = text;
                 setTranscript(() => {
-                  const currentParts = [...partialTranscriptsRef.current];
-                  return currentParts.filter((t) => t.length > 0).join(" ");
+                  return partialTranscriptsRef.current
+                    .filter((t): t is string => t !== null && t.length > 0)
+                    .join(" ");
                 });
-              }
+              },
+            );
+            pendingPromisesRef.current.add(promise);
+            promise.finally(() => {
+              pendingPromisesRef.current.delete(promise);
             });
           }
         }
@@ -430,8 +482,12 @@ export function useBatchTranscription(
     softLimitMessage,
     segmentProgress,
     segments,
+    completedCount,
+    totalCount,
+    failedSegments,
     startRecording,
     stopAndTranscribe,
     retryTranscription,
+    sessionRef,
   };
 }

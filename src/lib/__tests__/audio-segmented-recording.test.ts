@@ -29,14 +29,24 @@ describe("startSegmentedRecording", () => {
         this.state = "recording";
       }
 
+      requestData() {
+        if (this.state !== "recording") return;
+        const ev = new Event("dataavailable");
+        Object.defineProperty(ev, "data", {
+          value: new Blob(["chunk-" + recorderInstances.indexOf(this)], {
+            type: "audio/webm",
+          }),
+        });
+        this.dispatchEvent(ev);
+        if (this.ondataavailable) {
+          this.ondataavailable(ev as BlobEvent);
+        }
+      }
+
       stop() {
         this.state = "inactive";
         queueMicrotask(() => {
-          this.ondataavailable?.({
-            data: new Blob(["chunk-" + recorderInstances.indexOf(this)], {
-              type: "audio/webm",
-            }),
-          } as BlobEvent);
+          this.requestData();
           this.dispatchEvent(new Event("stop"));
         });
       }
@@ -87,21 +97,24 @@ describe("startSegmentedRecording", () => {
     await session.close();
   });
 
-  it("rotateSegment 호출 시 현재 리코더를 중지하고 새 리코더를 시작하며 Blob을 반환한다", async () => {
+  it("rotateSegment 호출 시 기존 리코더를 중지하지 않고 requestData를 호출하며, 최종 Blob이 모든 데이터를 포함한다", async () => {
     const session = await startSegmentedRecording();
+    const recorder = recorderInstances[0] as unknown as {
+      state: string;
+      requestData: () => void;
+    };
+    const requestDataSpy = vi.spyOn(recorder, "requestData");
+
+    await session.rotateSegment();
+    expect(requestDataSpy).toHaveBeenCalled();
+    expect(recorder.state).toBe("recording");
     expect(recorderInstances.length).toBe(1);
 
-    const blobPromise = session.rotateSegment();
-    const blob = await blobPromise;
+    await session.stopFinalSegment();
+    expect(recorder.state).toBe("inactive");
 
-    expect(blob).toBeInstanceOf(Blob);
-    expect(recorderInstances.length).toBe(2);
-    expect((recorderInstances[0] as unknown as { state: string }).state).toBe(
-      "inactive",
-    );
-    expect((recorderInstances[1] as unknown as { state: string }).state).toBe(
-      "recording",
-    );
+    const fullBlob = await session.getFullAudioBlob();
+    expect(fullBlob.size).toBeGreaterThan(0);
 
     await session.close();
   });
@@ -116,6 +129,15 @@ describe("startSegmentedRecording", () => {
       "inactive",
     );
 
+    await session.close();
+  });
+
+  it("getFullAudioBlob 호출 시 모든 청크가 합쳐진 Blob을 반환한다", async () => {
+    const session = await startSegmentedRecording();
+    await session.rotateSegment();
+    await session.stopFinalSegment();
+    const fullBlob = await session.getFullAudioBlob();
+    expect(fullBlob).toBeInstanceOf(Blob);
     await session.close();
   });
 

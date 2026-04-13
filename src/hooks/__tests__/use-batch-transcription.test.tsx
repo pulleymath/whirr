@@ -213,10 +213,21 @@ describe("useBatchTranscription", () => {
     expect(result.current.transcript).toBe("수동 재시도");
   });
 
-  it("startSegmentedRecording 실패 시 error 상태가 된다", async () => {
-    startSegmentedRecording.mockRejectedValueOnce(
-      new DOMException("", "NotAllowedError"),
-    );
+  it("stopAndTranscribe 호출 시 진행 중인 모든 백그라운드 전사를 기다린다", async () => {
+    vi.useFakeTimers();
+    let fetchCount = 0;
+    globalThis.fetch = vi.fn(async () => {
+      fetchCount++;
+      const currentCount = fetchCount;
+      // 첫 번째 호출(백그라운드)은 지연됨
+      if (currentCount === 1) {
+        await new Promise((r) => setTimeout(r, 2000));
+        return new Response(JSON.stringify({ text: "첫번째" }), {
+          status: 200,
+        });
+      }
+      return new Response(JSON.stringify({ text: "두번째" }), { status: 200 });
+    }) as unknown as typeof fetch;
 
     const { result } = renderHook(() => useBatchTranscription());
 
@@ -224,10 +235,26 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    await waitFor(() => {
-      expect(result.current.status).toBe("error");
+    // 5분 경과 시뮬레이션 (첫 번째 세그먼트 완료 -> 백그라운드 전사 시작)
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
     });
-    expect(result.current.errorMessage).toMatch(/권한/);
+
+    // stopAndTranscribe 호출 (두 번째 세그먼트 전사 시작)
+    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      stopPromise = result.current.stopAndTranscribe();
+    });
+
+    // 모든 fetch가 완료될 때까지 시간 진행
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000);
+    });
+
+    const finalTranscript = await stopPromise!;
+    expect(finalTranscript).toContain("첫번째");
+    expect(finalTranscript).toContain("두번째");
+    expect(result.current.status).toBe("done");
   });
 });
 
@@ -251,7 +278,7 @@ describe("useBatchTranscription 녹음 시간 제한", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(55 * 60 * 1000 + 200);
+      vi.advanceTimersByTime(235 * 60 * 1000 + 200);
     });
 
     expect(result.current.softLimitMessage).toContain("5분");
@@ -274,7 +301,7 @@ describe("useBatchTranscription 녹음 시간 제한", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(60 * 60 * 1000 + 500);
+      vi.advanceTimersByTime(240 * 60 * 1000 + 500);
     });
 
     await act(async () => {

@@ -213,9 +213,17 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
 
   const stop = useCallback(async () => {
     if (settings.mode === "batch") {
+      const session = batch.sessionRef.current;
+      let fullAudio: Blob | undefined;
+      if (session && typeof session.getFullAudioBlob === "function") {
+        fullAudio = await session.getFullAudioBlob();
+      }
       const text = await stopBatchTranscribe();
       const trimmed = (text ?? "").trim();
-      await persistAfterTranscript(trimmed, batch.segments);
+      await persistAfterTranscript(
+        trimmed,
+        fullAudio ? [fullAudio] : batch.segments,
+      );
       return;
     }
 
@@ -234,6 +242,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     stopBatchTranscribe,
     stopRecording,
     batch.segments,
+    batch.sessionRef,
   ]);
 
   const summaryUiState = deriveSummaryTabState(
@@ -246,6 +255,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;
   const displayLevel = isBatchMode ? batch.level : level;
   const batchTranscribing = isBatchMode && batch.status === "transcribing";
+  const batchRecording = isBatchMode && batch.status === "recording";
   const showStop = isBatchMode
     ? batch.status === "recording"
     : status === "recording";
@@ -259,11 +269,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         ? []
         : finals;
   const transcriptError = isBatchMode ? batch.errorMessage : sttError;
-  const batchRecordingHint =
-    isBatchMode && batch.status === "recording"
-      ? "녹음 중입니다. 녹음을 종료하면 전사가 시작됩니다."
-      : null;
-  const batchLoadingMessage = batchTranscribing ? "전사 중..." : null;
+  const batchRecordingHint = batchRecording
+    ? "녹음 중입니다. 5분마다 전사 결과가 업데이트됩니다."
+    : null;
+  const batchLoadingMessage = batchTranscribing
+    ? `전사 중... (${batch.completedCount}/${batch.totalCount})`
+    : null;
 
   const streamingSessionHint =
     !isBatchMode &&
@@ -354,23 +365,35 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         </div>
 
         {isBatchMode && batch.status === "recording" && (
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-              <span>현재 세그먼트 (5분)</span>
-              <span>{Math.round(batch.segmentProgress * 100)}%</span>
-            </div>
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(batch.segmentProgress * 100)}
-            >
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1">
+              <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                <span>현재 세그먼트 (5분)</span>
+                <span>{Math.round(batch.segmentProgress * 100)}%</span>
+              </div>
               <div
-                className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
-                style={{ width: `${Math.round(batch.segmentProgress * 100)}%` }}
-              />
+                className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(batch.segmentProgress * 100)}
+              >
+                <div
+                  className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
+                  style={{
+                    width: `${Math.round(batch.segmentProgress * 100)}%`,
+                  }}
+                />
+              </div>
             </div>
+            {batch.totalCount > 0 && (
+              <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+                <span>전사 진행률</span>
+                <span>
+                  {batch.completedCount} / {batch.totalCount} 세그먼트 완료
+                </span>
+              </div>
+            )}
           </div>
         )}
 
