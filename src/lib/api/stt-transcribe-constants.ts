@@ -20,6 +20,7 @@ export function isAllowedTranscribeModel(model: string): boolean {
 
 const ALLOWED = new Set([
   "audio/webm",
+  "audio/webm;codecs=opus",
   "audio/wav",
   "audio/x-wav",
   "audio/wave",
