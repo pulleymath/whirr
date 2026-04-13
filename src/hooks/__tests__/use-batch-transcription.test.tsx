@@ -3,13 +3,19 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useBatchTranscription } from "../use-batch-transcription";
 
-const startBlobRecording = vi.hoisted(() =>
+const startSegmentedRecording = vi.hoisted(() =>
   vi.fn(async () => ({
     analyser: {
       frequencyBinCount: 128,
       getByteTimeDomainData: vi.fn(),
     },
-    stop: vi.fn(async () => new Blob(["webm"], { type: "audio/webm" })),
+    rotateSegment: vi.fn(
+      async () => new Blob(["webm"], { type: "audio/webm" }),
+    ),
+    stopFinalSegment: vi.fn(
+      async () => new Blob(["webm"], { type: "audio/webm" }),
+    ),
+    close: vi.fn(async () => {}),
   })),
 );
 
@@ -17,7 +23,7 @@ vi.mock("@/lib/audio", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/audio")>();
   return {
     ...mod,
-    startBlobRecording,
+    startSegmentedRecording,
   };
 });
 
@@ -40,7 +46,7 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("recording");
-    expect(startBlobRecording).toHaveBeenCalledTimes(1);
+    expect(startSegmentedRecording).toHaveBeenCalledTimes(1);
   });
 
   it("stopAndTranscribe 성공 시 transcribing을 거쳐 done과 transcript를 설정한다", async () => {
@@ -207,8 +213,8 @@ describe("useBatchTranscription", () => {
     expect(result.current.transcript).toBe("수동 재시도");
   });
 
-  it("startBlobRecording 실패 시 error 상태가 된다", async () => {
-    startBlobRecording.mockRejectedValueOnce(
+  it("startSegmentedRecording 실패 시 error 상태가 된다", async () => {
+    startSegmentedRecording.mockRejectedValueOnce(
       new DOMException("", "NotAllowedError"),
     );
 

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getAllSessions, getSessionById, saveSession } from "../db";
+import {
+  getAllSessions,
+  getSessionById,
+  saveSession,
+  saveSessionAudio,
+  getSessionAudio,
+} from "../db";
 import { resetWhirrDbForTests } from "./db-test-utils";
 
 describe("db (IndexedDB)", () => {
@@ -50,5 +56,21 @@ describe("db (IndexedDB)", () => {
     expect(all[1]!.text).toBe("older");
 
     nowSpy.mockRestore();
+  });
+
+  it("saveSessionAudio 및 getSessionAudio가 정상 동작한다", async () => {
+    const sessionId = "session-123";
+    const segments = [
+      new Blob(["part1"], { type: "audio/webm" }),
+      new Blob(["part2"], { type: "audio/webm" }),
+    ];
+
+    await saveSessionAudio(sessionId, segments);
+    const saved = await getSessionAudio(sessionId);
+
+    expect(saved).toBeDefined();
+    expect(saved!.sessionId).toBe(sessionId);
+    expect(saved!.segments).toHaveLength(2);
+    expect(await saved!.segments[0].text()).toBe("part1");
   });
 });

@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { getSessionById, type Session } from "@/lib/db";
+import { getSessionAudio, getSessionById, type Session } from "@/lib/db";
+import { downloadRecordingSegments } from "@/lib/download-recording";
 
 type DetailState =
   | { status: "loading" }
   | { status: "missing" }
   | { status: "error" }
-  | { status: "ready"; session: Session };
+  | { status: "ready"; session: Session; audioSegments: Blob[] };
 
 function SessionDetailBody({
   id,
@@ -20,17 +21,25 @@ function SessionDetailBody({
 }) {
   const router = useRouter();
   const [state, setState] = useState<DetailState>({ status: "loading" });
+  const [isDownloading, setIsDownloading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     void (async () => {
       try {
-        const row = await getSessionById(id);
+        const [row, audioRow] = await Promise.all([
+          getSessionById(id),
+          getSessionAudio(id),
+        ]);
         if (cancelled) {
           return;
         }
         if (row) {
-          setState({ status: "ready", session: row });
+          setState({
+            status: "ready",
+            session: row,
+            audioSegments: audioRow?.segments ?? [],
+          });
         } else {
           setState({ status: "missing" });
         }
@@ -92,11 +101,11 @@ function SessionDetailBody({
     );
   }
 
-  const { session } = state;
+  const { session, audioSegments } = state;
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
           onClick={() => router.back()}
@@ -104,6 +113,27 @@ function SessionDetailBody({
         >
           뒤로
         </button>
+
+        {audioSegments.length > 0 && (
+          <button
+            type="button"
+            disabled={isDownloading}
+            onClick={async () => {
+              setIsDownloading(true);
+              try {
+                await downloadRecordingSegments(
+                  audioSegments,
+                  `session-${session.id}`,
+                );
+              } finally {
+                setIsDownloading(false);
+              }
+            }}
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {isDownloading ? "다운로드 중..." : "오디오 다운로드"}
+          </button>
+        )}
       </div>
       <article
         className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"

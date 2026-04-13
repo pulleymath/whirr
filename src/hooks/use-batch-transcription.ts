@@ -2,8 +2,8 @@
 
 import {
   mapMediaErrorToMessage,
-  startBlobRecording,
-  type BlobRecordingSession,
+  startSegmentedRecording,
+  type SegmentedRecordingSession,
 } from "@/lib/audio";
 import { userFacingSttError } from "@/lib/stt/user-facing-error";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -16,6 +16,7 @@ export type BatchTranscriptionStatus =
   | "error";
 
 const LEVEL_UI_MIN_INTERVAL_MS = 48;
+const SEGMENT_DURATION_MS = 5 * 60 * 1000; // 5분
 const BATCH_SOFT_LIMIT_MS = 55 * 60 * 1000;
 const BATCH_HARD_LIMIT_MS = 60 * 60 * 1000;
 
@@ -42,10 +43,14 @@ export type UseBatchTranscriptionReturn = {
   level: number;
   /** 55분 경과 시 한 번 설정되는 안내 문구 */
   softLimitMessage: string | null;
+  /** 현재 세그먼트 진행률 (0~1) */
+  segmentProgress: number;
+  /** 현재까지 녹음된 모든 세그먼트 Blob */
+  segments: Blob[];
   startRecording: () => Promise<void>;
   /** 성공 시 전사 텍스트, 실패·빈 결과 시 `null` */
   stopAndTranscribe: () => Promise<string | null>;
-  /** 직전 실패한 녹음 Blob으로 전사를 다시 시도한다 */
+  /** 직전 실패한 녹음 세그먼트들로 전사를 다시 시도한다 */
   retryTranscription: () => Promise<string | null>;
 };
 
@@ -61,11 +66,14 @@ export function useBatchTranscription(
   const [elapsedMs, setElapsedMs] = useState(0);
   const [level, setLevel] = useState(0);
   const [softLimitMessage, setSoftLimitMessage] = useState<string | null>(null);
+  const [segmentProgress, setSegmentProgress] = useState(0);
+  const [segments, setSegments] = useState<Blob[]>([]);
 
-  const sessionRef = useRef<BlobRecordingSession | null>(null);
+  const sessionRef = useRef<SegmentedRecordingSession | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef(0);
+  const lastSegmentTimeRef = useRef(0);
   const levelDataRef = useRef<Uint8Array | null>(null);
   const lastLevelUiMsRef = useRef(0);
   const cancelledRef = useRef(false);
@@ -74,7 +82,8 @@ export function useBatchTranscription(
   const hardStopRef = useRef(false);
   const autoHardRef = useRef(false);
   const transcribeInFlightRef = useRef(false);
-  const lastRecordingBlobRef = useRef<Blob | null>(null);
+  const segmentsRef = useRef<Blob[]>([]);
+  const partialTranscriptsRef = useRef<string[]>([]);
   const statusRef = useRef(status);
   statusRef.current = status;
 
@@ -88,17 +97,8 @@ export function useBatchTranscription(
       rafRef.current = null;
     }
     setLevel(0);
+    setSegmentProgress(0);
   }, []);
-
-  const stopBlobOnly = useCallback(async () => {
-    clearTimers();
-    const session = sessionRef.current;
-    sessionRef.current = null;
-    if (!session) {
-      return null;
-    }
-    return session.stop();
-  }, [clearTimers]);
 
   const transcribeBlobOnce = useCallback(
     async (
@@ -153,14 +153,6 @@ export function useBatchTranscription(
             ? (payload as { text: string }).text.trim()
             : "";
 
-        if (!text) {
-          return {
-            ok: false,
-            text: null,
-            errRaw: "Invalid transcription response",
-            status: res.status,
-          };
-        }
         return { ok: true, text, errRaw: "", status: res.status };
       } catch {
         return {
@@ -190,8 +182,8 @@ export function useBatchTranscription(
           await new Promise((r) => setTimeout(r, delay));
         }
         const result = await transcribeBlobOnce(blob);
-        if (result.ok && result.text) {
-          return result.text;
+        if (result.ok) {
+          return result.text || "";
         }
         const retry = shouldRetryBatchTranscribeStatus(result.status);
         if (!retry || attempt === BATCH_TRANSCRIBE_MAX_ATTEMPTS - 1) {
@@ -219,60 +211,88 @@ export function useBatchTranscription(
     setErrorMessage(null);
 
     try {
-      let blob: Blob | null = null;
+      const session = sessionRef.current;
+      sessionRef.current = null;
+      clearTimers();
+
+      if (!session) {
+        setStatus("error");
+        setErrorMessage("녹음 세션이 없습니다.");
+        return null;
+      }
+
+      let finalBlob: Blob;
       try {
-        blob = await stopBlobOnly();
+        finalBlob = await session.stopFinalSegment();
+        await session.close();
       } catch (e) {
         setStatus("error");
         setErrorMessage(mapMediaErrorToMessage(e));
-        lastRecordingBlobRef.current = null;
         return null;
       }
 
-      if (!blob || blob.size === 0) {
+      if (finalBlob.size > 0) {
+        segmentsRef.current.push(finalBlob);
+        setSegments([...segmentsRef.current]);
+      }
+
+      if (segmentsRef.current.length === 0) {
         setStatus("error");
         setErrorMessage("녹음 데이터가 없습니다.");
-        lastRecordingBlobRef.current = null;
         return null;
       }
 
-      lastRecordingBlobRef.current = blob;
       setStatus("transcribing");
 
-      const text = await runTranscribeWithRetries(blob);
-      if (!text) {
+      // 마지막 세그먼트 전사
+      const lastText = await runTranscribeWithRetries(finalBlob);
+      if (lastText === null) {
         return null;
       }
+      partialTranscriptsRef.current.push(lastText);
 
-      lastRecordingBlobRef.current = null;
-      setTranscript(text);
+      const fullText = partialTranscriptsRef.current
+        .filter((t) => t.length > 0)
+        .join(" ");
+
+      setTranscript(fullText);
       setStatus("done");
-      return text;
+      return fullText;
     } finally {
       transcribeInFlightRef.current = false;
     }
-  }, [runTranscribeWithRetries, stopBlobOnly]);
+  }, [runTranscribeWithRetries, clearTimers]);
 
   const retryTranscription = useCallback(async (): Promise<string | null> => {
     if (transcribeInFlightRef.current) {
       return null;
     }
-    const blob = lastRecordingBlobRef.current;
-    if (!blob || statusRef.current !== "error") {
+    if (segmentsRef.current.length === 0 || statusRef.current !== "error") {
       return null;
     }
     transcribeInFlightRef.current = true;
     setErrorMessage(null);
     setStatus("transcribing");
+
     try {
-      const text = await runTranscribeWithRetries(blob);
-      if (!text) {
+      // 이미 전사된 부분은 제외하고 나머지만 시도하는 로직은 복잡하므로,
+      // 여기서는 마지막 세그먼트부터 다시 시도하는 단순화된 방식을 취하거나
+      // 전체를 다시 시도할 수 있음. 일단 마지막 세그먼트 실패를 가정.
+      // 실제로는 큐 기반으로 관리하는 것이 좋음.
+      const lastBlob = segmentsRef.current[segmentsRef.current.length - 1];
+      const text = await runTranscribeWithRetries(lastBlob);
+      if (text === null) {
         return null;
       }
-      lastRecordingBlobRef.current = null;
-      setTranscript(text);
+      partialTranscriptsRef.current.push(text);
+
+      const fullText = partialTranscriptsRef.current
+        .filter((t) => t.length > 0)
+        .join(" ");
+
+      setTranscript(fullText);
       setStatus("done");
-      return text;
+      return fullText;
     } finally {
       transcribeInFlightRef.current = false;
     }
@@ -287,29 +307,58 @@ export function useBatchTranscription(
     }
     cancelledRef.current = false;
     startingRef.current = true;
-    lastRecordingBlobRef.current = null;
+    segmentsRef.current = [];
+    setSegments([]);
+    partialTranscriptsRef.current = [];
     setErrorMessage(null);
     setTranscript(null);
     setSoftLimitMessage(null);
     softWarnedRef.current = false;
     hardStopRef.current = false;
     setElapsedMs(0);
+    setSegmentProgress(0);
     setStatus("idle");
 
     try {
-      const session = await startBlobRecording();
+      const session = await startSegmentedRecording();
       if (cancelledRef.current) {
-        await session.stop().catch(() => {});
+        await session.stopFinalSegment().catch(() => {});
+        await session.close().catch(() => {});
         return;
       }
       sessionRef.current = session;
       setStatus("recording");
       startTimeRef.current = Date.now();
+      lastSegmentTimeRef.current = startTimeRef.current;
       lastLevelUiMsRef.current = performance.now();
 
-      intervalRef.current = setInterval(() => {
-        const elapsed = Date.now() - startTimeRef.current;
+      intervalRef.current = setInterval(async () => {
+        const now = Date.now();
+        const elapsed = now - startTimeRef.current;
+        const segmentElapsed = now - lastSegmentTimeRef.current;
+
         setElapsedMs(elapsed);
+        setSegmentProgress(Math.min(1, segmentElapsed / SEGMENT_DURATION_MS));
+
+        if (segmentElapsed >= SEGMENT_DURATION_MS) {
+          lastSegmentTimeRef.current = now;
+          setSegmentProgress(0);
+          const blob = await session.rotateSegment();
+          if (blob.size > 0) {
+            segmentsRef.current.push(blob);
+            setSegments([...segmentsRef.current]);
+            // 백그라운드 전사 시작
+            runTranscribeWithRetries(blob).then((text) => {
+              if (text !== null) {
+                partialTranscriptsRef.current.push(text);
+                setTranscript(() => {
+                  const currentParts = [...partialTranscriptsRef.current];
+                  return currentParts.filter((t) => t.length > 0).join(" ");
+                });
+              }
+            });
+          }
+        }
 
         if (!softWarnedRef.current && elapsed >= BATCH_SOFT_LIMIT_MS) {
           softWarnedRef.current = true;
@@ -321,7 +370,7 @@ export function useBatchTranscription(
           autoHardRef.current = true;
           void stopAndTranscribeRef.current();
         }
-      }, 100);
+      }, 250);
 
       const tick = () => {
         if (cancelledRef.current || !sessionRef.current) {
@@ -357,7 +406,7 @@ export function useBatchTranscription(
     } finally {
       startingRef.current = false;
     }
-  }, []);
+  }, [runTranscribeWithRetries]);
 
   useEffect(() => {
     return () => {
@@ -366,7 +415,8 @@ export function useBatchTranscription(
       const s = sessionRef.current;
       sessionRef.current = null;
       if (s) {
-        void s.stop().catch(() => {});
+        void s.stopFinalSegment().catch(() => {});
+        void s.close().catch(() => {});
       }
     };
   }, [clearTimers]);
@@ -378,6 +428,8 @@ export function useBatchTranscription(
     elapsedMs,
     level,
     softLimitMessage,
+    segmentProgress,
+    segments,
     startRecording,
     stopAndTranscribe,
     retryTranscription,

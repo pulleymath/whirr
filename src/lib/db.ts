@@ -6,17 +6,27 @@ export type Session = {
   text: string;
 };
 
+export type SessionAudio = {
+  sessionId: string;
+  segments: Blob[];
+};
+
 interface WhirrDB extends DBSchema {
   sessions: {
     key: string;
     value: Session;
     indexes: { "by-createdAt": number };
   };
+  "session-audio": {
+    key: string;
+    value: SessionAudio;
+  };
 }
 
 const DB_NAME = "whirr-db";
 const STORE = "sessions";
-const DB_VERSION = 1;
+const AUDIO_STORE = "session-audio";
+const DB_VERSION = 2;
 
 let dbPromise: Promise<IDBPDatabase<WhirrDB>> | null = null;
 
@@ -27,6 +37,9 @@ function getDb(): Promise<IDBPDatabase<WhirrDB>> {
         if (oldVersion < 1) {
           const store = db.createObjectStore(STORE, { keyPath: "id" });
           store.createIndex("by-createdAt", "createdAt");
+        }
+        if (oldVersion < 2) {
+          db.createObjectStore(AUDIO_STORE, { keyPath: "sessionId" });
         }
       },
     });
@@ -64,4 +77,19 @@ export async function getAllSessions(): Promise<Session[]> {
   const db = await getDb();
   const rows = await db.getAllFromIndex(STORE, "by-createdAt");
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
+}
+
+export async function saveSessionAudio(
+  sessionId: string,
+  segments: Blob[],
+): Promise<void> {
+  const db = await getDb();
+  await db.put(AUDIO_STORE, { sessionId, segments });
+}
+
+export async function getSessionAudio(
+  sessionId: string,
+): Promise<SessionAudio | undefined> {
+  const db = await getDb();
+  return db.get(AUDIO_STORE, sessionId);
 }

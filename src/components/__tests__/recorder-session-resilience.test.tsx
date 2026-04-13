@@ -79,6 +79,8 @@ vi.mock("@/hooks/use-batch-transcription", () => ({
     elapsedMs: 0,
     level: 0,
     softLimitMessage: null,
+    segmentProgress: 0,
+    segments: [],
     startRecording: vi.fn(),
     stopAndTranscribe: vi.fn(),
     retryTranscription: resilienceState.retryBatch,

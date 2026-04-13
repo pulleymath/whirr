@@ -13,19 +13,21 @@ const isWebSpeechApiSupported = vi.hoisted(() => vi.fn(() => true));
 
 const prepareStreaming = vi.fn(async () => true);
 
-const startBlobRecording = vi.hoisted(() =>
+const startSegmentedRecording = vi.hoisted(() =>
   vi.fn(async () => ({
     analyser: {
       frequencyBinCount: 128,
       getByteTimeDomainData: vi.fn(),
     },
-    stop: vi.fn(async () => new Blob([], { type: "audio/webm" })),
+    rotateSegment: vi.fn(async () => new Blob([], { type: "audio/webm" })),
+    stopFinalSegment: vi.fn(async () => new Blob([], { type: "audio/webm" })),
+    close: vi.fn(async () => {}),
   })),
 );
 
 vi.mock("@/lib/audio", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/audio")>();
-  return { ...mod, startBlobRecording };
+  return { ...mod, startSegmentedRecording };
 });
 
 vi.mock("@/lib/stt", async (importOriginal) => {
@@ -143,7 +145,7 @@ describe("Recorder + 설정", () => {
       ).toBeTruthy();
     });
     expect(prepareStreaming).not.toHaveBeenCalled();
-    expect(startBlobRecording).toHaveBeenCalled();
+    expect(startSegmentedRecording).toHaveBeenCalled();
   });
 
   it("webSpeechApi 모드이면 tokenlessProvider가 전달된다", async () => {

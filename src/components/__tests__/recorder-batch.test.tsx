@@ -38,19 +38,23 @@ vi.mock("@/hooks/use-recorder", () => ({
   }),
 }));
 
-const startBlobRecording = vi.hoisted(() =>
+const startSegmentedRecording = vi.hoisted(() =>
   vi.fn(async () => ({
     analyser: {
       frequencyBinCount: 128,
       getByteTimeDomainData: vi.fn(),
     },
-    stop: vi.fn(async () => new Blob(["x"], { type: "audio/webm" })),
+    rotateSegment: vi.fn(async () => new Blob(["x"], { type: "audio/webm" })),
+    stopFinalSegment: vi.fn(
+      async () => new Blob(["x"], { type: "audio/webm" }),
+    ),
+    close: vi.fn(async () => {}),
   })),
 );
 
 vi.mock("@/lib/audio", async (importOriginal) => {
   const mod = await importOriginal<typeof import("@/lib/audio")>();
-  return { ...mod, startBlobRecording };
+  return { ...mod, startSegmentedRecording };
 });
 
 afterEach(() => {
@@ -107,13 +111,15 @@ describe("Recorder 배치 모드", () => {
     const stopPromise = new Promise<Blob>((resolve) => {
       resolveStop = () => resolve(new Blob(["a"], { type: "audio/webm" }));
     });
-    const stopDeferred = vi.fn(() => stopPromise);
-    startBlobRecording.mockImplementationOnce(async () => ({
+    const stopDeferred = vi.fn(async () => stopPromise);
+    startSegmentedRecording.mockImplementationOnce(async () => ({
       analyser: {
         frequencyBinCount: 128,
         getByteTimeDomainData: vi.fn(),
       },
-      stop: stopDeferred,
+      rotateSegment: vi.fn(),
+      stopFinalSegment: stopDeferred,
+      close: vi.fn(),
     }));
 
     let resolveFetch: ((v: Response) => void) | undefined;

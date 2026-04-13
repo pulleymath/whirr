@@ -15,7 +15,8 @@ import {
 } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
-import { saveSession } from "@/lib/db";
+import { saveSession, saveSessionAudio } from "@/lib/db";
+import { downloadRecordingSegments } from "@/lib/download-recording";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { useSettings } from "@/lib/settings/context";
 import {
@@ -177,13 +178,18 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     await startRecording();
   }, [prepareStreaming, settings.mode, startBatchRecording, startRecording]);
 
+  const [isDownloading, setIsDownloading] = useState(false);
+
   const persistAfterTranscript = useCallback(
-    async (trimmed: string) => {
-      if (!trimmed) {
+    async (trimmed: string, audioSegments: Blob[] = []) => {
+      if (!trimmed && audioSegments.length === 0) {
         return;
       }
       try {
         const id = await saveSession(trimmed);
+        if (audioSegments.length > 0) {
+          await saveSessionAudio(id, audioSegments);
+        }
         onSessionSaved?.(id);
         setAfterSave("summarizing");
         setPlaceholderSummary(
@@ -209,7 +215,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     if (settings.mode === "batch") {
       const text = await stopBatchTranscribe();
       const trimmed = (text ?? "").trim();
-      await persistAfterTranscript(trimmed);
+      await persistAfterTranscript(trimmed, batch.segments);
       return;
     }
 
@@ -227,6 +233,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     settings.mode,
     stopBatchTranscribe,
     stopRecording,
+    batch.segments,
   ]);
 
   const summaryUiState = deriveSummaryTabState(
@@ -284,6 +291,27 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             {formatElapsed(displayElapsedMs)}
           </p>
           <div className="flex gap-2">
+            {isBatchMode && batch.segments.length > 0 && (
+              <button
+                type="button"
+                disabled={isDownloading}
+                onClick={async () => {
+                  setIsDownloading(true);
+                  try {
+                    await downloadRecordingSegments(
+                      batch.segments,
+                      `recording-${new Date().toISOString()}`,
+                    );
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
+                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                aria-label="오디오 다운로드"
+              >
+                {isDownloading ? "다운로드 중..." : "오디오 다운로드"}
+              </button>
+            )}
             {showStart ? (
               <button
                 type="button"
@@ -324,6 +352,27 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             />
           </div>
         </div>
+
+        {isBatchMode && batch.status === "recording" && (
+          <div className="flex flex-col gap-1">
+            <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
+              <span>현재 세그먼트 (5분)</span>
+              <span>{Math.round(batch.segmentProgress * 100)}%</span>
+            </div>
+            <div
+              className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(batch.segmentProgress * 100)}
+            >
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
+                style={{ width: `${Math.round(batch.segmentProgress * 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
 
         {isBatchMode && batch.softLimitMessage ? (
           <p

@@ -22,6 +22,7 @@ vi.mock("@/lib/db", async (importOriginal) => {
   return {
     ...mod,
     getSessionById: vi.fn(),
+    getSessionAudio: vi.fn(),
   };
 });
 
