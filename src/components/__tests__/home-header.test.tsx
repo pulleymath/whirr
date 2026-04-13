@@ -4,14 +4,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { HomePageShell } from "../home-page-shell";
 
-vi.mock("@/components/home-content", () => ({
-  HomeContent: () => <div data-testid="home-content-stub" />,
-}));
-
 afterEach(() => {
   cleanup();
   localStorage.clear();
 });
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
+}));
 
 function renderShell() {
   return render(
@@ -27,10 +27,9 @@ describe("HomePageShell 헤더", () => {
     expect(screen.getByRole("heading", { name: "Whirr" })).toBeTruthy();
   });
 
-  it("Whirr를 링크나 버튼으로 감싸지 않는다", () => {
+  it("Whirr는 홈(/)으로 가는 링크다", () => {
     renderShell();
-    const whirr = screen.getByText("Whirr");
-    expect(whirr.closest("a")).toBeNull();
-    expect(whirr.closest("button")).toBeNull();
+    const whirr = screen.getByRole("link", { name: "Whirr" });
+    expect(whirr.getAttribute("href")).toBe("/");
   });
 });

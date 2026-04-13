@@ -95,7 +95,7 @@ function SessionDetailBody({
   const { session } = state;
 
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-6">
+    <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
@@ -104,12 +104,6 @@ function SessionDetailBody({
         >
           뒤로
         </button>
-        <Link
-          href="/"
-          className="text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
-        >
-          홈
-        </Link>
       </div>
       <article
         className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"

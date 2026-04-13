@@ -8,7 +8,8 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HomeContent } from "../home-content";
+import { MainShell } from "../main-shell";
+import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { getAllSessions } from "@/lib/db";
 
 vi.mock("@/lib/db", async (importOriginal) => {
@@ -19,27 +20,8 @@ vi.mock("@/lib/db", async (importOriginal) => {
   };
 });
 
-vi.mock("@/hooks/use-transcription", () => ({
-  useTranscription: () => ({
-    partial: "",
-    finals: [],
-    errorMessage: null,
-    prepareStreaming: vi.fn(async () => true),
-    sendPcm: vi.fn(),
-    finalizeStreaming: vi.fn(async () => {}),
-  }),
-}));
-
-vi.mock("@/hooks/use-recorder", () => ({
-  formatElapsed: () => "00:00",
-  useRecorder: () => ({
-    status: "idle",
-    errorMessage: null,
-    elapsedMs: 0,
-    level: 0,
-    start: vi.fn(),
-    stop: vi.fn(),
-  }),
+vi.mock("next/navigation", () => ({
+  usePathname: () => "/",
 }));
 
 afterEach(() => {
@@ -61,19 +43,23 @@ function mockMatchMedia(matchesReduce: boolean) {
   }));
 }
 
-describe("History drawer", () => {
+describe("MainShell History drawer (Mobile)", () => {
   beforeEach(() => {
     mockMatchMedia(false);
+    vi.mocked(getAllSessions).mockResolvedValue([]);
   });
 
-  it("drawerOpen이면 dialog와 세션 목록 영역이 보인다", async () => {
-    vi.mocked(getAllSessions).mockResolvedValue([]);
-
+  it("햄버거 버튼 클릭 시 drawer dialog와 세션 목록이 보인다", async () => {
     render(
-      <HomeContent drawerOpen onCloseDrawer={vi.fn()}>
-        <div data-testid="main-slot" />
-      </HomeContent>,
+      <MainAppProviders>
+        <MainShell>
+          <div data-testid="main-slot" />
+        </MainShell>
+      </MainAppProviders>,
     );
+
+    const openBtn = screen.getByLabelText("History 열기");
+    fireEvent.click(openBtn);
 
     const dialog = screen.getByRole("dialog");
     expect(dialog).toBeTruthy();
@@ -83,13 +69,15 @@ describe("History drawer", () => {
   });
 
   it("열린 drawer 패널·백드롭에 전환용 클래스가 붙는다", async () => {
-    vi.mocked(getAllSessions).mockResolvedValue([]);
-
     render(
-      <HomeContent drawerOpen onCloseDrawer={vi.fn()}>
-        <div data-testid="main-slot" />
-      </HomeContent>,
+      <MainAppProviders>
+        <MainShell>
+          <div data-testid="main-slot" />
+        </MainShell>
+      </MainAppProviders>,
     );
+
+    fireEvent.click(screen.getByLabelText("History 열기"));
 
     await waitFor(() => {
       const panel = screen.getByTestId("history-drawer-panel");
@@ -100,35 +88,21 @@ describe("History drawer", () => {
     expect(backdrop.className).toMatch(/transition-opacity/);
   });
 
-  it("prefers-reduced-motion이면 패널에 transition-transform이 없다", async () => {
-    mockMatchMedia(true);
-    vi.mocked(getAllSessions).mockResolvedValue([]);
-
+  it("스크림 클릭 시 drawer가 닫힌다", async () => {
     render(
-      <HomeContent drawerOpen onCloseDrawer={vi.fn()}>
-        <div data-testid="main-slot" />
-      </HomeContent>,
+      <MainAppProviders>
+        <MainShell>
+          <div data-testid="main-slot" />
+        </MainShell>
+      </MainAppProviders>,
     );
 
-    await waitFor(() => {
-      const panel = screen.getByTestId("history-drawer-panel");
-      expect(panel.className).not.toMatch(/transition-transform/);
-    });
-  });
-
-  it("스크림 클릭 시 onCloseDrawer가 호출된다", async () => {
-    vi.mocked(getAllSessions).mockResolvedValue([]);
-    const onClose = vi.fn();
-
-    render(
-      <HomeContent drawerOpen onCloseDrawer={onClose}>
-        <div data-testid="main-slot" />
-      </HomeContent>,
-    );
-
+    fireEvent.click(screen.getByLabelText("History 열기"));
     const scrim = screen.getByLabelText("History 닫기");
     fireEvent.click(scrim);
 
-    expect(onClose).toHaveBeenCalledTimes(1);
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
   });
 });

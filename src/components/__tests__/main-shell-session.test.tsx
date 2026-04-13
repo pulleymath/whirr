@@ -36,9 +36,7 @@ describe("MainShell + 세션 본문", () => {
     render(
       <MainAppProviders>
         <MainShell>
-          <div className="flex w-full justify-center">
-            <SessionDetail />
-          </div>
+          <SessionDetail />
         </MainShell>
       </MainAppProviders>,
     );
