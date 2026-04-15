@@ -16,6 +16,10 @@ PRD의 요구를 만족시키기 위한 **경계·책임·데이터 위치**만 
 - **호스팅 앱**: `POST /api/stt/transcribe`가 크기·MIME·모델·레이트 리밋을 검증한 뒤 OpenAI **HTTP 전사**로 프록시하고, **텍스트만** 클라이언트에 돌려준다.
 - **UI**: 실시간 WSS 어댑터(`useTranscription`)와는 별도 훅이지만, 전사 표시·세션 저장 흐름은 동일 화면에서 이어진다.
 
+## 녹음 후 파이프라인(마지막 세그먼트·요약)
+
+배치 녹음이 끝난 뒤 **5분 단위로 이미 전사된 본문**에 더해, **마지막 오디오 조각**만 클라이언트에서 `POST /api/stt/transcribe`로 전사하고, 합쳐진 전문을 `POST /api/summarize`로 보내 **목(mock) 요약**을 받아 로컬 세션에 붙인다. 이 비동기 단계는 **`PostRecordingPipelineProvider`**(메인 레이아웃)에서 돌아가며, SPA 내비게이션 후에도 같은 탭에서는 완료까지 이어진다. 세션 레코드에는 진행 상태를 위해 **`status`**(예: transcribing, summarizing, ready, error)와 **`summary`** 필드가 사용된다.
+
 ## 구성 요소 책임
 
 | 영역            | 책임                                                                                                                                                                                                                                                                                                                 |

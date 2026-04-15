@@ -10,6 +10,8 @@ type TranscriptViewProps = {
   emptyStateHint?: string | null;
   /** 설정 시 상단 영역에 로딩 문구를 표시한다(예: 일괄 전사 중) */
   loadingMessage?: string | null;
+  /** 배치 녹음 중 세그먼트 전사가 진행 중일 때 finals 끝에 로딩 점 표시 */
+  isSegmentInFlight?: boolean;
 };
 
 export function TranscriptView({
@@ -19,6 +21,7 @@ export function TranscriptView({
   showHeading = true,
   emptyStateHint = null,
   loadingMessage = null,
+  isSegmentInFlight = false,
 }: TranscriptViewProps) {
   const hasContent = finals.length > 0 || partial.length > 0;
 
@@ -72,11 +75,23 @@ export function TranscriptView({
           aria-label="확정된 문장"
           data-testid="transcript-finals"
         >
-          {finals.map((line, i) => (
-            <li key={`${i}-${line.slice(0, 12)}`} className="leading-relaxed">
-              {line}
-            </li>
-          ))}
+          {finals.map((line, i) => {
+            const last = i === finals.length - 1;
+            return (
+              <li key={`${i}-${line.slice(0, 12)}`} className="leading-relaxed">
+                {line}
+                {last && isSegmentInFlight ? (
+                  <span
+                    className="ml-0.5 inline-block text-zinc-400 animate-pulse"
+                    aria-hidden
+                    data-testid="transcript-segment-loading"
+                  >
+                    …
+                  </span>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       </TabPanelBody>
     </section>

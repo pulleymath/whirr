@@ -7,6 +7,7 @@ import {
   type SummaryTabUiState,
 } from "@/components/summary-tab-panel";
 import { TranscriptView } from "@/components/transcript-view";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useBatchTranscription } from "@/hooks/use-batch-transcription";
 import {
   formatElapsed,
@@ -16,7 +17,10 @@ import {
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession, saveSessionAudio } from "@/lib/db";
-import { downloadRecordingSegments } from "@/lib/download-recording";
+import {
+  usePostRecordingPipeline,
+  type PostRecordingPipelinePhase,
+} from "@/lib/post-recording-pipeline/context";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { useSettings } from "@/lib/settings/context";
 import {
@@ -31,23 +35,23 @@ export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
 };
 
-type SummaryAfterSave = "none" | "summarizing" | "complete";
-
 const STREAMING_SESSION_SOFT_MS = OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
 
 function deriveSummaryTabState(
   recorderStatus: RecorderStatus,
-  afterSave: SummaryAfterSave,
-  summaryError: string | null,
+  pipelinePhase: PostRecordingPipelinePhase,
+  pipelineSummary: string | null,
+  pipelineError: string | null,
+  persistError: string | null,
   batchRecording: boolean,
 ): SummaryTabUiState {
-  if (summaryError) {
+  if (persistError || pipelineError) {
     return "error";
   }
-  if (afterSave === "summarizing") {
+  if (pipelinePhase === "transcribing" || pipelinePhase === "summarizing") {
     return "summarizing";
   }
-  if (afterSave === "complete") {
+  if (pipelinePhase === "done" && pipelineSummary) {
     return "complete";
   }
   if (recorderStatus === "recording" || batchRecording) {
@@ -59,6 +63,7 @@ function deriveSummaryTabState(
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const { settings } = useSettings();
   const { setIsRecording } = useRecordingActivity();
+  const { enqueue: enqueuePipeline, ...pipeline } = usePostRecordingPipeline();
   const isBatchMode = settings.mode === "batch";
 
   const {
@@ -111,6 +116,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const [unsupportedModeMessage, setUnsupportedModeMessage] = useState<
     string | null
   >(null);
+  const [persistError, setPersistError] = useState<string | null>(null);
 
   useEffect(() => {
     const recording = isBatchMode
@@ -122,12 +128,10 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     };
   }, [batch.status, isBatchMode, setIsRecording, status]);
 
-  const [afterSave, setAfterSave] = useState<SummaryAfterSave>("none");
-  const [summaryError, setSummaryError] = useState<string | null>(null);
-  const [placeholderSummary, setPlaceholderSummary] = useState<string | null>(
-    null,
-  );
-  const summarizeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recordingActive = isBatchMode
+    ? batch.status === "recording"
+    : status === "recording";
+  useBeforeUnload(recordingActive || pipeline.isBusy);
 
   const finalsRef = useRef(finals);
   const partialRef = useRef(partial);
@@ -136,22 +140,11 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     partialRef.current = partial;
   }, [finals, partial]);
 
-  useEffect(() => {
-    return () => {
-      if (summarizeTimerRef.current) {
-        clearTimeout(summarizeTimerRef.current);
-      }
-    };
-  }, []);
-
   const start = useCallback(async () => {
     setUnsupportedModeMessage(null);
-    setAfterSave("none");
-    setSummaryError(null);
-    setPlaceholderSummary(null);
-    if (summarizeTimerRef.current) {
-      clearTimeout(summarizeTimerRef.current);
-      summarizeTimerRef.current = null;
+    setPersistError(null);
+    if (pipeline.isBusy) {
+      return;
     }
     if (settings.mode === "webSpeechApi") {
       if (!isWebSpeechApiSupported()) {
@@ -176,54 +169,51 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       return;
     }
     await startRecording();
-  }, [prepareStreaming, settings.mode, startBatchRecording, startRecording]);
-
-  const [isDownloading, setIsDownloading] = useState(false);
-
-  const persistAfterTranscript = useCallback(
-    async (trimmed: string, audioSegments: Blob[] = []) => {
-      if (!trimmed && audioSegments.length === 0) {
-        return;
-      }
-      try {
-        const id = await saveSession(trimmed);
-        if (audioSegments.length > 0) {
-          await saveSessionAudio(id, audioSegments);
-        }
-        onSessionSaved?.(id);
-        setAfterSave("summarizing");
-        setPlaceholderSummary(
-          "이번 세션 요약(플레이스홀더): 핵심 논점이 여기에 표시됩니다.",
-        );
-        if (summarizeTimerRef.current) {
-          clearTimeout(summarizeTimerRef.current);
-        }
-        summarizeTimerRef.current = setTimeout(() => {
-          setAfterSave("complete");
-          summarizeTimerRef.current = null;
-        }, 400);
-      } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
-        console.error("[session-storage] save failed:", msg);
-        setSummaryError("세션을 저장하지 못했습니다.");
-      }
-    },
-    [onSessionSaved],
-  );
+  }, [
+    prepareStreaming,
+    settings.mode,
+    startBatchRecording,
+    startRecording,
+    pipeline.isBusy,
+  ]);
 
   const stop = useCallback(async () => {
+    setPersistError(null);
     if (settings.mode === "batch") {
       const session = batch.sessionRef.current;
       let fullAudio: Blob | undefined;
       if (session && typeof session.getFullAudioBlob === "function") {
         fullAudio = await session.getFullAudioBlob();
       }
-      const text = await stopBatchTranscribe();
-      const trimmed = (text ?? "").trim();
-      await persistAfterTranscript(
-        trimmed,
-        fullAudio ? [fullAudio] : batch.segments,
-      );
+      const stopped = await stopBatchTranscribe();
+      if (!stopped) {
+        return;
+      }
+      const { partialText, finalBlob, segments } = stopped;
+      const audioSegments = fullAudio ? [fullAudio] : segments;
+      if (!partialText.trim() && audioSegments.length === 0) {
+        return;
+      }
+      try {
+        const id = await saveSession(partialText, {
+          status: "transcribing",
+        });
+        if (audioSegments.length > 0) {
+          await saveSessionAudio(id, audioSegments);
+        }
+        onSessionSaved?.(id);
+        enqueuePipeline({
+          sessionId: id,
+          partialText,
+          finalBlob,
+          model: settings.batchModel,
+          language: settings.language,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[session-storage] save failed:", msg);
+        setPersistError("세션을 저장하지 못했습니다.");
+      }
       return;
     }
 
@@ -233,22 +223,43 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       const snapshot = buildSessionText(finalsRef.current, partialRef.current);
       await finalizeStreaming();
       const trimmed = snapshot.trim();
-      await persistAfterTranscript(trimmed);
+      if (!trimmed) {
+        return;
+      }
+      try {
+        const id = await saveSession(trimmed, { status: "summarizing" });
+        onSessionSaved?.(id);
+        enqueuePipeline({
+          sessionId: id,
+          partialText: trimmed,
+          finalBlob: null,
+          model: settings.batchModel,
+          language: settings.language,
+        });
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[session-storage] save failed:", msg);
+        setPersistError("세션을 저장하지 못했습니다.");
+      }
     }
   }, [
     finalizeStreaming,
-    persistAfterTranscript,
+    onSessionSaved,
+    enqueuePipeline,
+    settings.batchModel,
+    settings.language,
     settings.mode,
     stopBatchTranscribe,
     stopRecording,
-    batch.segments,
     batch.sessionRef,
   ]);
 
   const summaryUiState = deriveSummaryTabState(
     status,
-    afterSave,
-    summaryError,
+    pipeline.phase,
+    pipeline.summaryText,
+    pipeline.errorMessage,
+    persistError,
     isBatchMode && batch.status === "recording",
   );
 
@@ -261,10 +272,13 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     : status === "recording";
   const showStart = !showStop && !batchTranscribing;
 
+  const batchTranscriptText =
+    pipeline.displayTranscript ??
+    (batch.transcript && batch.transcript.length > 0 ? batch.transcript : null);
   const transcriptPartial = isBatchMode ? "" : partial;
   const transcriptFinals =
-    isBatchMode && batch.transcript
-      ? [batch.transcript]
+    isBatchMode && batchTranscriptText
+      ? [batchTranscriptText]
       : isBatchMode
         ? []
         : finals;
@@ -275,6 +289,10 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const batchLoadingMessage = batchTranscribing
     ? `전사 중... (${batch.completedCount}/${batch.totalCount})`
     : null;
+  const segmentInFlight =
+    batchRecording &&
+    batch.totalCount > 0 &&
+    batch.completedCount < batch.totalCount;
 
   const streamingSessionHint =
     !isBatchMode &&
@@ -302,32 +320,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             {formatElapsed(displayElapsedMs)}
           </p>
           <div className="flex gap-2">
-            {isBatchMode && batch.segments.length > 0 && (
-              <button
-                type="button"
-                disabled={isDownloading}
-                onClick={async () => {
-                  setIsDownloading(true);
-                  try {
-                    await downloadRecordingSegments(
-                      batch.segments,
-                      `recording-${new Date().toISOString()}`,
-                    );
-                  } finally {
-                    setIsDownloading(false);
-                  }
-                }}
-                className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                aria-label="오디오 다운로드"
-              >
-                {isDownloading ? "다운로드 중..." : "오디오 다운로드"}
-              </button>
-            )}
             {showStart ? (
               <button
                 type="button"
+                disabled={pipeline.isBusy}
                 onClick={() => void start()}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500"
+                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
                 aria-label="녹음 시작"
               >
                 녹음 시작
@@ -344,6 +342,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             ) : null}
           </div>
         </div>
+
+        {pipeline.isBusy && !recordingActive ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400" role="status">
+            이전 녹음을 처리 중입니다. 잠시만 기다려 주세요.
+          </p>
+        ) : null}
 
         <div className="flex flex-col gap-1">
           <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -455,13 +459,14 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             showHeading={false}
             emptyStateHint={batchRecordingHint}
             loadingMessage={batchLoadingMessage}
+            isSegmentInFlight={segmentInFlight}
           />
         }
         summaryPanel={
           <SummaryTabPanel
             state={summaryUiState}
-            summaryText={placeholderSummary ?? undefined}
-            errorMessage={summaryError}
+            summaryText={pipeline.summaryText ?? undefined}
+            errorMessage={persistError ?? pipeline.errorMessage ?? undefined}
           />
         }
       />

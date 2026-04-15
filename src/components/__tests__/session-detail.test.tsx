@@ -8,7 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionDetail } from "@/components/session-detail";
-import { getSessionById } from "@/lib/db";
+import { getSessionAudio, getSessionById } from "@/lib/db";
 
 const mockBack = vi.fn();
 
@@ -34,6 +34,7 @@ describe("SessionDetail", () => {
   beforeEach(() => {
     mockBack.mockClear();
     vi.mocked(getSessionById).mockReset();
+    vi.mocked(getSessionAudio).mockResolvedValue(undefined);
   });
 
   it("세션이 있으면 전체 텍스트를 보여준다", async () => {
@@ -101,5 +102,30 @@ describe("SessionDetail", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
     expect(mockBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("전사 복사 버튼이 클립보드에 텍스트를 넣는다", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("navigator", {
+      ...navigator,
+      clipboard: { writeText },
+    });
+
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "복사할 내용",
+    });
+
+    render(<SessionDetail />);
+
+    await waitFor(() => {
+      expect(screen.getByText("복사할 내용")).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "전사 텍스트 복사" }));
+    expect(writeText).toHaveBeenCalledWith("복사할 내용");
+
+    vi.unstubAllGlobals();
   });
 });

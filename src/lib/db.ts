@@ -1,9 +1,19 @@
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
+export type SessionStatus = "transcribing" | "summarizing" | "ready" | "error";
+
 export type Session = {
   id: string;
   createdAt: number;
   text: string;
+  /** 요약 완료 후 채워짐 */
+  summary?: string | null;
+  /** 파이프라인·저장 상태 (구 레코드는 생략 가능 → ready로 간주) */
+  status?: SessionStatus;
+};
+
+export type SaveSessionOptions = {
+  status?: SessionStatus;
 };
 
 export type SessionAudio = {
@@ -60,12 +70,32 @@ export async function disconnectWhirrDb(): Promise<void> {
   }
 }
 
-export async function saveSession(text: string): Promise<string> {
+export async function saveSession(
+  text: string,
+  options?: SaveSessionOptions,
+): Promise<string> {
   const id = crypto.randomUUID();
   const createdAt = Date.now();
+  const status: SessionStatus = options?.status ?? "ready";
   const db = await getDb();
-  await db.put(STORE, { id, createdAt, text });
+  await db.put(STORE, { id, createdAt, text, status });
   return id;
+}
+
+export type SessionUpdate = Partial<
+  Pick<Session, "text" | "summary" | "status">
+>;
+
+export async function updateSession(
+  id: string,
+  updates: SessionUpdate,
+): Promise<void> {
+  const db = await getDb();
+  const existing = await db.get(STORE, id);
+  if (!existing) {
+    throw new Error(`Session not found: ${id}`);
+  }
+  await db.put(STORE, { ...existing, ...updates });
 }
 
 export async function getSessionById(id: string): Promise<Session | undefined> {

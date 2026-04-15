@@ -1,8 +1,14 @@
 /** @vitest-environment happy-dom */
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionList } from "@/components/session-list";
 import { getAllSessions } from "@/lib/db";
+import { RecordingActivityProvider } from "@/lib/recording-activity/context";
+
+function wrapSessionList(node: ReactNode) {
+  return <RecordingActivityProvider>{node}</RecordingActivityProvider>;
+}
 
 const pathnameRef = vi.hoisted(() => ({ current: "/" as string }));
 
@@ -35,7 +41,7 @@ describe("SessionList", () => {
       { id: "b", createdAt: day + 3600_000, text: "두 번째 메모" },
     ]);
 
-    render(<SessionList />);
+    render(wrapSessionList(<SessionList />));
 
     await waitFor(() => {
       expect(screen.getAllByRole("link").length).toBe(2);
@@ -55,7 +61,7 @@ describe("SessionList", () => {
       },
     ]);
 
-    render(<SessionList />);
+    render(wrapSessionList(<SessionList />));
 
     await waitFor(() => {
       expect(screen.getByText("hello preview")).toBeTruthy();
@@ -72,7 +78,7 @@ describe("SessionList", () => {
     ]);
     pathnameRef.current = "/sessions/abc";
 
-    render(<SessionList />);
+    render(wrapSessionList(<SessionList />));
 
     await waitFor(() => {
       const link = screen.getByRole("link");
@@ -90,7 +96,7 @@ describe("SessionList", () => {
       },
     ]);
 
-    render(<SessionList />);
+    render(wrapSessionList(<SessionList />));
 
     await waitFor(() => {
       const link = screen.getByRole("link");
@@ -108,7 +114,7 @@ describe("SessionList", () => {
     ]);
     pathnameRef.current = "/sessions/abc";
 
-    render(<SessionList />);
+    render(wrapSessionList(<SessionList />));
 
     await waitFor(() => {
       const link = screen.getByRole("link");
@@ -119,13 +125,15 @@ describe("SessionList", () => {
   it("refreshTrigger가 바뀌면 getAllSessions를 다시 호출한다", async () => {
     vi.mocked(getAllSessions).mockResolvedValue([]);
 
-    const { rerender } = render(<SessionList refreshTrigger={0} />);
+    const { rerender } = render(
+      wrapSessionList(<SessionList refreshTrigger={0} />),
+    );
     await waitFor(() => {
       expect(screen.queryByText("불러오는 중…")).toBeNull();
     });
 
     vi.mocked(getAllSessions).mockClear();
-    rerender(<SessionList refreshTrigger={1} />);
+    rerender(wrapSessionList(<SessionList refreshTrigger={1} />));
     await waitFor(() => expect(getAllSessions).toHaveBeenCalledTimes(1));
   });
 });

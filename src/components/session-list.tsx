@@ -12,6 +12,7 @@ import {
   previewSessionText,
   SESSION_LIST_PREVIEW_MAX,
 } from "@/lib/session-preview";
+import { useRecordingActivity } from "@/lib/recording-activity/context";
 
 function sessionHref(id: string): string {
   return `/sessions/${encodeURIComponent(id)}`;
@@ -22,6 +23,7 @@ export type SessionListProps = {
 };
 
 export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
+  const { isRecording } = useRecordingActivity();
   const pathname = usePathname();
   const [groups, setGroups] = useState<ReturnType<typeof groupSessionsByDate>>(
     [],
@@ -100,30 +102,48 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
               const timeLabel = formatSessionListTime(s.createdAt);
               const href = sessionHref(s.id);
               const isActive = pathnameDecoded === s.id;
+              const rowClass = isActive
+                ? "block bg-zinc-100/90 px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
+                : "block px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-900/60";
+              const disabledClass =
+                "cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent";
               return (
                 <li
                   key={s.id}
                   className="border-b border-zinc-200/90 last:border-b-0 dark:border-zinc-700/80"
                 >
-                  <Link
-                    href={href}
-                    aria-current={isActive ? "page" : undefined}
-                    className={
-                      isActive
-                        ? "block bg-zinc-100/90 px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
-                        : "block px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-900/60"
-                    }
-                    aria-label={`${timeLabel}, ${preview || "빈 전사"}`}
-                  >
-                    <div className="flex items-baseline justify-between gap-2">
-                      <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
-                        {timeLabel}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
-                      {preview || "—"}
-                    </p>
-                  </Link>
+                  {isRecording ? (
+                    <span
+                      className={`${rowClass} ${disabledClass}`}
+                      aria-disabled="true"
+                      aria-label={`${timeLabel}, ${preview || "빈 전사"} (녹음 중에는 이동할 수 없습니다)`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {timeLabel}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
+                        {preview || "—"}
+                      </p>
+                    </span>
+                  ) : (
+                    <Link
+                      href={href}
+                      aria-current={isActive ? "page" : undefined}
+                      className={rowClass}
+                      aria-label={`${timeLabel}, ${preview || "빈 전사"}`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
+                          {timeLabel}
+                        </span>
+                      </div>
+                      <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
+                        {preview || "—"}
+                      </p>
+                    </Link>
+                  )}
                 </li>
               );
             })}

@@ -258,7 +258,9 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
     if (recorder && recorder.state !== "inactive") {
       try {
         recorder.stop();
-      } catch { /* already stopped */ }
+      } catch {
+        /* already stopped */
+      }
       recorder = null;
     }
     stream.getTracks().forEach((t) => t.stop());

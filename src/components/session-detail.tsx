@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSessionAudio, getSessionById, type Session } from "@/lib/db";
 import { downloadRecordingSegments } from "@/lib/download-recording";
 
@@ -124,11 +124,54 @@ function SessionDetailBody({
   if (!session) return null;
 
   return (
+    <SessionDetailReadyContent
+      session={session}
+      audioUrl={audioUrl}
+      audioSegments={audioSegments}
+      isDownloading={isDownloading}
+      setIsDownloading={setIsDownloading}
+      onBack={() => router.back()}
+    />
+  );
+}
+
+function SessionDetailReadyContent({
+  session,
+  audioUrl,
+  audioSegments,
+  isDownloading,
+  setIsDownloading,
+  onBack,
+}: {
+  session: Session;
+  audioUrl: string | null;
+  audioSegments: Blob[];
+  isDownloading: boolean;
+  setIsDownloading: (v: boolean) => void;
+  onBack: () => void;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  const copyText = useCallback(async () => {
+    const t = session.text.trim();
+    if (!t) return;
+    try {
+      await navigator.clipboard.writeText(session.text);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* ignore */
+    }
+  }, [session.text]);
+
+  const hasText = session.text.trim().length > 0;
+
+  return (
     <div className="flex w-full flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={onBack}
           className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
         >
           뒤로
@@ -170,12 +213,61 @@ function SessionDetailBody({
         className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
         aria-label="세션 전사"
       >
-        <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          전사
-        </h1>
+        <div className="flex items-center justify-between gap-2">
+          <h1 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
+            전사
+          </h1>
+          {hasText ? (
+            <button
+              type="button"
+              onClick={() => void copyText()}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-900"
+              aria-label="전사 텍스트 복사"
+            >
+              {copied ? (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                </svg>
+              )}
+            </button>
+          ) : null}
+        </div>
         <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
-          {session.text}
+          {session.text || "—"}
         </p>
+        {session.summary ? (
+          <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
+            <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+              요약
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
+              {session.summary}
+            </p>
+          </div>
+        ) : null}
       </article>
     </div>
   );

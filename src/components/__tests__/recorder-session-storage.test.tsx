@@ -10,6 +10,26 @@ function wrapRecorder(ui: ReactElement) {
   return <MainAppProviders>{ui}</MainAppProviders>;
 }
 
+const mockEnqueue = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
+  return {
+    ...actual,
+    usePostRecordingPipeline: () => ({
+      phase: "idle" as const,
+      isBusy: false,
+      errorMessage: null,
+      summaryText: null,
+      displayTranscript: null,
+      enqueue: mockEnqueue,
+    }),
+  };
+});
+
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "saved-id"),
 }));
@@ -109,7 +129,9 @@ describe("Recorder 세션 저장", () => {
     });
 
     expect(saveSession).toHaveBeenCalledTimes(1);
-    expect(saveSession).toHaveBeenCalledWith("hello world");
+    expect(saveSession).toHaveBeenCalledWith("hello world", {
+      status: "summarizing",
+    });
   });
 
   it("finals와 partial이 모두 비어 있으면 saveSession을 호출하지 않는다", async () => {

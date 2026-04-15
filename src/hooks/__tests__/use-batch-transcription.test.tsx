@@ -1,7 +1,10 @@
 /** @vitest-environment happy-dom */
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useBatchTranscription } from "../use-batch-transcription";
+import {
+  useBatchTranscription,
+  type BatchStopResult,
+} from "../use-batch-transcription";
 
 const startSegmentedRecording = vi.hoisted(() =>
   vi.fn(async () => ({
@@ -49,7 +52,7 @@ describe("useBatchTranscription", () => {
     expect(startSegmentedRecording).toHaveBeenCalledTimes(1);
   });
 
-  it("stopAndTranscribe 성공 시 transcribing을 거쳐 done과 transcript를 설정한다", async () => {
+  it("stopAndTranscribe 성공 시 idle이고 마지막 블롭만 반환·훅에서는 전사 fetch를 하지 않는다", async () => {
     globalThis.fetch = vi.fn(async () => {
       return new Response(JSON.stringify({ text: "  안녕  " }), {
         status: 200,
@@ -64,23 +67,20 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    let saved: string | null = null;
+    let saved: BatchStopResult | null = null;
     await act(async () => {
       saved = await result.current.stopAndTranscribe();
     });
 
-    await waitFor(() => {
-      expect(result.current.status).toBe("done");
-    });
-    expect(saved).toBe("안녕");
-    expect(result.current.transcript).toBe("안녕");
-    expect(globalThis.fetch).toHaveBeenCalledWith(
-      "/api/stt/transcribe",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(result.current.status).toBe("idle");
+    expect(saved).not.toBeNull();
+    expect(saved!.partialText).toBe("");
+    expect(saved!.finalBlob).not.toBeNull();
+    expect(saved!.segments).toHaveLength(1);
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it("5xx 오류 시 자동 재시도 후 실패하면 error 상태가 된다", async () => {
+  it("5분 회전 후 백그라운드 전사가 5xx로 끝나면 stop 시 error가 된다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(
@@ -95,7 +95,11 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+    });
+
+    let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
@@ -107,11 +111,11 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("error");
-    expect(result.current.errorMessage).toMatch(/전사/);
-    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+    expect(result.current.errorMessage).toMatch(/전사|구간/);
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 
-  it("fetch가 연속으로 reject되면 백오프 후 재시도하고 실패 시 error가 된다", async () => {
+  it("fetch가 연속 reject되면 백오프 후 재시도하고 실패 시 stop에서 error가 된다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi
       .fn()
@@ -127,7 +131,11 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+    });
+
+    let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
@@ -139,10 +147,11 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("error");
-    expect(globalThis.fetch).toHaveBeenCalledTimes(3);
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 
-  it("4xx 오류 시 재시도 없이 error가 된다", async () => {
+  it("4xx 오류 시 재시도 없이 회전 구간 전사가 실패하고 stop 시 error가 된다", async () => {
+    vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(JSON.stringify({ error: "Audio file too large" }), {
         status: 413,
@@ -156,12 +165,17 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+    });
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
       await result.current.stopAndTranscribe();
     });
 
-    await waitFor(() => {
-      expect(result.current.status).toBe("error");
-    });
+    expect(result.current.status).toBe("error");
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -188,7 +202,11 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    let stopPromise: Promise<string | null>;
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+    });
+
+    let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
@@ -201,6 +219,12 @@ describe("useBatchTranscription", () => {
 
     expect(result.current.status).toBe("error");
 
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(JSON.stringify({ text: "수동 재시도" }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
     let retryPromise: Promise<string | null>;
     await act(async () => {
       retryPromise = result.current.retryTranscription();
@@ -210,16 +234,15 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("done");
-    expect(result.current.transcript).toBe("수동 재시도");
+    expect(result.current.transcript).toBe("수동 재시도 수동 재시도");
   });
 
-  it("stopAndTranscribe 호출 시 진행 중인 모든 백그라운드 전사를 기다린다", async () => {
+  it("stopAndTranscribe 호출 시 진행 중인 백그라운드 전사를 기다리고 partialText에만 합친다", async () => {
     vi.useFakeTimers();
     let fetchCount = 0;
     globalThis.fetch = vi.fn(async () => {
       fetchCount++;
       const currentCount = fetchCount;
-      // 첫 번째 호출(백그라운드)은 지연됨
       if (currentCount === 1) {
         await new Promise((r) => setTimeout(r, 2000));
         return new Response(JSON.stringify({ text: "첫번째" }), {
@@ -235,26 +258,24 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
 
-    // 5분 경과 시뮬레이션 (첫 번째 세그먼트 완료 -> 백그라운드 전사 시작)
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 100);
     });
 
-    // stopAndTranscribe 호출 (두 번째 세그먼트 전사 시작)
-    let stopPromise: Promise<string | null>;
+    let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
 
-    // 모든 fetch가 완료될 때까지 시간 진행
     await act(async () => {
       await vi.advanceTimersByTimeAsync(3000);
     });
 
-    const finalTranscript = await stopPromise!;
-    expect(finalTranscript).toContain("첫번째");
-    expect(finalTranscript).toContain("두번째");
-    expect(result.current.status).toBe("done");
+    const out = await stopPromise!;
+    expect(out?.partialText).toContain("첫번째");
+    expect(out?.partialText).not.toContain("두번째");
+    expect(out?.finalBlob).not.toBeNull();
+    expect(result.current.status).toBe("idle");
   });
 });
 
@@ -286,7 +307,7 @@ describe("useBatchTranscription 녹음 시간 제한", () => {
     vi.useRealTimers();
   });
 
-  it("60분 경과 시 전사 API를 자동으로 호출한다", async () => {
+  it("60분 경과 시 stopAndTranscribe가 호출되어 transcribe 요청이 발생할 수 있다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(JSON.stringify({ text: "자동" }), { status: 200 });

@@ -42,4 +42,28 @@ describe("TranscriptView", () => {
     render(<TranscriptView partial="" finals={[]} showHeading={false} />);
     expect(screen.getByTestId("tab-panel-body")).toBeTruthy();
   });
+
+  it("isSegmentInFlight이면 마지막 final 뒤에 로딩 표시가 있다", () => {
+    render(
+      <TranscriptView
+        partial=""
+        finals={["이어지는 전사"]}
+        showHeading={false}
+        isSegmentInFlight
+      />,
+    );
+    expect(screen.getByTestId("transcript-segment-loading")).toBeTruthy();
+  });
+
+  it("isSegmentInFlight이 false이면 세그먼트 로딩이 없다", () => {
+    render(
+      <TranscriptView
+        partial=""
+        finals={["문장"]}
+        showHeading={false}
+        isSegmentInFlight={false}
+      />,
+    );
+    expect(screen.queryByTestId("transcript-segment-loading")).toBeNull();
+  });
 });

@@ -6,8 +6,29 @@ import { saveSession } from "@/lib/db";
 import { SETTINGS_STORAGE_KEY } from "@/lib/settings/context";
 import { Recorder } from "../recorder";
 
+const mockEnqueue = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
+  return {
+    ...actual,
+    usePostRecordingPipeline: () => ({
+      phase: "idle" as const,
+      isBusy: false,
+      errorMessage: null,
+      summaryText: null,
+      displayTranscript: null,
+      enqueue: mockEnqueue,
+    }),
+  };
+});
+
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "batch-saved-id"),
+  saveSessionAudio: vi.fn(async () => {}),
 }));
 
 const prepareStreaming = vi.fn(async () => true);
@@ -100,75 +121,13 @@ describe("Recorder 배치 모드", () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByText(/녹음 중입니다\. 녹음을 종료하면 전사가 시작됩니다/),
+        screen.getByText(/녹음 중입니다\. 5분마다 전사 결과가 업데이트됩니다/),
       ).toBeTruthy();
     });
     expect(prepareStreaming).not.toHaveBeenCalled();
   });
 
-  it("전사 중 로딩 문구를 표시한다", async () => {
-    let resolveStop: (() => void) | undefined;
-    const stopPromise = new Promise<Blob>((resolve) => {
-      resolveStop = () => resolve(new Blob(["a"], { type: "audio/webm" }));
-    });
-    const stopDeferred = vi.fn(async () => stopPromise);
-    startSegmentedRecording.mockImplementationOnce(async () => ({
-      analyser: {
-        frequencyBinCount: 128,
-        getByteTimeDomainData: vi.fn(),
-      },
-      rotateSegment: vi.fn(),
-      stopFinalSegment: stopDeferred,
-      close: vi.fn(),
-    }));
-
-    let resolveFetch: ((v: Response) => void) | undefined;
-    const fetchPromise = new Promise<Response>((resolve) => {
-      resolveFetch = resolve;
-    });
-    globalThis.fetch = vi.fn(() => fetchPromise) as unknown as typeof fetch;
-
-    render(
-      <MainAppProviders>
-        <Recorder />
-      </MainAppProviders>,
-    );
-
-    await vi.waitFor(() => {
-      expect(
-        screen
-          .getByTestId("recorder-root")
-          .getAttribute("data-transcription-mode"),
-      ).toBe("batch");
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
-    await vi.waitFor(() => {
-      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
-    resolveStop?.();
-    await vi.waitFor(() => {
-      expect(stopDeferred).toHaveBeenCalled();
-    });
-
-    await vi.waitFor(() => {
-      expect(screen.getByTestId("transcript-loading").textContent).toContain(
-        "전사 중...",
-      );
-    });
-
-    resolveFetch?.(
-      new Response(JSON.stringify({ text: "완료" }), { status: 200 }),
-    );
-
-    await vi.waitFor(() => {
-      expect(saveSession).toHaveBeenCalledWith("완료");
-    });
-  });
-
-  it("전사 완료 후 세션을 저장한다", async () => {
+  it("중지 시 세션을 먼저 저장하고 파이프라인 enqueue를 호출한다", async () => {
     render(
       <MainAppProviders>
         <Recorder onSessionSaved={vi.fn()} />
@@ -191,7 +150,15 @@ describe("Recorder 배치 모드", () => {
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
 
     await vi.waitFor(() => {
-      expect(saveSession).toHaveBeenCalledWith("배치 전사 결과");
+      expect(saveSession).toHaveBeenCalledWith("", { status: "transcribing" });
     });
+    expect(mockEnqueue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: "batch-saved-id",
+        partialText: "",
+        model: "whisper-1",
+        language: "ko",
+      }),
+    );
   });
 });

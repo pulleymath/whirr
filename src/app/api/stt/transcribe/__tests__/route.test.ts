@@ -194,21 +194,19 @@ describe("POST /api/stt/transcribe", () => {
 
   it("업스트림 4xx(corrupted file 등) 시 422를 반환한다", async () => {
     vi.stubEnv("OPENAI_API_KEY", "k");
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            error: {
-              message: "Audio file might be corrupted or unsupported",
-              type: "invalid_request_error",
-              param: "file",
-              code: "invalid_value",
-            },
-          }),
-          { status: 400 },
-        ),
-      ) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: "Audio file might be corrupted or unsupported",
+            type: "invalid_request_error",
+            param: "file",
+            code: "invalid_value",
+          },
+        }),
+        { status: 400 },
+      ),
+    ) as unknown as typeof fetch;
 
     const fd = new FormData();
     fd.set("file", smallWebmFile());

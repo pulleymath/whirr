@@ -70,7 +70,7 @@ function parseWsJsonText(text: string): Record<string, unknown> | null {
 }
 
 async function parseWsMessageData(
-  data: unknown
+  data: unknown,
 ): Promise<Record<string, unknown> | null> {
   if (typeof data === "string") {
     return parseWsJsonText(data);
@@ -211,7 +211,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   constructor(
     private readonly token: string,
     private readonly WebSocketImpl: typeof WebSocket = WebSocket,
-    options?: OpenAIRealtimeProviderOptions
+    options?: OpenAIRealtimeProviderOptions,
   ) {
     this.stopFlushMs = options?.stopFlushMs ?? DEFAULT_STOP_FLUSH_MS;
     this.proactiveRenewalAfterMs =
@@ -246,7 +246,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
@@ -280,7 +280,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
           event,
           onPartial,
           onFinal,
-          onError
+          onError,
         ).catch((e) => {
           const err = e instanceof Error ? e : new Error(String(e));
           onError(err);
@@ -319,7 +319,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     event: MessageEvent,
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void
+    onError: (error: Error) => void,
   ) {
     const msg = await parseWsMessageData(event.data);
     if (!msg) {

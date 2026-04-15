@@ -5,6 +5,7 @@ import {
   saveSession,
   saveSessionAudio,
   getSessionAudio,
+  updateSession,
 } from "../db";
 import { resetWhirrDbForTests } from "./db-test-utils";
 
@@ -56,6 +57,34 @@ describe("db (IndexedDB)", () => {
     expect(all[1]!.text).toBe("older");
 
     nowSpy.mockRestore();
+  });
+
+  it("saveSession에 status를 넘기면 저장된 세션에 반영된다", async () => {
+    const id = await saveSession("partial", { status: "transcribing" });
+    const row = await getSessionById(id);
+    expect(row?.status).toBe("transcribing");
+  });
+
+  it("saveSession에 status를 생략하면 ready가 된다", async () => {
+    const id = await saveSession("done text");
+    const row = await getSessionById(id);
+    expect(row?.status).toBe("ready");
+  });
+
+  it("updateSession으로 text·summary·status를 갱신할 수 있다", async () => {
+    const id = await saveSession("a", { status: "transcribing" });
+    await updateSession(id, { text: "b", status: "summarizing" });
+    await updateSession(id, { summary: "요약", status: "ready" });
+    const row = await getSessionById(id);
+    expect(row?.text).toBe("b");
+    expect(row?.summary).toBe("요약");
+    expect(row?.status).toBe("ready");
+  });
+
+  it("존재하지 않는 id로 updateSession하면 에러를 던진다", async () => {
+    await expect(updateSession("missing-id", { text: "x" })).rejects.toThrow(
+      /Session not found/,
+    );
   });
 
   it("saveSessionAudio 및 getSessionAudio가 정상 동작한다", async () => {

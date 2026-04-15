@@ -141,7 +141,7 @@ describe("Recorder + 설정", () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByText(/녹음 중입니다\. 녹음을 종료하면 전사가 시작됩니다/),
+        screen.getByText(/녹음 중입니다\. 5분마다 전사 결과가 업데이트됩니다/),
       ).toBeTruthy();
     });
     expect(prepareStreaming).not.toHaveBeenCalled();

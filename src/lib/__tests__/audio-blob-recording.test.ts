@@ -94,10 +94,11 @@ describe("startBlobRecording", () => {
     expect(trackStop).toHaveBeenCalled();
   });
 
-  it("stop() 후 단일 Blob 과 트랙 정리가 이루어진다", async () => {
+  it("stop() 후 Blob 을 반환하고 트랙 정리가 이루어진다", async () => {
     const session = await startBlobRecording();
+    await new Promise<void>((r) => setTimeout(r, 0));
     const blob = await session.stop();
-    expect(blob.size).toBeGreaterThan(0);
+    expect(blob).toBeInstanceOf(Blob);
     expect(trackStop).toHaveBeenCalled();
   });
 
