@@ -21,8 +21,8 @@ export const OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE = "ko" as const;
  * 언어는 `language`로 고정하고, 여기엔 회의·IT 용어만 쉼표로 나열한다.
  * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields
  */
-export const OPENAI_REALTIME_TRANSCRIPTION_PROMPT =
-  "회의록, 안건, 액션아이템, 의사결정, 팔로업, 스프린트, 백로그, 코드리뷰, Kubernetes, 서버리스, MSA, OKR, KPI, API" as const;
+export const OPENAI_REALTIME_TRANSCRIPTION_PROMPT = "" as const;
+// "회의록, 안건, 액션아이템, 의사결정, 팔로업, 스프린트, 백로그, 코드리뷰, Kubernetes, 서버리스, MSA, OKR, KPI, API" as const;
 
 /**
  * Realtime transcription 세션·버퍼에 맞출 샘플레이트(Hz).
@@ -70,7 +70,7 @@ function parseWsJsonText(text: string): Record<string, unknown> | null {
 }
 
 async function parseWsMessageData(
-  data: unknown,
+  data: unknown
 ): Promise<Record<string, unknown> | null> {
   if (typeof data === "string") {
     return parseWsJsonText(data);
@@ -211,7 +211,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   constructor(
     private readonly token: string,
     private readonly WebSocketImpl: typeof WebSocket = WebSocket,
-    options?: OpenAIRealtimeProviderOptions,
+    options?: OpenAIRealtimeProviderOptions
   ) {
     this.stopFlushMs = options?.stopFlushMs ?? DEFAULT_STOP_FLUSH_MS;
     this.proactiveRenewalAfterMs =
@@ -246,7 +246,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
   connect(
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ): Promise<void> {
     return new Promise((resolve, reject) => {
       this.disconnect();
@@ -280,7 +280,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
           event,
           onPartial,
           onFinal,
-          onError,
+          onError
         ).catch((e) => {
           const err = e instanceof Error ? e : new Error(String(e));
           onError(err);
@@ -319,7 +319,7 @@ export class OpenAIRealtimeProvider implements TranscriptionProvider {
     event: MessageEvent,
     onPartial: (text: string) => void,
     onFinal: (text: string) => void,
-    onError: (error: Error) => void,
+    onError: (error: Error) => void
   ) {
     const msg = await parseWsMessageData(event.data);
     if (!msg) {

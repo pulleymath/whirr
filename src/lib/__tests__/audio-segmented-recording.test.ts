@@ -5,10 +5,12 @@ import { startSegmentedRecording } from "../audio";
 describe("startSegmentedRecording", () => {
   const trackStop = vi.fn();
   let recorderInstances: EventTarget[] = [];
+  let instanceCounter = 0;
 
   beforeEach(() => {
     trackStop.mockClear();
     recorderInstances = [];
+    instanceCounter = 0;
 
     class MockMediaRecorder extends EventTarget {
       static isTypeSupported = vi.fn(
@@ -18,10 +20,12 @@ describe("startSegmentedRecording", () => {
       state: RecordingState = "inactive";
       mimeType = "";
       ondataavailable: ((ev: BlobEvent) => void) | null = null;
+      private instanceId: number;
 
       constructor(_stream: MediaStream, options?: MediaRecorderOptions) {
         super();
         this.mimeType = options?.mimeType ?? "";
+        this.instanceId = instanceCounter++;
         recorderInstances.push(this);
       }
 
@@ -29,24 +33,19 @@ describe("startSegmentedRecording", () => {
         this.state = "recording";
       }
 
-      requestData() {
-        if (this.state !== "recording") return;
-        const ev = new Event("dataavailable");
-        Object.defineProperty(ev, "data", {
-          value: new Blob(["chunk-" + recorderInstances.indexOf(this)], {
-            type: "audio/webm",
-          }),
-        });
-        this.dispatchEvent(ev);
-        if (this.ondataavailable) {
-          this.ondataavailable(ev as BlobEvent);
-        }
-      }
-
       stop() {
         this.state = "inactive";
         queueMicrotask(() => {
-          this.requestData();
+          const ev = new Event("dataavailable");
+          Object.defineProperty(ev, "data", {
+            value: new Blob(["segment-" + this.instanceId], {
+              type: "audio/webm",
+            }),
+          });
+          this.dispatchEvent(ev);
+          if (this.ondataavailable) {
+            this.ondataavailable(ev as BlobEvent);
+          }
           this.dispatchEvent(new Event("stop"));
         });
       }
@@ -97,30 +96,54 @@ describe("startSegmentedRecording", () => {
     await session.close();
   });
 
-  it("rotateSegment 호출 시 기존 리코더를 중지하지 않고 requestData를 호출하며, 최종 Blob이 모든 데이터를 포함한다", async () => {
+  it("rotateSegment 호출 시 현재 리코더를 stop하고 새 리코더를 start한다", async () => {
     const session = await startSegmentedRecording();
-    const recorder = recorderInstances[0] as unknown as MediaRecorder;
-    const requestDataSpy = vi.spyOn(recorder, "requestData");
-
-    await session.rotateSegment();
-    expect(requestDataSpy).toHaveBeenCalled();
-    expect(recorder.state).toBe("recording");
     expect(recorderInstances.length).toBe(1);
 
-    await session.stopFinalSegment();
-    expect(recorder.state).toBe("inactive");
+    const segmentBlob = await session.rotateSegment();
+    expect(segmentBlob.size).toBeGreaterThan(0);
+    expect(recorderInstances.length).toBe(2);
+    expect((recorderInstances[0] as unknown as MediaRecorder).state).toBe(
+      "inactive",
+    );
+    expect((recorderInstances[1] as unknown as MediaRecorder).state).toBe(
+      "recording",
+    );
 
+    await session.stopFinalSegment();
     const fullBlob = await session.getFullAudioBlob();
     expect(fullBlob.size).toBeGreaterThan(0);
 
     await session.close();
   });
 
-  it("stopFinalSegment 호출 시 마지막 Blob을 반환하고 리코더를 더 이상 생성하지 않는다", async () => {
+  it("여러 번 rotateSegment 호출 시 매번 새 리코더를 생성한다", async () => {
+    const session = await startSegmentedRecording();
+
+    await session.rotateSegment();
+    await session.rotateSegment();
+    await session.rotateSegment();
+
+    expect(recorderInstances.length).toBe(4);
+    for (let i = 0; i < 3; i++) {
+      expect((recorderInstances[i] as unknown as MediaRecorder).state).toBe(
+        "inactive",
+      );
+    }
+    expect((recorderInstances[3] as unknown as MediaRecorder).state).toBe(
+      "recording",
+    );
+
+    await session.stopFinalSegment();
+    await session.close();
+  });
+
+  it("stopFinalSegment 호출 시 마지막 Blob을 반환한다", async () => {
     const session = await startSegmentedRecording();
     const blob = await session.stopFinalSegment();
 
     expect(blob).toBeInstanceOf(Blob);
+    expect(blob.size).toBeGreaterThan(0);
     expect(recorderInstances.length).toBe(1);
     expect((recorderInstances[0] as unknown as MediaRecorder).state).toBe(
       "inactive",
@@ -135,6 +158,7 @@ describe("startSegmentedRecording", () => {
     await session.stopFinalSegment();
     const fullBlob = await session.getFullAudioBlob();
     expect(fullBlob).toBeInstanceOf(Blob);
+    expect(fullBlob.size).toBeGreaterThan(0);
     await session.close();
   });
 

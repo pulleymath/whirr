@@ -176,7 +176,7 @@ describe("POST /api/stt/transcribe", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("업스트림 오류 시 502를 반환한다", async () => {
+  it("업스트림 5xx 오류 시 502를 반환한다", async () => {
     vi.stubEnv("OPENAI_API_KEY", "k");
     globalThis.fetch = vi
       .fn()
@@ -189,6 +189,32 @@ describe("POST /api/stt/transcribe", () => {
     fd.set("model", "whisper-1");
     const res = await POST(transcribePost(fd));
     expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "Failed to transcribe audio" });
+  });
+
+  it("업스트림 4xx(corrupted file 등) 시 422를 반환한다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "k");
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            error: {
+              message: "Audio file might be corrupted or unsupported",
+              type: "invalid_request_error",
+              param: "file",
+              code: "invalid_value",
+            },
+          }),
+          { status: 400 },
+        ),
+      ) as unknown as typeof fetch;
+
+    const fd = new FormData();
+    fd.set("file", smallWebmFile());
+    fd.set("model", "whisper-1");
+    const res = await POST(transcribePost(fd));
+    expect(res.status).toBe(422);
     expect(await res.json()).toEqual({ error: "Failed to transcribe audio" });
   });
 

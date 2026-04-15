@@ -102,9 +102,10 @@ export async function POST(request: Request) {
       res.status,
       detail.slice(0, 500),
     );
+    const isUpstreamClientError = res.status >= 400 && res.status < 500;
     return NextResponse.json(
       { error: "Failed to transcribe audio" },
-      { status: 502 },
+      { status: isUpstreamClientError ? 422 : 502 },
     );
   }
 

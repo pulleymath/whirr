@@ -151,6 +151,11 @@ export async function startBlobRecording(): Promise<BlobRecordingSession> {
 
 /**
  * 5분 단위 세그먼트 녹음을 지원하는 MediaRecorder 세션을 시작합니다.
+ *
+ * 세그먼트 교체 시 MediaRecorder를 stop→start하여 각 세그먼트가
+ * 독립적인 WebM 컨테이너 헤더를 갖는 유효한 파일이 되도록 합니다.
+ * (requestData()만으로는 두 번째 이후 조각에 EBML 헤더가 빠져
+ * OpenAI 등 업스트림에서 "corrupted or unsupported"로 거부됩니다.)
  */
 export async function startSegmentedRecording(): Promise<SegmentedRecordingSession> {
   const stream = await navigator.mediaDevices.getUserMedia({
@@ -169,17 +174,61 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
   analyser.smoothingTimeConstant = 0.4;
   source.connect(analyser);
 
-  const currentChunks: BlobPart[] = [];
+  const allChunks: BlobPart[] = [];
   let recorder: MediaRecorder | null = null;
 
-  const onDataAvailable = (ev: BlobEvent) => {
-    if (ev.data && ev.data.size > 0) {
-      currentChunks.push(ev.data);
-    }
-  };
+  function createRecorder(): MediaRecorder {
+    const r = new MediaRecorder(stream, { mimeType });
+    r.ondataavailable = (ev: BlobEvent) => {
+      if (ev.data && ev.data.size > 0) {
+        allChunks.push(ev.data);
+      }
+    };
+    return r;
+  }
 
-  recorder = new MediaRecorder(stream, { mimeType });
-  recorder.ondataavailable = onDataAvailable;
+  /**
+   * 현재 recorder를 stop하고, stop 이벤트에서 발행된 마지막 데이터를
+   * 포함한 완전한 WebM Blob을 반환합니다.
+   */
+  function stopRecorderAsBlob(rec: MediaRecorder): Promise<Blob> {
+    if (rec.state === "inactive") {
+      return Promise.resolve(new Blob([], { type: mimeType }));
+    }
+    return new Promise<Blob>((resolve, reject) => {
+      const parts: BlobPart[] = [];
+      const onData = (ev: BlobEvent) => {
+        if (ev.data && ev.data.size > 0) {
+          parts.push(ev.data);
+        }
+      };
+      rec.addEventListener("dataavailable", onData);
+      rec.addEventListener(
+        "stop",
+        () => {
+          rec.removeEventListener("dataavailable", onData);
+          resolve(new Blob(parts, { type: mimeType }));
+        },
+        { once: true },
+      );
+      rec.addEventListener(
+        "error",
+        () => {
+          rec.removeEventListener("dataavailable", onData);
+          reject(new Error("MediaRecorder error"));
+        },
+        { once: true },
+      );
+      try {
+        rec.stop();
+      } catch {
+        rec.removeEventListener("dataavailable", onData);
+        reject(new Error("Failed to stop recorder"));
+      }
+    });
+  }
+
+  recorder = createRecorder();
   recorder.start();
 
   if (ctx.state === "suspended") {
@@ -190,61 +239,28 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
     if (!recorder || recorder.state !== "recording") {
       return new Blob([], { type: mimeType });
     }
-    return new Promise<Blob>((resolve) => {
-      const onData = (ev: BlobEvent) => {
-        if (ev.data && ev.data.size > 0) {
-          recorder!.removeEventListener("dataavailable", onData);
-          resolve(new Blob([ev.data], { type: mimeType }));
-        }
-      };
-      recorder!.addEventListener("dataavailable", onData);
-      try {
-        recorder!.requestData();
-      } catch {
-        recorder!.removeEventListener("dataavailable", onData);
-        resolve(new Blob([], { type: mimeType }));
-      }
-    });
+    const blob = await stopRecorderAsBlob(recorder);
+    recorder = createRecorder();
+    recorder.start();
+    return blob;
   };
 
   const stopFinalSegment = async (): Promise<Blob> => {
     if (!recorder || recorder.state === "inactive") {
       return new Blob([], { type: mimeType });
     }
-    return new Promise<Blob>((resolve, reject) => {
-      let finalChunk: Blob | null = null;
-      const onData = (ev: BlobEvent) => {
-        if (ev.data && ev.data.size > 0) {
-          finalChunk = ev.data;
-        }
-      };
-      recorder!.addEventListener("dataavailable", onData);
-      recorder!.addEventListener(
-        "stop",
-        () => {
-          recorder!.removeEventListener("dataavailable", onData);
-          resolve(new Blob(finalChunk ? [finalChunk] : [], { type: mimeType }));
-        },
-        { once: true },
-      );
-      recorder!.addEventListener(
-        "error",
-        () => {
-          recorder!.removeEventListener("dataavailable", onData);
-          reject(new Error("MediaRecorder error"));
-        },
-        { once: true },
-      );
-      try {
-        recorder!.stop();
-      } catch {
-        recorder!.removeEventListener("dataavailable", onData);
-        reject(new Error("Failed to stop recorder"));
-      }
-    });
+    const blob = await stopRecorderAsBlob(recorder);
+    recorder = null;
+    return blob;
   };
 
   const close = async () => {
+    if (recorder && recorder.state !== "inactive") {
+      try {
+        recorder.stop();
+      } catch { /* already stopped */ }
+      recorder = null;
+    }
     stream.getTracks().forEach((t) => t.stop());
     source.disconnect();
     analyser.disconnect();
@@ -252,7 +268,7 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
   };
 
   const getFullAudioBlob = async (): Promise<Blob> => {
-    return new Blob(currentChunks, { type: mimeType });
+    return new Blob(allChunks, { type: mimeType });
   };
 
   return {
