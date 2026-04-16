@@ -92,7 +92,7 @@ export function SettingsPanel({
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/40"
+        className="absolute inset-0 cursor-pointer bg-black/40"
         aria-label="설정 닫기"
         onClick={onClose}
       />
@@ -112,7 +112,7 @@ export function SettingsPanel({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+            className="cursor-pointer rounded-lg px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
             aria-label="닫기"
           >
             닫기

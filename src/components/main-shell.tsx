@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Menu, Settings } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { SessionList } from "@/components/session-list";
 import { SettingsPanel } from "@/components/settings-panel";
@@ -96,23 +97,9 @@ export function MainShell({
           type="button"
           onClick={() => setSettingsOpen(true)}
           disabled={isRecording}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-900"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
+          <Settings className="size-[18px] shrink-0" aria-hidden />
           설정
         </button>
       </div>
@@ -121,34 +108,19 @@ export function MainShell({
 
   return (
     <div className="grid h-dvh grid-cols-1 grid-rows-[3.5rem_1fr] md:grid-cols-[16rem_1fr]">
-      <header className="col-span-full flex items-center border-b border-zinc-200/80 bg-white px-4 dark:border-zinc-800/80 dark:bg-zinc-950">
+      <header className="col-span-full relative flex min-h-14 items-center justify-center border-b border-zinc-200/80 bg-white px-4 dark:border-zinc-800/80 dark:bg-zinc-950 md:justify-start">
         <button
           type="button"
           onClick={openDrawer}
-          className="mr-3 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm md:hidden dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+          className="absolute left-4 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-800 shadow-sm dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 md:hidden"
           aria-label="History 열기"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <line x1="4" x2="20" y1="6" y2="6" />
-            <line x1="4" x2="20" y1="12" y2="12" />
-            <line x1="4" x2="20" y1="18" y2="18" />
-          </svg>
+          <Menu className="size-[18px] shrink-0" aria-hidden />
         </button>
-        <h1 className="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <h1 className="text-center text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-left">
           <Link
             href="/"
-            className="rounded-sm hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:text-zinc-300 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
+            className="cursor-pointer rounded-sm hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:text-zinc-300 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
           >
             Whirr
           </Link>
@@ -180,7 +152,7 @@ export function MainShell({
         >
           <button
             type="button"
-            className={`absolute inset-0 bg-black/40 ${backdropMotion} ${drawerEntered ? "opacity-100" : "opacity-0"}`}
+            className={`absolute inset-0 cursor-pointer bg-black/40 ${backdropMotion} ${drawerEntered ? "opacity-100" : "opacity-0"}`}
             aria-label="History 닫기"
             onClick={closeDrawer}
             data-testid="history-drawer-backdrop"
@@ -196,7 +168,7 @@ export function MainShell({
               <button
                 type="button"
                 onClick={closeDrawer}
-                className="rounded-lg px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
+                className="cursor-pointer rounded-lg px-2 py-1 text-sm text-zinc-600 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-zinc-900"
                 aria-label="닫기"
               >
                 닫기
