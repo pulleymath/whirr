@@ -55,9 +55,6 @@ export function SummaryTabPanel({
       return (
         <TabPanelBody>
           <div role="region" aria-label="회의록 결과">
-            <p className="mb-3 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-              회의록
-            </p>
             <div data-testid="summary-body" className="text-sm leading-relaxed">
               {summaryText ? (
                 <MeetingMinutesMarkdown markdown={summaryText} />

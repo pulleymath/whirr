@@ -66,6 +66,7 @@
 - [✅ 완료] [배치 전사 시스템 개선 (Phase 2)](./feature-14-batch-transcription-refinement/00_issue.md)
 - [✅ 완료] [녹음 후 파이프라인·내비게이션·상세 UX](./feature-15-post-recording-pipeline/00_issue.md)
 - [✅ 완료] [녹음 완료 후 AI 회의록 (모델 선택 가능, 장문 누락 방지)](./feature-16-ai-meeting-minutes/00_issue.md)
+- [✅ 완료] [홈·세션 상세 UI — 녹음 컨트롤, 스크립트 전용 홈, 아이콘 버튼, 공유 Button](./feature-17-ui-recorder-session/00_issue.md)
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [ ] 전문 용어 사전 (custom words)

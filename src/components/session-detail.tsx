@@ -1,8 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import {
+  Check,
+  Copy,
+  Download,
+  Loader2,
+  RefreshCw,
+  Save,
+  Sparkles,
+} from "lucide-react";
 import {
   getSessionAudio,
   getSessionById,
@@ -11,6 +20,8 @@ import {
 } from "@/lib/db";
 import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
+import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { downloadRecordingSegments } from "@/lib/download-recording";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
 import { useSettings } from "@/lib/settings/context";
@@ -28,7 +39,6 @@ function SessionDetailBody({
   id: string;
   onRetry: () => void;
 }) {
-  const router = useRouter();
   const [state, setState] = useState<DetailState>({ status: "loading" });
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -88,23 +98,6 @@ function SessionDetailBody({
   const { session, audioSegments } =
     state.status === "ready" ? state : { session: null, audioSegments: [] };
 
-  const audioUrl = useMemo(() => {
-    if (audioSegments.length > 0) {
-      return URL.createObjectURL(
-        new Blob(audioSegments, { type: "audio/webm" }),
-      );
-    }
-    return null;
-  }, [audioSegments]);
-
-  useEffect(() => {
-    return () => {
-      if (audioUrl) {
-        URL.revokeObjectURL(audioUrl);
-      }
-    };
-  }, [audioUrl]);
-
   if (state.status === "loading") {
     return (
       <p className="text-sm text-zinc-500 dark:text-zinc-400">불러오는 중…</p>
@@ -119,7 +112,7 @@ function SessionDetailBody({
         </p>
         <Link
           href="/"
-          className="w-fit text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+          className="w-fit cursor-pointer text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
         >
           홈으로
         </Link>
@@ -134,16 +127,12 @@ function SessionDetailBody({
           세션을 불러오지 못했습니다.
         </p>
         <div className="flex flex-wrap gap-3">
-          <button
-            type="button"
-            onClick={onRetry}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500"
-          >
+          <Button variant="primary" onClick={onRetry}>
             다시 시도
-          </button>
+          </Button>
           <Link
             href="/"
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
+            className="inline-flex cursor-pointer items-center justify-center rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
           >
             홈으로
           </Link>
@@ -157,11 +146,9 @@ function SessionDetailBody({
   return (
     <SessionDetailReadyContent
       session={session}
-      audioUrl={audioUrl}
       audioSegments={audioSegments}
       isDownloading={isDownloading}
       setIsDownloading={setIsDownloading}
-      onBack={() => router.back()}
       onSessionRefresh={refreshSession}
     />
   );
@@ -169,19 +156,15 @@ function SessionDetailBody({
 
 function SessionDetailReadyContent({
   session,
-  audioUrl,
   audioSegments,
   isDownloading,
   setIsDownloading,
-  onBack,
   onSessionRefresh,
 }: {
   session: Session;
-  audioUrl: string | null;
   audioSegments: Blob[];
   isDownloading: boolean;
   setIsDownloading: (v: boolean) => void;
-  onBack: () => void;
   onSessionRefresh: () => Promise<boolean>;
 }) {
   const { settings } = useSettings();
@@ -275,39 +258,26 @@ function SessionDetailReadyContent({
       role="region"
       aria-label="회의록"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          회의록
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          {session.summary ? (
-            <>
-              <button
-                type="button"
-                onClick={() => void copySummaryMarkdown()}
-                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-                aria-label="회의록 전체 복사"
-              >
-                {copiedSummary ? (
-                  <span className="text-emerald-600 dark:text-emerald-400">
-                    복사됨
-                  </span>
-                ) : (
-                  "전체 복사"
-                )}
-              </button>
-              <button
-                type="button"
-                disabled={mmLoading || !hasText}
-                onClick={() => void handleMeetingMinutes()}
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-              >
-                {mmLoading ? "생성 중…" : "다시 생성"}
-              </button>
-            </>
-          ) : null}
+      {session.summary ? (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <IconButton
+            icon={copiedSummary ? Check : Copy}
+            ariaLabel="회의록 전체 복사"
+            label={copiedSummary ? "복사됨" : undefined}
+            variant="outline"
+            onClick={() => void copySummaryMarkdown()}
+          />
+          <IconButton
+            icon={mmLoading ? Loader2 : RefreshCw}
+            ariaLabel="다시 생성"
+            label={mmLoading ? "생성 중…" : undefined}
+            variant="outline"
+            disabled={mmLoading || !hasText}
+            iconClassName={mmLoading ? "animate-spin" : ""}
+            onClick={() => void handleMeetingMinutes()}
+          />
         </div>
-      </div>
+      ) : null}
       {session.summary ? (
         <div className="mt-4 text-sm leading-relaxed">
           <MeetingMinutesMarkdown markdown={session.summary} />
@@ -317,14 +287,16 @@ function SessionDetailReadyContent({
           <p className="text-sm text-zinc-500 dark:text-zinc-400">
             아직 회의록이 없습니다.
           </p>
-          <button
-            type="button"
+          <IconButton
+            icon={mmLoading ? Loader2 : Sparkles}
+            ariaLabel="회의록 생성"
+            label={mmLoading ? "생성 중…" : "회의록 생성"}
+            variant="primary"
             disabled={mmLoading}
+            iconClassName={mmLoading ? "animate-spin" : ""}
+            className="w-fit"
             onClick={() => void handleMeetingMinutes()}
-            className="w-fit rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {mmLoading ? "생성 중…" : "회의록 생성"}
-          </button>
+          />
         </div>
       ) : (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
@@ -345,35 +317,24 @@ function SessionDetailReadyContent({
       role="region"
       aria-label="스크립트"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">
-          스크립트
-        </h2>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            disabled={!scriptDraft.trim()}
-            onClick={() => void copyScript()}
-            className="inline-flex h-9 items-center justify-center rounded-lg border border-zinc-200 px-3 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-            aria-label="스크립트 텍스트 복사"
-          >
-            {copiedScript ? (
-              <span className="text-emerald-600 dark:text-emerald-400">
-                복사됨
-              </span>
-            ) : (
-              "복사"
-            )}
-          </button>
-          <button
-            type="button"
-            disabled={!scriptDirty || scriptSaving}
-            onClick={() => void handleSaveScript()}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            {scriptSaving ? "저장 중…" : "스크립트 저장"}
-          </button>
-        </div>
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <IconButton
+          icon={copiedScript ? Check : Copy}
+          ariaLabel="스크립트 텍스트 복사"
+          label={copiedScript ? "복사됨" : undefined}
+          variant="outline"
+          disabled={!scriptDraft.trim()}
+          onClick={() => void copyScript()}
+        />
+        <IconButton
+          icon={scriptSaving ? Loader2 : Save}
+          ariaLabel="스크립트 저장"
+          label={scriptSaving ? "저장 중…" : undefined}
+          variant="primary"
+          disabled={!scriptDirty || scriptSaving}
+          iconClassName={scriptSaving ? "animate-spin" : ""}
+          onClick={() => void handleSaveScript()}
+        />
       </div>
       <textarea
         id={`session-script-${session.id}`}
@@ -404,47 +365,29 @@ function SessionDetailReadyContent({
 
   return (
     <div className="flex w-full flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <button
-          type="button"
-          onClick={onBack}
-          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800"
-        >
-          뒤로
-        </button>
-
-        <div className="flex items-center gap-3">
-          {audioUrl && (
-            <audio
-              src={audioUrl}
-              controls
-              className="h-9 w-48 sm:w-64"
-              aria-label="오디오 재생"
-            />
-          )}
-
-          {audioSegments.length > 0 && (
-            <button
-              type="button"
-              disabled={isDownloading}
-              onClick={async () => {
-                setIsDownloading(true);
-                try {
-                  await downloadRecordingSegments(
-                    audioSegments,
-                    `session-${session.id}`,
-                  );
-                } finally {
-                  setIsDownloading(false);
-                }
-              }}
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              {isDownloading ? "다운로드 중..." : "오디오 다운로드"}
-            </button>
-          )}
+      {audioSegments.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <IconButton
+            icon={isDownloading ? Loader2 : Download}
+            ariaLabel="오디오 다운로드"
+            label={isDownloading ? "다운로드 중..." : "오디오 다운로드"}
+            variant="primary"
+            disabled={isDownloading}
+            iconClassName={isDownloading ? "animate-spin" : ""}
+            onClick={async () => {
+              setIsDownloading(true);
+              try {
+                await downloadRecordingSegments(
+                  audioSegments,
+                  `session-${session.id}`,
+                );
+              } finally {
+                setIsDownloading(false);
+              }
+            }}
+          />
         </div>
-      </div>
+      ) : null}
 
       <MainTranscriptTabs
         key={session.id}
@@ -473,7 +416,7 @@ export function SessionDetail() {
         </p>
         <Link
           href="/"
-          className="w-fit text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+          className="w-fit cursor-pointer text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
         >
           홈으로
         </Link>

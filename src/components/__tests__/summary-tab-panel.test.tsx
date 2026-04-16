@@ -33,6 +33,15 @@ describe("SummaryTabPanel", () => {
     );
   });
 
+  it("complete에서 패널 상단의 중복 '회의록' 제목 문단이 없다", () => {
+    render(<SummaryTabPanel state="complete" summaryText="본문만 있는 경우" />);
+    const region = screen.getByRole("region", { name: "회의록 결과" });
+    const paras = Array.from(region.querySelectorAll("p")).map((p) =>
+      p.textContent?.trim(),
+    );
+    expect(paras).not.toContain("회의록");
+  });
+
   it("error이면 오류 메시지를 보여준다", () => {
     render(<SummaryTabPanel state="error" errorMessage="실패함" />);
     expect(screen.getByText("실패함")).toBeTruthy();

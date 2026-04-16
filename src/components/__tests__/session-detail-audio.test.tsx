@@ -12,7 +12,6 @@ import { SessionDetail } from "../session-detail";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "session-123" }),
-  useRouter: () => ({ back: vi.fn() }),
 }));
 
 vi.mock("@/lib/db", () => ({
@@ -51,6 +50,8 @@ describe("SessionDetail 오디오 다운로드", () => {
     await waitFor(() => {
       expect(screen.getByText("오디오 다운로드")).toBeTruthy();
     });
+
+    expect(document.querySelector("audio")).toBeNull();
   });
 
   it("오디오가 없는 세션의 경우 다운로드 버튼을 표시하지 않는다", async () => {

@@ -32,8 +32,8 @@ export function MainTranscriptTabs({
 
   const transcriptTabClass = (isOn: boolean) =>
     isOn
-      ? "flex-1 rounded-md bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
-      : "flex-1 rounded-md px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100";
+      ? "flex-1 cursor-pointer rounded-md bg-white px-3 py-2 text-sm font-medium text-zinc-900 shadow-sm dark:bg-zinc-950 dark:text-zinc-50"
+      : "flex-1 cursor-pointer rounded-md px-3 py-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100";
 
   const transcriptButton = (
     <button

@@ -12,11 +12,8 @@ import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-
 import { getSessionAudio, getSessionById, updateSession } from "@/lib/db";
 import { SettingsProvider } from "@/lib/settings/context";
 
-const mockBack = vi.fn();
-
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "sess-1" }),
-  useRouter: () => ({ back: mockBack }),
 }));
 
 vi.mock("@/lib/meeting-minutes/fetch-meeting-minutes-client", () => ({
@@ -47,7 +44,6 @@ afterEach(() => {
 
 describe("SessionDetail", () => {
   beforeEach(() => {
-    mockBack.mockClear();
     vi.mocked(getSessionById).mockReset();
     vi.mocked(getSessionAudio).mockResolvedValue(undefined);
     vi.mocked(updateSession).mockReset();
@@ -125,7 +121,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("뒤로 버튼이 router.back을 호출한다", async () => {
+  it("뒤로 버튼이 렌더링되지 않는다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -138,16 +134,72 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
     });
 
+    expect(screen.queryByRole("button", { name: "뒤로" })).toBeNull();
+  });
+
+  it("오디오 미리듣기가 렌더링되지 않는다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "t",
+    });
+    vi.mocked(getSessionAudio).mockResolvedValue({
+      sessionId: "sess-1",
+      segments: [new Blob(["x"], { type: "audio/webm" })],
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByLabelText("오디오 재생")).toBeNull();
+  });
+
+  it("스크립트 패널에 h2 '스크립트' 제목이 없다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "본문",
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+    });
+
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
       expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "t",
+        "본문",
       );
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "뒤로" }));
-    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "스크립트" }),
+    ).toBeNull();
+  });
+
+  it("회의록 패널에 h2 '회의록' 제목이 없다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "본문",
+      summary: "## 제목\n내용",
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+    });
+
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "회의록" }),
+    ).toBeNull();
   });
 
   it("스크립트 복사 버튼이 클립보드에 텍스트를 넣는다", async () => {

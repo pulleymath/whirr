@@ -41,6 +41,21 @@ describe("MainTranscriptTabs", () => {
     expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
   });
 
+  it("탭 버튼에 cursor-pointer 클래스가 있다", () => {
+    render(
+      <MainTranscriptTabs
+        transcriptPanel={<div>T</div>}
+        summaryPanel={<div>S</div>}
+      />,
+    );
+    expect(screen.getByRole("tab", { name: "스크립트" }).className).toMatch(
+      /cursor-pointer/,
+    );
+    expect(screen.getByRole("tab", { name: "회의록" }).className).toMatch(
+      /cursor-pointer/,
+    );
+  });
+
   it("defaultActive가 summary이면 회의록 탭이 선택된다", () => {
     render(
       <MainTranscriptTabs

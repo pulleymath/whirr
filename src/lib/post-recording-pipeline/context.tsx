@@ -34,7 +34,7 @@ export type PostRecordingPipelinePhase =
   | "done"
   | "error";
 
-type PostRecordingPipelineContextValue = {
+export type PostRecordingPipelineContextValue = {
   phase: PostRecordingPipelinePhase;
   isBusy: boolean;
   errorMessage: string | null;
@@ -44,7 +44,8 @@ type PostRecordingPipelineContextValue = {
   enqueue: (input: PostRecordingPipelineEnqueueInput) => void;
 };
 
-const PostRecordingPipelineContext =
+/** 테스트·고급 조합용. 일반 코드는 `usePostRecordingPipeline`만 사용한다. */
+export const PostRecordingPipelineContext =
   createContext<PostRecordingPipelineContextValue | null>(null);
 
 const IDLE_RESET_MS = 2500;

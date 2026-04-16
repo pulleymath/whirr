@@ -1,26 +1,16 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
-import {
-  SummaryTabPanel,
-  type SummaryTabUiState,
-} from "@/components/summary-tab-panel";
+import { RecordButton } from "@/components/record-button";
 import { TranscriptView } from "@/components/transcript-view";
+import { Button } from "@/components/ui/button";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useBatchTranscription } from "@/hooks/use-batch-transcription";
-import {
-  formatElapsed,
-  useRecorder,
-  type RecorderStatus,
-} from "@/hooks/use-recorder";
+import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession, saveSessionAudio } from "@/lib/db";
-import {
-  usePostRecordingPipeline,
-  type PostRecordingPipelinePhase,
-} from "@/lib/post-recording-pipeline/context";
+import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { useSettings } from "@/lib/settings/context";
 import {
@@ -36,29 +26,6 @@ export type RecorderProps = {
 };
 
 const STREAMING_SESSION_SOFT_MS = OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
-
-function deriveSummaryTabState(
-  recorderStatus: RecorderStatus,
-  pipelinePhase: PostRecordingPipelinePhase,
-  pipelineSummary: string | null,
-  pipelineError: string | null,
-  persistError: string | null,
-  batchRecording: boolean,
-): SummaryTabUiState {
-  if (persistError || pipelineError) {
-    return "error";
-  }
-  if (pipelinePhase === "transcribing" || pipelinePhase === "summarizing") {
-    return "summarizing";
-  }
-  if (pipelinePhase === "done" && pipelineSummary) {
-    return "complete";
-  }
-  if (recorderStatus === "recording" || batchRecording) {
-    return "recording";
-  }
-  return "idle";
-}
 
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const { settings } = useSettings();
@@ -257,15 +224,6 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     batch.sessionRef,
   ]);
 
-  const summaryUiState = deriveSummaryTabState(
-    status,
-    pipeline.phase,
-    pipeline.summaryText,
-    pipeline.errorMessage,
-    persistError,
-    isBatchMode && batch.status === "recording",
-  );
-
   const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;
   const displayLevel = isBatchMode ? batch.level : level;
   const batchTranscribing = isBatchMode && batch.status === "transcribing";
@@ -324,24 +282,13 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           </p>
           <div className="flex gap-2">
             {showStart ? (
-              <button
-                type="button"
+              <RecordButton
+                mode="start"
                 disabled={pipeline.isBusy}
                 onClick={() => void start()}
-                className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-50"
-                aria-label="녹음 시작"
-              >
-                녹음 시작
-              </button>
+              />
             ) : showStop ? (
-              <button
-                type="button"
-                onClick={() => void stop()}
-                className="rounded-lg bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-500"
-                aria-label="녹음 중지"
-              >
-                중지
-              </button>
+              <RecordButton mode="stop" onClick={() => void stop()} />
             ) : null}
           </div>
         </div>
@@ -429,13 +376,13 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         ) : null}
 
         {isBatchMode && batch.status === "error" && batch.errorMessage ? (
-          <button
-            type="button"
+          <Button
+            variant="outline"
+            className="self-start"
             onClick={() => void retryBatchTranscription()}
-            className="self-start rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-100 dark:hover:bg-zinc-900"
           >
             다시 시도
-          </button>
+          </Button>
         ) : null}
 
         {unsupportedModeMessage ? (
@@ -453,25 +400,24 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         ) : null}
       </section>
 
-      <MainTranscriptTabs
-        transcriptPanel={
-          <TranscriptView
-            partial={transcriptPartial}
-            finals={transcriptFinals}
-            errorMessage={transcriptError}
-            showHeading={false}
-            emptyStateHint={batchRecordingHint}
-            loadingMessage={batchLoadingMessage}
-            isSegmentInFlight={segmentInFlight}
-          />
-        }
-        summaryPanel={
-          <SummaryTabPanel
-            state={summaryUiState}
-            summaryText={pipeline.summaryText ?? undefined}
-            errorMessage={persistError ?? pipeline.errorMessage ?? undefined}
-          />
-        }
+      {persistError || pipeline.errorMessage ? (
+        <p
+          className="text-sm text-rose-600 dark:text-rose-400"
+          role="alert"
+          data-testid="recorder-pipeline-user-error"
+        >
+          {persistError ?? pipeline.errorMessage}
+        </p>
+      ) : null}
+
+      <TranscriptView
+        partial={transcriptPartial}
+        finals={transcriptFinals}
+        errorMessage={transcriptError}
+        showHeading={false}
+        emptyStateHint={batchRecordingHint}
+        loadingMessage={batchLoadingMessage}
+        isSegmentInFlight={segmentInFlight}
       />
     </div>
   );
