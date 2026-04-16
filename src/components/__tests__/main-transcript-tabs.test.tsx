@@ -40,7 +40,7 @@ describe("MainTranscriptTabs", () => {
     expect(
       screen.getByRole("tab", { name: "실시간 전사 텍스트" }),
     ).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
   });
 
   it("기본은 실시간 전사 탭이 선택되어 transcript 패널이 보인다", () => {
@@ -62,7 +62,7 @@ describe("MainTranscriptTabs", () => {
     expect(transcriptPanel!.hasAttribute("hidden")).toBe(false);
   });
 
-  it("요약 탭을 누르면 요약 패널만 보인다", () => {
+  it("회의록 탭을 누르면 회의록 패널만 보인다", () => {
     render(
       <MainTranscriptTabs
         transcriptPanel={<div data-testid="transcript-slot">T</div>}
@@ -70,7 +70,7 @@ describe("MainTranscriptTabs", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
+    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
 
     const summaryPanel = screen
       .getByTestId("summary-slot")

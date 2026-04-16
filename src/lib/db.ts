@@ -6,7 +6,7 @@ export type Session = {
   id: string;
   createdAt: number;
   text: string;
-  /** 요약 완료 후 채워짐 */
+  /** 회의록(저장 필드명 `summary`) 완료 후 채워짐 */
   summary?: string | null;
   /** 파이프라인·저장 상태 (구 레코드는 생략 가능 → ready로 간주) */
   status?: SessionStatus;

@@ -1,6 +1,5 @@
 "use client";
 
-import { SUMMARIZE_MAX_TEXT_LENGTH } from "@/lib/api/summarize-constants";
 import {
   transcribeBlobWithRetries,
   userFacingTranscribeError,
@@ -24,6 +23,8 @@ export type PostRecordingPipelineEnqueueInput = {
   finalBlob: Blob | null;
   model: string;
   language: string;
+  /** 회의록 생성에 사용할 Chat 모델 id */
+  meetingMinutesModel: string;
 };
 
 export type PostRecordingPipelinePhase =
@@ -128,14 +129,6 @@ export function PostRecordingPipelineProvider({
             fullText = [fullText, piece].filter(Boolean).join(" ");
           }
 
-          if (fullText.length > SUMMARIZE_MAX_TEXT_LENGTH) {
-            await updateSession(input.sessionId, { status: "error" });
-            setErrorMessage("전사 본문이 너무 길어 요약할 수 없습니다.");
-            setPhase("error");
-            continueOrIdle();
-            return;
-          }
-
           await updateSession(input.sessionId, {
             text: fullText,
             status: "summarizing",
@@ -143,10 +136,13 @@ export function PostRecordingPipelineProvider({
           setDisplayTranscript(fullText);
           setPhase("summarizing");
 
-          const res = await fetch("/api/summarize", {
+          const res = await fetch("/api/meeting-minutes", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: fullText }),
+            body: JSON.stringify({
+              text: fullText,
+              model: input.meetingMinutesModel,
+            }),
             signal,
           });
           if (signal.aborted) {
@@ -154,7 +150,7 @@ export function PostRecordingPipelineProvider({
           }
           if (!res.ok) {
             await updateSession(input.sessionId, { status: "error" });
-            setErrorMessage("요약을 생성하지 못했습니다.");
+            setErrorMessage("회의록을 생성하지 못했습니다.");
             setPhase("error");
             continueOrIdle();
             return;

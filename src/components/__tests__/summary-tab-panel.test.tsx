@@ -19,15 +19,17 @@ describe("SummaryTabPanel", () => {
     expect(screen.getByText(/녹음 중입니다/)).toBeTruthy();
   });
 
-  it("summarizing이면 요약 생성 중 문구를 보여준다", () => {
+  it("summarizing이면 회의록 생성 중 문구를 보여준다", () => {
     render(<SummaryTabPanel state="summarizing" />);
-    expect(screen.getByText(/요약을 생성하는 중/)).toBeTruthy();
+    expect(screen.getByText(/회의록을 생성하는 중/)).toBeTruthy();
   });
 
-  it("complete이면 요약 본문 영역이 있다", () => {
-    render(<SummaryTabPanel state="complete" summaryText="요약 결과 텍스트" />);
+  it("complete이면 회의록 본문 영역이 있다", () => {
+    render(
+      <SummaryTabPanel state="complete" summaryText="회의록 결과 텍스트" />,
+    );
     expect(screen.getByTestId("summary-body").textContent).toContain(
-      "요약 결과 텍스트",
+      "회의록 결과 텍스트",
     );
   });
 

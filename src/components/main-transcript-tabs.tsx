@@ -9,7 +9,7 @@ export type MainTranscriptTabsProps = {
 };
 
 const TAB_TRANSCRIPT = "실시간 전사 텍스트";
-const TAB_SUMMARY = "요약";
+const TAB_SUMMARY = "회의록";
 
 export function MainTranscriptTabs({
   transcriptPanel,
@@ -28,7 +28,7 @@ export function MainTranscriptTabs({
     <div className="flex w-full flex-col gap-3">
       <div
         role="tablist"
-        aria-label="전사 및 요약"
+        aria-label="전사 및 회의록"
         className="flex w-full gap-1 rounded-lg border border-zinc-200 bg-zinc-100/80 p-1 dark:border-zinc-800 dark:bg-zinc-900/60"
       >
         <button

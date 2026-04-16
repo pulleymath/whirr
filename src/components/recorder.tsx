@@ -208,6 +208,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           finalBlob,
           model: settings.batchModel,
           language: settings.language,
+          meetingMinutesModel: settings.meetingMinutesModel,
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -235,6 +236,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           finalBlob: null,
           model: settings.batchModel,
           language: settings.language,
+          meetingMinutesModel: settings.meetingMinutesModel,
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -248,6 +250,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     enqueuePipeline,
     settings.batchModel,
     settings.language,
+    settings.meetingMinutesModel,
     settings.mode,
     stopBatchTranscribe,
     stopRecording,

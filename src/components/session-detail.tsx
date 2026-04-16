@@ -261,7 +261,7 @@ function SessionDetailReadyContent({
         {session.summary ? (
           <div className="mt-8 border-t border-zinc-200 pt-6 dark:border-zinc-800">
             <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              요약
+              회의록
             </h2>
             <p className="mt-2 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200">
               {session.summary}

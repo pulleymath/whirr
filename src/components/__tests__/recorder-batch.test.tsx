@@ -158,6 +158,7 @@ describe("Recorder 배치 모드", () => {
         partialText: "",
         model: "whisper-1",
         language: "ko",
+        meetingMinutesModel: "gpt-5.4-nano",
       }),
     );
   });

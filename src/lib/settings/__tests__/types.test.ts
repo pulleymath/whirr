@@ -37,4 +37,26 @@ describe("parseTranscriptionSettings", () => {
       batchModel: DEFAULT_TRANSCRIPTION_SETTINGS.batchModel,
     });
   });
+
+  it("meetingMinutesModel 기본값은 gpt-5.4-nano", () => {
+    expect(parseTranscriptionSettings(undefined)).toMatchObject({
+      meetingMinutesModel: "gpt-5.4-nano",
+    });
+  });
+
+  it("meetingMinutesModel 문자열이 있으면 파싱한다", () => {
+    expect(
+      parseTranscriptionSettings({ meetingMinutesModel: "gpt-4o" }),
+    ).toMatchObject({
+      meetingMinutesModel: "gpt-4o",
+    });
+  });
+
+  it("빈 meetingMinutesModel 문자열은 기본값", () => {
+    expect(
+      parseTranscriptionSettings({ meetingMinutesModel: "" }),
+    ).toMatchObject({
+      meetingMinutesModel: DEFAULT_TRANSCRIPTION_SETTINGS.meetingMinutesModel,
+    });
+  });
 });

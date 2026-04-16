@@ -1,7 +1,11 @@
 "use client";
 
 import { useSettings } from "@/lib/settings/context";
-import type { RealtimeEngine, TranscriptionMode } from "@/lib/settings/types";
+import {
+  DEFAULT_MEETING_MINUTES_MODEL,
+  type RealtimeEngine,
+  type TranscriptionMode,
+} from "@/lib/settings/types";
 import { isWebSpeechApiSupported } from "@/lib/stt";
 import { useSyncExternalStore } from "react";
 
@@ -54,6 +58,18 @@ const BATCH_MODEL_OPTIONS = [
   { value: "whisper-1", label: "whisper-1" },
   { value: "gpt-4o-transcribe", label: "gpt-4o-transcribe" },
 ] as const;
+
+const MEETING_MINUTES_MODEL_OPTIONS: {
+  value: string;
+  label: string;
+}[] = [
+  {
+    value: DEFAULT_MEETING_MINUTES_MODEL,
+    label: DEFAULT_MEETING_MINUTES_MODEL,
+  },
+  { value: "gpt-4o", label: "gpt-4o" },
+  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
+];
 
 export function SettingsPanel({
   open,
@@ -239,6 +255,35 @@ export function SettingsPanel({
               </select>
             </div>
           ) : null}
+
+          <div className="mb-6">
+            <label
+              htmlFor="meeting-minutes-model-select"
+              className="mb-2 block text-sm font-medium text-zinc-800 dark:text-zinc-200"
+            >
+              회의록 작성 모델
+            </label>
+            <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+              녹음이 끝난 뒤 전사를 바탕으로 회의록을 작성할 때 사용할
+              모델입니다.
+            </p>
+            <select
+              id="meeting-minutes-model-select"
+              disabled={disabled}
+              value={settings.meetingMinutesModel}
+              onChange={(e) =>
+                updateSettings({ meetingMinutesModel: e.target.value })
+              }
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              data-testid="meeting-minutes-model-select"
+            >
+              {MEETING_MINUTES_MODEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           <fieldset className="space-y-3" disabled={disabled}>
             <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
