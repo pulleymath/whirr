@@ -110,7 +110,9 @@ describe("POST /api/meeting-minutes", () => {
     );
     globalThis.fetch = fetchMock as unknown as typeof fetch;
 
-    const res = await POST(jsonPost({ text: "짧은 전사", model: "gpt-4o" }));
+    const res = await POST(
+      jsonPost({ text: "짧은 스크립트", model: "gpt-4o" }),
+    );
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ summary: "완성된 회의록" });
 

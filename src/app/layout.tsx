@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Whirr",
-  description: "실시간 음성 전사 웹 애플리케이션",
+  description: "실시간 음성 스크립트 웹 애플리케이션",
 };
 
 export default function RootLayout({

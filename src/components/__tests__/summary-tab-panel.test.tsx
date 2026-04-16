@@ -10,7 +10,7 @@ afterEach(() => {
 describe("SummaryTabPanel", () => {
   it("idle이면 녹음 전 안내를 보여준다", () => {
     render(<SummaryTabPanel state="idle" />);
-    expect(screen.getByText(/녹음을 시작하면 전사가 쌓이고/)).toBeTruthy();
+    expect(screen.getByText(/녹음을 시작하면 스크립트가 쌓이고/)).toBeTruthy();
     expect(screen.getByTestId("tab-panel-body")).toBeTruthy();
   });
 

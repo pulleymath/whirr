@@ -96,7 +96,7 @@ describe("Recorder 배치 모드", () => {
     );
     prepareStreaming.mockImplementation(async () => true);
     globalThis.fetch = vi.fn(async () => {
-      return new Response(JSON.stringify({ text: "배치 전사 결과" }), {
+      return new Response(JSON.stringify({ text: "배치 스크립트 결과" }), {
         status: 200,
       });
     }) as unknown as typeof fetch;
@@ -121,7 +121,9 @@ describe("Recorder 배치 모드", () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByText(/녹음 중입니다\. 5분마다 전사 결과가 업데이트됩니다/),
+        screen.getByText(
+          /녹음 중입니다\. 5분마다 스크립트 결과가 업데이트됩니다/,
+        ),
       ).toBeTruthy();
     });
     expect(prepareStreaming).not.toHaveBeenCalled();

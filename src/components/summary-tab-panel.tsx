@@ -1,3 +1,4 @@
+import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
 import { TabPanelBody } from "@/components/tab-panel-body";
 
 export type SummaryTabUiState =
@@ -28,7 +29,7 @@ export function SummaryTabPanel({
         >
           <div role="region" aria-label="회의록 안내">
             <p>
-              녹음을 시작하면 전사가 쌓이고, 종료 후 회의록을 생성할 수
+              녹음을 시작하면 스크립트가 쌓이고, 종료 후 회의록을 생성할 수
               있습니다.
             </p>
           </div>
@@ -57,12 +58,15 @@ export function SummaryTabPanel({
             <p className="mb-3 text-sm font-medium text-zinc-900 dark:text-zinc-50">
               회의록
             </p>
-            <p
-              className="text-sm leading-relaxed text-zinc-800 dark:text-zinc-200"
-              data-testid="summary-body"
-            >
-              {summaryText ?? "회의록이 여기에 표시됩니다."}
-            </p>
+            <div data-testid="summary-body" className="text-sm leading-relaxed">
+              {summaryText ? (
+                <MeetingMinutesMarkdown markdown={summaryText} />
+              ) : (
+                <p className="text-zinc-800 dark:text-zinc-200">
+                  회의록이 여기에 표시됩니다.
+                </p>
+              )}
+            </div>
           </div>
         </TabPanelBody>
       );

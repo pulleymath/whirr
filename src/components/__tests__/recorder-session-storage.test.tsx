@@ -109,7 +109,7 @@ describe("Recorder 세션 저장", () => {
     vi.clearAllMocks();
   });
 
-  it("중지 시 전사 스냅샷이 비어 있지 않으면 saveSession을 한 번 호출한다", async () => {
+  it("중지 시 스크립트 스냅샷이 비어 있지 않으면 saveSession을 한 번 호출한다", async () => {
     const { rerender } = render(wrapRecorder(<Recorder />));
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));

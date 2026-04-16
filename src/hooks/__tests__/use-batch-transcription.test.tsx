@@ -52,7 +52,7 @@ describe("useBatchTranscription", () => {
     expect(startSegmentedRecording).toHaveBeenCalledTimes(1);
   });
 
-  it("stopAndTranscribe 성공 시 idle이고 마지막 블롭만 반환·훅에서는 전사 fetch를 하지 않는다", async () => {
+  it("stopAndTranscribe 성공 시 idle이고 마지막 블롭만 반환·훅에서는 스크립트 fetch를 하지 않는다", async () => {
     globalThis.fetch = vi.fn(async () => {
       return new Response(JSON.stringify({ text: "  안녕  " }), {
         status: 200,
@@ -80,7 +80,7 @@ describe("useBatchTranscription", () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it("5분 회전 후 백그라운드 전사가 5xx로 끝나면 stop 시 error가 된다", async () => {
+  it("5분 회전 후 백그라운드 스크립트 변환이 5xx로 끝나면 stop 시 error가 된다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(
@@ -111,7 +111,7 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("error");
-    expect(result.current.errorMessage).toMatch(/전사|구간/);
+    expect(result.current.errorMessage).toMatch(/스크립트|구간/);
     expect(globalThis.fetch).toHaveBeenCalled();
   });
 
@@ -150,7 +150,7 @@ describe("useBatchTranscription", () => {
     expect(globalThis.fetch).toHaveBeenCalled();
   });
 
-  it("4xx 오류 시 재시도 없이 회전 구간 전사가 실패하고 stop 시 error가 된다", async () => {
+  it("4xx 오류 시 재시도 없이 회전 구간 스크립트 변환이 실패하고 stop 시 error가 된다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(JSON.stringify({ error: "Audio file too large" }), {
@@ -179,7 +179,7 @@ describe("useBatchTranscription", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it("retryTranscription으로 에러 후 Blob을 다시 전사한다", async () => {
+  it("retryTranscription으로 에러 후 Blob을 다시 스크립트로 변환한다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi
       .fn()
@@ -237,7 +237,7 @@ describe("useBatchTranscription", () => {
     expect(result.current.transcript).toBe("수동 재시도 수동 재시도");
   });
 
-  it("stopAndTranscribe 호출 시 진행 중인 백그라운드 전사를 기다리고 partialText에만 합친다", async () => {
+  it("stopAndTranscribe 호출 시 진행 중인 백그라운드 스크립트 변환을 기다리고 partialText에만 합친다", async () => {
     vi.useFakeTimers();
     let fetchCount = 0;
     globalThis.fetch = vi.fn(async () => {

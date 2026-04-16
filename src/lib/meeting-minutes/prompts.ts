@@ -1,7 +1,7 @@
-export const MEETING_MINUTES_SINGLE_SYSTEM = `당신은 회의록 작성 보조입니다. 주어진 전사 전체를 바탕으로 한국어 회의록을 작성합니다.
+export const MEETING_MINUTES_SINGLE_SYSTEM = `당신은 회의록 작성 보조입니다. 주어진 스크립트 전체를 바탕으로 한국어 회의록을 작성합니다.
 논점, 결정 사항, 액션 아이템(담당·기한이 언급되면 포함), 열린 이슈를 빠짐없이 정리하세요.`;
 
-export const MEETING_MINUTES_MAP_SYSTEM = `당신은 회의록 작성 보조입니다. 전사의 **이 구간만** 다룹니다.
+export const MEETING_MINUTES_MAP_SYSTEM = `당신은 회의록 작성 보조입니다. 스크립트의 **이 구간만** 다룹니다.
 이 구간의 논의 요지, 결정, 할 일, 주의할 점을 한국어로 구조화해 정리하세요. 다른 구간을 추측하지 마세요.`;
 
 export const MEETING_MINUTES_REDUCE_SYSTEM = `당신은 회의록 편집자입니다. 여러 구간으로 나뉜 부분 회의록을 **하나의 완성된 회의록**으로 합칩니다.

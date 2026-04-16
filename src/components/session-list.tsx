@@ -116,7 +116,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                     <span
                       className={`${rowClass} ${disabledClass}`}
                       aria-disabled="true"
-                      aria-label={`${timeLabel}, ${preview || "빈 전사"} (녹음 중에는 이동할 수 없습니다)`}
+                      aria-label={`${timeLabel}, ${preview || "빈 스크립트"} (녹음 중에는 이동할 수 없습니다)`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
@@ -132,7 +132,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                       href={href}
                       aria-current={isActive ? "page" : undefined}
                       className={rowClass}
-                      aria-label={`${timeLabel}, ${preview || "빈 전사"}`}
+                      aria-label={`${timeLabel}, ${preview || "빈 스크립트"}`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">

@@ -152,7 +152,7 @@ describe("Recorder 세션 복원력 UI", () => {
     expect(document.body.textContent).toContain("연결을 복구하는 중입니다.");
   });
 
-  it("배치 전사 오류 시 다시 시도 버튼이 retryTranscription을 호출한다", async () => {
+  it("배치 스크립트 오류 시 다시 시도 버튼이 retryTranscription을 호출한다", async () => {
     localStorage.setItem(
       "whirr:transcription-settings",
       JSON.stringify({

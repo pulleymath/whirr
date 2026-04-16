@@ -22,13 +22,13 @@ const MODE_OPTIONS: {
 }[] = [
   {
     value: "realtime",
-    label: "실시간 전사",
+    label: "실시간 스크립트",
     hint: "녹음하면서 실시간으로 텍스트가 표시됩니다.",
   },
   {
     value: "batch",
-    label: "녹음 후 전사",
-    hint: "녹음이 끝난 뒤 한 번에 전사합니다.",
+    label: "녹음 후 스크립트",
+    hint: "녹음이 끝난 뒤 한 번에 스크립트로 변환합니다.",
   },
   {
     value: "webSpeechApi",
@@ -45,7 +45,7 @@ const ENGINE_OPTIONS: {
   {
     value: "openai",
     label: "OpenAI Realtime",
-    hint: "OpenAI Realtime 전사(기본).",
+    hint: "OpenAI Realtime 스크립트(기본).",
   },
   {
     value: "assemblyai",
@@ -56,6 +56,7 @@ const ENGINE_OPTIONS: {
 
 const BATCH_MODEL_OPTIONS = [
   { value: "whisper-1", label: "whisper-1" },
+  { value: "gpt-4o-mini-transcribe", label: "gpt-4o-mini-transcribe" },
   { value: "gpt-4o-transcribe", label: "gpt-4o-transcribe" },
 ] as const;
 
@@ -130,7 +131,7 @@ export function SettingsPanel({
 
           <fieldset className="mb-6 space-y-3" disabled={disabled}>
             <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              전사 모드
+              스크립트 모드
             </legend>
             {MODE_OPTIONS.map((opt) => {
               const isWebSpeech = opt.value === "webSpeechApi";
@@ -190,7 +191,7 @@ export function SettingsPanel({
           {settings.mode === "realtime" ? (
             <fieldset className="mb-6 space-y-3" disabled={disabled}>
               <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                실시간 전사 엔진
+                실시간 스크립트 엔진
               </legend>
               {ENGINE_OPTIONS.map((opt) => (
                 <label
@@ -227,10 +228,10 @@ export function SettingsPanel({
                 htmlFor="batch-model-select"
                 className="mb-2 block text-sm font-medium text-zinc-800 dark:text-zinc-200"
               >
-                일괄 전사 모델
+                일괄 스크립트 모델
               </label>
               <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                녹음 후 전사에 사용할 모델입니다.
+                녹음 후 스크립트에 사용할 모델입니다.
               </p>
               <select
                 id="batch-model-select"
@@ -257,7 +258,7 @@ export function SettingsPanel({
               회의록 작성 모델
             </label>
             <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-              녹음이 끝난 뒤 전사를 바탕으로 회의록을 작성할 때 사용할
+              녹음이 끝난 뒤 스크립트를 바탕으로 회의록을 작성할 때 사용할
               모델입니다.
             </p>
             <select
@@ -328,7 +329,7 @@ export function SettingsPanel({
                   자동 감지 (auto)
                 </span>
                 <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                  녹음 후 전사 모드에서만 사용할 수 있습니다.
+                  녹음 후 스크립트 모드에서만 사용할 수 있습니다.
                 </span>
               </span>
             </label>

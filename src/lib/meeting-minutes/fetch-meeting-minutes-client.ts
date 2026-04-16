@@ -1,0 +1,37 @@
+/**
+ * 브라우저에서 회의록 API를 호출해 요약 본문(`summary`) 문자열만 반환한다.
+ */
+export async function fetchMeetingMinutesSummary(
+  text: string,
+  model: string,
+  signal?: AbortSignal,
+): Promise<string> {
+  const res = await fetch("/api/meeting-minutes", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, model }),
+    signal,
+  });
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg =
+      data &&
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof (data as { error: unknown }).error === "string"
+        ? (data as { error: string }).error
+        : "회의록 요청에 실패했습니다.";
+    throw new Error(msg);
+  }
+  if (
+    data &&
+    typeof data === "object" &&
+    data !== null &&
+    "summary" in data &&
+    typeof (data as { summary: unknown }).summary === "string"
+  ) {
+    return (data as { summary: string }).summary;
+  }
+  throw new Error("회의록 응답 형식이 올바르지 않습니다.");
+}

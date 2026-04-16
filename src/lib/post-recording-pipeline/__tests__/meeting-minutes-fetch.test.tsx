@@ -51,7 +51,7 @@ describe("PostRecordingPipeline → /api/meeting-minutes", () => {
     render(
       <PostRecordingPipelineProvider>
         <EnqueueMeetingMinutes
-          partialText="전사 본문"
+          partialText="스크립트 본문"
           meetingMinutesModel="gpt-4o-mini"
         />
       </PostRecordingPipelineProvider>,
@@ -69,7 +69,7 @@ describe("PostRecordingPipeline → /api/meeting-minutes", () => {
     );
     const init = fetchMock.mock.calls[0]![1] as RequestInit;
     expect(JSON.parse(init.body as string)).toEqual({
-      text: "전사 본문",
+      text: "스크립트 본문",
       model: "gpt-4o-mini",
     });
   });

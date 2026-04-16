@@ -7,6 +7,7 @@ import {
   type Session,
   type SessionAudio,
 } from "@/lib/db";
+import { SettingsProvider } from "@/lib/settings/context";
 import { SessionDetail } from "../session-detail";
 
 vi.mock("next/navigation", () => ({
@@ -17,6 +18,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/db", () => ({
   getSessionById: vi.fn(),
   getSessionAudio: vi.fn(),
+  updateSession: vi.fn(),
 }));
 
 vi.mock("@/lib/download-recording", () => ({
@@ -32,7 +34,7 @@ describe("SessionDetail 오디오 다운로드", () => {
   it("오디오가 있는 세션의 경우 다운로드 버튼을 표시한다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "session-123",
-      text: "전사 내용",
+      text: "스크립트 내용",
       createdAt: Date.now(),
     } as Session);
     vi.mocked(getSessionAudio).mockResolvedValue({
@@ -40,7 +42,11 @@ describe("SessionDetail 오디오 다운로드", () => {
       segments: [new Blob(["audio"], { type: "audio/webm" })],
     } as SessionAudio);
 
-    render(<SessionDetail />);
+    render(
+      <SettingsProvider>
+        <SessionDetail />
+      </SettingsProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.getByText("오디오 다운로드")).toBeTruthy();
@@ -50,12 +56,16 @@ describe("SessionDetail 오디오 다운로드", () => {
   it("오디오가 없는 세션의 경우 다운로드 버튼을 표시하지 않는다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "session-123",
-      text: "전사 내용",
+      text: "스크립트 내용",
       createdAt: Date.now(),
     } as Session);
     vi.mocked(getSessionAudio).mockResolvedValue(undefined);
 
-    render(<SessionDetail />);
+    render(
+      <SettingsProvider>
+        <SessionDetail />
+      </SettingsProvider>,
+    );
 
     await waitFor(() => {
       expect(screen.queryByText("오디오 다운로드")).toBeNull();

@@ -19,7 +19,7 @@ export type TabPanelBodyProps = {
   scrollClassName?: string;
 };
 
-/** 실시간 전사 / 요약 탭 본문 공통 스캐폴드 */
+/** 실시간 스크립트 / 요약 탭 본문 공통 스캐폴드 */
 export function TabPanelBody({
   children,
   variant = "solid",

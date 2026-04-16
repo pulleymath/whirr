@@ -1,7 +1,7 @@
-/** 전사 모드 */
+/** 스크립트 모드 */
 export type TranscriptionMode = "realtime" | "batch" | "webSpeechApi";
 
-/** 실시간 전사에서 사용할 엔진 */
+/** 실시간 스크립트에서 사용할 엔진 */
 export type RealtimeEngine = "openai" | "assemblyai";
 
 /** 녹음 완료 후 회의록 생성 기본 모델 (OpenAI Chat Completions `model`) */
@@ -19,15 +19,15 @@ export function isAllowedMeetingMinutesModelId(id: string): boolean {
 }
 
 export type TranscriptionSettings = {
-  /** 전사 모드: 실시간 / 녹음 후 일괄 / Web Speech API */
+  /** 스크립트 모드: 실시간 / 녹음 후 일괄 / Web Speech API */
   mode: TranscriptionMode;
-  /** 실시간 전사 시 사용할 엔진 (mode='realtime'일 때만 적용) */
+  /** 실시간 스크립트 시 사용할 엔진 (mode='realtime'일 때만 적용) */
   realtimeEngine: RealtimeEngine;
-  /** 녹음 후 일괄 전사 시 사용할 모델 (mode='batch'일 때만 적용) */
+  /** 녹음 후 일괄 스크립트 시 사용할 모델 (mode='batch'일 때만 적용) */
   batchModel: string;
   /** 녹음 완료 후 회의록 작성에 사용할 모델 */
   meetingMinutesModel: string;
-  /** 전사 언어 코드 (ISO 639-1 또는 auto) */
+  /** 스크립트 언어 코드 (ISO 639-1 또는 auto) */
   language: string;
 };
 

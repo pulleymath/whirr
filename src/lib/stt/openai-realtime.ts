@@ -17,7 +17,7 @@ export const OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE = "ko" as const;
 /**
  * `transcription.prompt`는 시스템 지시문이 아니다. Whisper 계열과 같이
  * **기대 단어·고유명사·짧은 키워드 나열**로 쓰는 필드다.
- * 긴 지시문(“전사하세요”, “하지 마세요” 등)은 모델이 출력에 그대로 섞거나 반복하는 경우가 있다.
+ * 긴 지시문(예: “음성을 글로 옮기세요”, “하지 마세요”)은 모델이 출력에 그대로 섞거나 반복하는 경우가 있다.
  * 언어는 `language`로 고정하고, 여기엔 회의·IT 용어만 쉼표로 나열한다.
  * @see https://developers.openai.com/api/docs/guides/realtime-transcription#session-fields
  */

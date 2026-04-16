@@ -19,9 +19,9 @@ export type BatchTranscriptionStatus =
   | "error";
 
 export type BatchStopResult = {
-  /** 마지막 세그먼트를 제외한 확정 전사(공백으로 join) */
+  /** 마지막 세그먼트를 제외한 확정 스크립트(공백으로 join) */
   partialText: string;
-  /** 파이프라인에서 전사할 마지막 블롭(없으면 null) */
+  /** 파이프라인에서 스크립트로 변환할 마지막 블롭(없으면 null) */
   finalBlob: Blob | null;
   segments: Blob[];
 };
@@ -58,11 +58,11 @@ export type UseBatchTranscriptionReturn = {
   sessionRef: React.RefObject<SegmentedRecordingSession | null>;
   startRecording: () => Promise<void>;
   /**
-   * 진행 중인 세그먼트 전사만 대기한 뒤 마지막 블롭은 전사하지 않고 반환.
+   * 진행 중인 세그먼트 스크립트 변환만 대기한 뒤 마지막 블롭은 변환하지 않고 반환.
    * 성공 시 `idle`, 실패 시 `error` 및 `null`.
    */
   stopAndTranscribe: () => Promise<BatchStopResult | null>;
-  /** 직전 실패한 녹음 세그먼트들로 전사를 다시 시도한다 */
+  /** 직전 실패한 녹음 세그먼트들로 스크립트 변환을 다시 시도한다 */
   retryTranscription: () => Promise<string | null>;
 };
 
@@ -194,7 +194,7 @@ export function useBatchTranscription(
         for (let i = 0; i < lastIdx; i++) {
           if (partialTranscriptsRef.current[i] === null) {
             setStatus("error");
-            setErrorMessage("일부 구간 전사에 실패했습니다.");
+            setErrorMessage("일부 구간 스크립트 변환에 실패했습니다.");
             return null;
           }
         }

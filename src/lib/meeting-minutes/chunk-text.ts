@@ -17,7 +17,7 @@ function findLastSentenceBreak(slice: string, minIndex: number): number {
 }
 
 /**
- * 긴 전사를 회의록 map 단계용 청크로 나눈다. 문장 경계를 우선하고, 없으면 길이에서 자른다.
+ * 긴 스크립트를 회의록 map 단계용 청크로 나눈다. 문장 경계를 우선하고, 없으면 길이에서 자른다.
  */
 export function chunkText(
   text: string,

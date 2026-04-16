@@ -8,7 +8,7 @@ describe("generateMeetingMinutes", () => {
 
   it("단일 청크면 completeChat 1회(map+reduce 없음)", async () => {
     const completeChat = vi.fn().mockResolvedValue("최종 회의록");
-    const out = await generateMeetingMinutes("짧은 전사입니다.", {
+    const out = await generateMeetingMinutes("짧은 스크립트입니다.", {
       model: "gpt-5.4-nano",
       completeChat,
     });
@@ -51,7 +51,7 @@ describe("generateMeetingMinutes", () => {
     ).rejects.toThrow("fail chunk");
   });
 
-  it("빈 전사면 에러", async () => {
+  it("빈 스크립트면 에러", async () => {
     await expect(
       generateMeetingMinutes("  ", {
         model: "m",

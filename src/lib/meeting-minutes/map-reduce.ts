@@ -48,7 +48,7 @@ export async function openAiChatCompletion(
 }
 
 /**
- * 전사 전문을 회의록으로 변환한다. 긴 본문은 청크 map → 단일 reduce로 합친다.
+ * 스크립트 전문을 회의록으로 변환한다. 긴 본문은 청크 map → 단일 reduce로 합친다.
  */
 export async function generateMeetingMinutes(
   text: string,
@@ -67,7 +67,7 @@ export async function generateMeetingMinutes(
         { role: "system", content: MEETING_MINUTES_SINGLE_SYSTEM },
         {
           role: "user",
-          content: `다음은 회의 전사입니다.\n\n${chunks[0]}`,
+          content: `다음은 회의 스크립트입니다.\n\n${chunks[0]}`,
         },
       ],
     });

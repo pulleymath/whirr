@@ -39,7 +39,7 @@ type PostRecordingPipelineContextValue = {
   isBusy: boolean;
   errorMessage: string | null;
   summaryText: string | null;
-  /** 홈 전사 영역에 보여 줄 문자열(파이프라인 진행 중·완료 직후) */
+  /** 홈 스크립트 영역에 보여 줄 문자열(파이프라인 진행 중·완료 직후) */
   displayTranscript: string | null;
   enqueue: (input: PostRecordingPipelineEnqueueInput) => void;
 };

@@ -47,7 +47,7 @@ describe("TranscriptView", () => {
     render(
       <TranscriptView
         partial=""
-        finals={["이어지는 전사"]}
+        finals={["이어지는 스크립트"]}
         showHeading={false}
         isSegmentInFlight
       />,

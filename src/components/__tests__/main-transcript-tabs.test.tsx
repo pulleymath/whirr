@@ -37,13 +37,42 @@ describe("MainTranscriptTabs", () => {
     );
 
     expect(screen.getByRole("tablist")).toBeTruthy();
-    expect(
-      screen.getByRole("tab", { name: "실시간 전사 텍스트" }),
-    ).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
     expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
   });
 
-  it("기본은 실시간 전사 탭이 선택되어 transcript 패널이 보인다", () => {
+  it("defaultActive가 summary이면 회의록 탭이 선택된다", () => {
+    render(
+      <MainTranscriptTabs
+        defaultActive="summary"
+        tabOrder="summary-first"
+        transcriptPanel={<div data-testid="transcript-slot">T</div>}
+        summaryPanel={<div data-testid="summary-slot">S</div>}
+      />,
+    );
+
+    const summaryTab = screen.getByRole("tab", { name: "회의록" });
+    expect(summaryTab.getAttribute("aria-selected")).toBe("true");
+    const summaryPanel = screen
+      .getByTestId("summary-slot")
+      .closest('[role="tabpanel"]');
+    expect(summaryPanel!.hasAttribute("hidden")).toBe(false);
+  });
+
+  it("tabOrder summary-first이면 회의록 탭이 tablist에서 먼저 온다", () => {
+    render(
+      <MainTranscriptTabs
+        transcriptPanel={<div>T</div>}
+        summaryPanel={<div>S</div>}
+        tabOrder="summary-first"
+      />,
+    );
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs[0]).toHaveTextContent("회의록");
+    expect(tabs[1]).toHaveTextContent("스크립트");
+  });
+
+  it("기본은 실시간 스크립트 탭이 선택되어 transcript 패널이 보인다", () => {
     render(
       <MainTranscriptTabs
         transcriptPanel={<div data-testid="transcript-slot">T</div>}
@@ -52,7 +81,7 @@ describe("MainTranscriptTabs", () => {
     );
 
     const transcriptTab = screen.getByRole("tab", {
-      name: "실시간 전사 텍스트",
+      name: "스크립트",
     });
     expect(transcriptTab.getAttribute("aria-selected")).toBe("true");
     const transcriptPanel = screen
@@ -76,7 +105,7 @@ describe("MainTranscriptTabs", () => {
       .getByTestId("summary-slot")
       .closest('[role="tabpanel"]');
     const transcriptTab = screen.getByRole("tab", {
-      name: "실시간 전사 텍스트",
+      name: "스크립트",
     });
     const transcriptPanelId = transcriptTab.getAttribute("aria-controls");
     const transcriptPanel = document.getElementById(transcriptPanelId ?? "");

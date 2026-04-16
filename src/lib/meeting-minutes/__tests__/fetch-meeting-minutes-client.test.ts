@@ -1,0 +1,53 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { fetchMeetingMinutesSummary } from "../fetch-meeting-minutes-client";
+
+describe("fetchMeetingMinutesSummary", () => {
+  const originalFetch = globalThis.fetch;
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("200이면 summary 문자열을 반환한다", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ summary: "회의록 본문" }), {
+        status: 200,
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    const out = await fetchMeetingMinutesSummary("스크립트", "gpt-4o");
+    expect(out).toBe("회의록 본문");
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/meeting-minutes",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ text: "스크립트", model: "gpt-4o" }),
+      }),
+    );
+  });
+
+  it("ok가 아니면 에러를 던진다", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ error: "text too long" }), {
+        status: 413,
+      }),
+    ) as unknown as typeof fetch;
+
+    await expect(fetchMeetingMinutesSummary("x", "m")).rejects.toThrow(
+      "text too long",
+    );
+  });
+
+  it("ok가 아니고 JSON에 error가 없으면 한글 기본 메시지를 던진다", async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response("{}", { status: 500 }),
+      ) as unknown as typeof fetch;
+
+    await expect(fetchMeetingMinutesSummary("x", "m")).rejects.toThrow(
+      "회의록 요청에 실패했습니다.",
+    );
+  });
+});

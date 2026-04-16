@@ -287,10 +287,10 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
         : finals;
   const transcriptError = isBatchMode ? batch.errorMessage : sttError;
   const batchRecordingHint = batchRecording
-    ? "녹음 중입니다. 5분마다 전사 결과가 업데이트됩니다."
+    ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
     : null;
   const batchLoadingMessage = batchTranscribing
-    ? `전사 중... (${batch.completedCount}/${batch.totalCount})`
+    ? `스크립트 변환 중... (${batch.completedCount}/${batch.totalCount})`
     : null;
   const segmentInFlight =
     batchRecording &&
@@ -304,7 +304,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       ? settings.mode === "realtime"
         ? "세션이 곧 갱신됩니다."
         : settings.mode === "webSpeechApi"
-          ? "녹음 시간이 길어지고 있습니다. 전사가 중단될 수 있습니다."
+          ? "녹음 시간이 길어지고 있습니다. 스크립트 변환이 중단될 수 있습니다."
           : null
       : null;
 
@@ -395,7 +395,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
             </div>
             {batch.totalCount > 0 && (
               <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                <span>전사 진행률</span>
+                <span>스크립트 진행률</span>
                 <span>
                   {batch.completedCount} / {batch.totalCount} 세그먼트 완료
                 </span>
