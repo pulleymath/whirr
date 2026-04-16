@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getSessionAudio,
@@ -7,6 +13,7 @@ import {
   type Session,
   type SessionAudio,
 } from "@/lib/db";
+import { downloadRecordingSegments } from "@/lib/download-recording";
 import { SettingsProvider } from "@/lib/settings/context";
 import { SessionDetail } from "../session-detail";
 
@@ -30,6 +37,43 @@ afterEach(() => {
 });
 
 describe("SessionDetail 오디오 다운로드", () => {
+  it("다운로드 버튼 클릭 시 오디오 세그먼트 전체를 다운로드 유틸에 전달한다", async () => {
+    const segments = [
+      new Blob(["audio-1"], { type: "audio/webm" }),
+      new Blob(["audio-2"], { type: "audio/webm" }),
+    ];
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "session-123",
+      text: "스크립트 내용",
+      createdAt: Date.now(),
+    } as Session);
+    vi.mocked(getSessionAudio).mockResolvedValue({
+      sessionId: "session-123",
+      segments,
+    } as SessionAudio);
+
+    render(
+      <SettingsProvider>
+        <SessionDetail />
+      </SettingsProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "오디오 다운로드" }),
+      ).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "오디오 다운로드" }));
+
+    await waitFor(() => {
+      expect(downloadRecordingSegments).toHaveBeenCalledWith(
+        segments,
+        "session-session-123",
+      );
+    });
+  });
+
   it("오디오가 있는 세션의 경우 다운로드 버튼을 표시한다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "session-123",

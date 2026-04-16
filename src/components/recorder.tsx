@@ -147,26 +147,20 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const stop = useCallback(async () => {
     setPersistError(null);
     if (settings.mode === "batch") {
-      const session = batch.sessionRef.current;
-      let fullAudio: Blob | undefined;
-      if (session && typeof session.getFullAudioBlob === "function") {
-        fullAudio = await session.getFullAudioBlob();
-      }
       const stopped = await stopBatchTranscribe();
       if (!stopped) {
         return;
       }
       const { partialText, finalBlob, segments } = stopped;
-      const audioSegments = fullAudio ? [fullAudio] : segments;
-      if (!partialText.trim() && audioSegments.length === 0) {
+      if (!partialText.trim() && segments.length === 0) {
         return;
       }
       try {
         const id = await saveSession(partialText, {
           status: "transcribing",
         });
-        if (audioSegments.length > 0) {
-          await saveSessionAudio(id, audioSegments);
+        if (segments.length > 0) {
+          await saveSessionAudio(id, segments);
         }
         onSessionSaved?.(id);
         enqueuePipeline({
@@ -221,7 +215,6 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     settings.mode,
     stopBatchTranscribe,
     stopRecording,
-    batch.sessionRef,
   ]);
 
   const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;

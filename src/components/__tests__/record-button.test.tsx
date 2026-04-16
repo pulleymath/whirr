@@ -22,17 +22,17 @@ describe("RecordButton", () => {
     }));
   });
 
-  it("mode='start'이면 원형 인디케이터(rounded-full)를 렌더링한다", () => {
+  it("mode='start'이면 원형 인디케이터(rounded-[50%])를 렌더링한다", () => {
     render(<RecordButton mode="start" onClick={() => {}} />);
     const el = screen.getByTestId("record-indicator");
-    expect(el.className).toMatch(/rounded-full/);
+    expect(el.className).toMatch(/rounded-\[50%\]/);
   });
 
   it("mode='stop'이면 둥근 사각형 인디케이터를 렌더링한다", () => {
     render(<RecordButton mode="stop" onClick={() => {}} />);
     const el = screen.getByTestId("record-indicator");
-    expect(el.className).toMatch(/rounded-md/);
-    expect(el.className).not.toMatch(/rounded-full/);
+    expect(el.className).toMatch(/rounded-sm/);
+    expect(el.className).not.toMatch(/rounded-\[50%\]/);
   });
 
   it("mode='start'이면 aria-label이 '녹음 시작'이다", () => {
