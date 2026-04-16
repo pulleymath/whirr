@@ -7,6 +7,17 @@ export type RealtimeEngine = "openai" | "assemblyai";
 /** 녹음 완료 후 회의록 생성 기본 모델 (OpenAI Chat Completions `model`) */
 export const DEFAULT_MEETING_MINUTES_MODEL = "gpt-5.4-nano" as const;
 
+/** 설정·서버 API에서 허용하는 회의록 Chat 모델 id (화이트리스트). */
+export const MEETING_MINUTES_MODEL_IDS = [
+  DEFAULT_MEETING_MINUTES_MODEL,
+  "gpt-4o",
+  "gpt-4o-mini",
+] as const;
+
+export function isAllowedMeetingMinutesModelId(id: string): boolean {
+  return (MEETING_MINUTES_MODEL_IDS as readonly string[]).includes(id);
+}
+
 export type TranscriptionSettings = {
   /** 전사 모드: 실시간 / 녹음 후 일괄 / Web Speech API */
   mode: TranscriptionMode;
@@ -60,7 +71,11 @@ export function parseTranscriptionSettings(
     typeof o.meetingMinutesModel === "string" &&
     o.meetingMinutesModel.length > 0
   ) {
-    base.meetingMinutesModel = o.meetingMinutesModel;
+    base.meetingMinutesModel = isAllowedMeetingMinutesModelId(
+      o.meetingMinutesModel,
+    )
+      ? o.meetingMinutesModel
+      : DEFAULT_MEETING_MINUTES_MODEL;
   }
   if (typeof o.language === "string" && o.language.length > 0) {
     base.language = o.language;

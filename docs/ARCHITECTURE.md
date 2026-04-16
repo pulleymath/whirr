@@ -16,9 +16,9 @@ PRD의 요구를 만족시키기 위한 **경계·책임·데이터 위치**만 
 - **호스팅 앱**: `POST /api/stt/transcribe`가 크기·MIME·모델·레이트 리밋을 검증한 뒤 OpenAI **HTTP 전사**로 프록시하고, **텍스트만** 클라이언트에 돌려준다.
 - **UI**: 실시간 WSS 어댑터(`useTranscription`)와는 별도 훅이지만, 전사 표시·세션 저장 흐름은 동일 화면에서 이어진다.
 
-## 녹음 후 파이프라인(마지막 세그먼트·요약)
+## 녹음 후 파이프라인(마지막 세그먼트·회의록)
 
-배치 녹음이 끝난 뒤 **5분 단위로 이미 전사된 본문**에 더해, **마지막 오디오 조각**만 클라이언트에서 `POST /api/stt/transcribe`로 전사하고, 합쳐진 전문을 `POST /api/summarize`로 보내 **목(mock) 요약**을 받아 로컬 세션에 붙인다. 이 비동기 단계는 **`PostRecordingPipelineProvider`**(메인 레이아웃)에서 돌아가며, SPA 내비게이션 후에도 같은 탭에서는 완료까지 이어진다. 세션 레코드에는 진행 상태를 위해 **`status`**(예: transcribing, summarizing, ready, error)와 **`summary`** 필드가 사용된다.
+배치 녹음이 끝난 뒤 **5분 단위로 이미 전사된 본문**에 더해, **마지막 오디오 조각**만 클라이언트에서 `POST /api/stt/transcribe`로 전사하고, 합쳐진 전문을 `POST /api/meeting-minutes`로 보낸다. 서버는 전사 본문을 **청크 map → 단일 reduce**로 합쳐 OpenAI Chat Completions로 **회의록**을 생성하고, 응답 본문은 기존과 같이 `{ summary: string }` 형태로 돌아와 로컬 세션의 **`summary`** 필드에 저장된다(UI에서는 "회의록"으로 표시). 이 비동기 단계는 **`PostRecordingPipelineProvider`**(메인 레이아웃)에서 돌아가며, SPA 내비게이션 후에도 같은 탭에서는 완료까지 이어진다. 세션 레코드에는 진행 상태를 위해 **`status`**(예: transcribing, summarizing, ready, error)가 사용된다.
 
 ## 구성 요소 책임
 

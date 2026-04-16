@@ -2,7 +2,7 @@
 
 import { useSettings } from "@/lib/settings/context";
 import {
-  DEFAULT_MEETING_MINUTES_MODEL,
+  MEETING_MINUTES_MODEL_IDS,
   type RealtimeEngine,
   type TranscriptionMode,
 } from "@/lib/settings/types";
@@ -59,17 +59,10 @@ const BATCH_MODEL_OPTIONS = [
   { value: "gpt-4o-transcribe", label: "gpt-4o-transcribe" },
 ] as const;
 
-const MEETING_MINUTES_MODEL_OPTIONS: {
-  value: string;
-  label: string;
-}[] = [
-  {
-    value: DEFAULT_MEETING_MINUTES_MODEL,
-    label: DEFAULT_MEETING_MINUTES_MODEL,
-  },
-  { value: "gpt-4o", label: "gpt-4o" },
-  { value: "gpt-4o-mini", label: "gpt-4o-mini" },
-];
+const MEETING_MINUTES_MODEL_OPTIONS = MEETING_MINUTES_MODEL_IDS.map((id) => ({
+  value: id,
+  label: id,
+}));
 
 export function SettingsPanel({
   open,

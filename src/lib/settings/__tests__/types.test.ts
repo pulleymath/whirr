@@ -59,4 +59,12 @@ describe("parseTranscriptionSettings", () => {
       meetingMinutesModel: DEFAULT_TRANSCRIPTION_SETTINGS.meetingMinutesModel,
     });
   });
+
+  it("허용 목록에 없는 meetingMinutesModel은 기본값으로 폴백", () => {
+    expect(
+      parseTranscriptionSettings({ meetingMinutesModel: "custom-model" }),
+    ).toMatchObject({
+      meetingMinutesModel: DEFAULT_TRANSCRIPTION_SETTINGS.meetingMinutesModel,
+    });
+  });
 });

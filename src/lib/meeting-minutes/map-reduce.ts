@@ -1,4 +1,5 @@
 import { chunkText } from "./chunk-text";
+import { MEETING_MINUTES_MAP_CONCURRENCY } from "./constants";
 import {
   MEETING_MINUTES_MAP_SYSTEM,
   MEETING_MINUTES_REDUCE_SYSTEM,
@@ -72,20 +73,26 @@ export async function generateMeetingMinutes(
     });
   }
 
-  const parts = await Promise.all(
-    chunks.map((chunk, idx) =>
-      completeChat({
-        model,
-        messages: [
-          { role: "system", content: MEETING_MINUTES_MAP_SYSTEM },
-          {
-            role: "user",
-            content: `[구간 ${idx + 1}/${chunks.length}]\n\n${chunk}`,
-          },
-        ],
+  const parts: string[] = [];
+  for (let i = 0; i < chunks.length; i += MEETING_MINUTES_MAP_CONCURRENCY) {
+    const slice = chunks.slice(i, i + MEETING_MINUTES_MAP_CONCURRENCY);
+    const batch = await Promise.all(
+      slice.map((chunk, bi) => {
+        const idx = i + bi;
+        return completeChat({
+          model,
+          messages: [
+            { role: "system", content: MEETING_MINUTES_MAP_SYSTEM },
+            {
+              role: "user",
+              content: `[구간 ${idx + 1}/${chunks.length}]\n\n${chunk}`,
+            },
+          ],
+        });
       }),
-    ),
-  );
+    );
+    parts.push(...batch);
+  }
 
   const merged = parts
     .map((p, i) => `### 구간 ${i + 1} 부분 회의록\n${p}`)

@@ -19,3 +19,7 @@
 ## 알려진 제한
 
 - 실제 배포 시 `gpt-5.4-nano`가 OpenAI에 없으면 설정에서 다른 모델로 바꿔야 함.
+
+## 리뷰 산출물
+
+- `02_review_implementation.md` ~ `05_review_synthesis.md`, 반영 기록 `06_fixes.md` 참고.

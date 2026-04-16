@@ -1,8 +1,14 @@
+import { MEETING_MINUTES_MAX_TEXT_LENGTH } from "@/lib/api/meeting-minutes-api-constants";
+import { isMeetingMinutesRateLimited } from "@/lib/api/meeting-minutes-rate-limit";
+import { getClientKeyFromRequest } from "@/lib/api/stt-token-rate-limit";
 import {
   generateMeetingMinutes,
   openAiChatCompletion,
 } from "@/lib/meeting-minutes/map-reduce";
-import { DEFAULT_MEETING_MINUTES_MODEL } from "@/lib/settings/types";
+import {
+  DEFAULT_MEETING_MINUTES_MODEL,
+  isAllowedMeetingMinutesModelId,
+} from "@/lib/settings/types";
 import { NextResponse } from "next/server";
 
 export type MeetingMinutesResponseBody = {
@@ -10,6 +16,14 @@ export type MeetingMinutesResponseBody = {
 };
 
 export async function POST(request: Request) {
+  const clientKey = getClientKeyFromRequest(request);
+  if (isMeetingMinutesRateLimited(clientKey)) {
+    return NextResponse.json(
+      { error: "Too many meeting minutes requests" },
+      { status: 429 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -28,12 +42,20 @@ export async function POST(request: Request) {
   if (!text) {
     return NextResponse.json({ error: "text empty" }, { status: 400 });
   }
+  if (text.length > MEETING_MINUTES_MAX_TEXT_LENGTH) {
+    return NextResponse.json({ error: "text too long" }, { status: 413 });
+  }
 
   const rawModel = (body as { model?: unknown }).model;
-  const model =
-    typeof rawModel === "string" && rawModel.length > 0
-      ? rawModel
-      : DEFAULT_MEETING_MINUTES_MODEL;
+  let model: string;
+  if (typeof rawModel === "string" && rawModel.length > 0) {
+    if (!isAllowedMeetingMinutesModelId(rawModel)) {
+      return NextResponse.json({ error: "Unsupported model" }, { status: 400 });
+    }
+    model = rawModel;
+  } else {
+    model = DEFAULT_MEETING_MINUTES_MODEL;
+  }
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
