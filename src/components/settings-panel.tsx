@@ -1,5 +1,6 @@
 "use client";
 
+import { useGlossary } from "@/lib/glossary/context";
 import { useSettings } from "@/lib/settings/context";
 import {
   MEETING_MINUTES_MODEL_IDS,
@@ -71,6 +72,7 @@ export function SettingsPanel({
   isRecording,
 }: SettingsPanelProps) {
   const { settings, updateSettings } = useSettings();
+  const { glossary, updateGlossary } = useGlossary();
   const webSpeechSupported = useSyncExternalStore(
     () => () => {},
     () => isWebSpeechApiSupported(),
@@ -277,6 +279,35 @@ export function SettingsPanel({
                 </option>
               ))}
             </select>
+          </div>
+
+          <div className="mb-6">
+            <label
+              htmlFor="global-glossary-textarea"
+              className="mb-2 block text-sm font-medium text-zinc-800 dark:text-zinc-200"
+            >
+              전역 용어 사전
+            </label>
+            <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
+              회의록 작성 시 STT 오인식 교정에 참고할 용어입니다. 한 줄에 하나씩
+              입력하세요.
+            </p>
+            <textarea
+              id="global-glossary-textarea"
+              disabled={disabled}
+              data-testid="global-glossary-textarea"
+              rows={5}
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 font-mono text-sm text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              placeholder={"Kubernetes\n김지호\nOKR\nVercel"}
+              value={glossary.terms.join("\n")}
+              onChange={(e) => {
+                const lines = e.target.value
+                  .split("\n")
+                  .map((s) => s.trim())
+                  .filter(Boolean);
+                updateGlossary(lines);
+              }}
+            />
           </div>
 
           <fieldset className="space-y-3" disabled={disabled}>

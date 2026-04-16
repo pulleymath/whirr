@@ -21,6 +21,7 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
       errorMessage: null,
       summaryText: null,
       displayTranscript: null,
+      completedSessionId: null,
       enqueue: mockEnqueue,
     }),
   };
@@ -180,6 +181,8 @@ describe("Recorder 배치 모드", () => {
         model: "whisper-1",
         language: "ko",
         meetingMinutesModel: "gpt-5.4-nano",
+        glossary: [],
+        sessionContext: null,
       }),
     );
   });

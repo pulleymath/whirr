@@ -1,6 +1,8 @@
+import type { MeetingContext } from "@/lib/glossary/types";
 import { chunkText } from "./chunk-text";
 import { MEETING_MINUTES_MAP_CONCURRENCY } from "./constants";
 import {
+  buildSystemPromptWithContext,
   MEETING_MINUTES_MAP_SYSTEM,
   MEETING_MINUTES_REDUCE_SYSTEM,
   MEETING_MINUTES_SINGLE_SYSTEM,
@@ -52,9 +54,14 @@ export async function openAiChatCompletion(
  */
 export async function generateMeetingMinutes(
   text: string,
-  options: { model: string; completeChat: CompleteChatFn },
+  options: {
+    model: string;
+    completeChat: CompleteChatFn;
+    context?: MeetingContext | null;
+  },
 ): Promise<string> {
-  const { model, completeChat } = options;
+  const { model, completeChat, context } = options;
+  const ctx = context ?? null;
   const chunks = chunkText(text);
   if (chunks.length === 0) {
     throw new Error("empty text");
@@ -64,7 +71,13 @@ export async function generateMeetingMinutes(
     return completeChat({
       model,
       messages: [
-        { role: "system", content: MEETING_MINUTES_SINGLE_SYSTEM },
+        {
+          role: "system",
+          content: buildSystemPromptWithContext(
+            MEETING_MINUTES_SINGLE_SYSTEM,
+            ctx,
+          ),
+        },
         {
           role: "user",
           content: `다음은 회의 스크립트입니다.\n\n${chunks[0]}`,
@@ -72,6 +85,11 @@ export async function generateMeetingMinutes(
       ],
     });
   }
+
+  const mapSystem = buildSystemPromptWithContext(
+    MEETING_MINUTES_MAP_SYSTEM,
+    ctx,
+  );
 
   const parts: string[] = [];
   for (let i = 0; i < chunks.length; i += MEETING_MINUTES_MAP_CONCURRENCY) {
@@ -82,7 +100,7 @@ export async function generateMeetingMinutes(
         return completeChat({
           model,
           messages: [
-            { role: "system", content: MEETING_MINUTES_MAP_SYSTEM },
+            { role: "system", content: mapSystem },
             {
               role: "user",
               content: `[구간 ${idx + 1}/${chunks.length}]\n\n${chunk}`,

@@ -1,13 +1,16 @@
 /** @vitest-environment happy-dom */
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { GlossaryProvider } from "@/lib/glossary/context";
 import { SettingsPanel } from "../settings-panel";
 import { SettingsProvider, SETTINGS_STORAGE_KEY } from "@/lib/settings/context";
 
 function renderPanel(isRecording = false) {
   return render(
     <SettingsProvider>
-      <SettingsPanel open onClose={() => {}} isRecording={isRecording} />
+      <GlossaryProvider>
+        <SettingsPanel open onClose={() => {}} isRecording={isRecording} />
+      </GlossaryProvider>
     </SettingsProvider>,
   );
 }
@@ -89,5 +92,39 @@ describe("SettingsPanel", () => {
       "fieldset",
     ) as HTMLFieldSetElement;
     expect(modeFieldset.disabled).toBe(true);
+  });
+
+  it("전역 용어 사전 textarea가 렌더링된다", async () => {
+    renderPanel();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("global-glossary-textarea")).toBeTruthy();
+    });
+  });
+
+  it("textarea에 입력하면 updateGlossary가 반영된다", async () => {
+    renderPanel();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("global-glossary-textarea")).toBeTruthy();
+    });
+    const ta = screen.getByTestId(
+      "global-glossary-textarea",
+    ) as HTMLTextAreaElement;
+    fireEvent.change(ta, { target: { value: "Alpha\nBeta" } });
+    await vi.waitFor(() => {
+      const raw = localStorage.getItem("whirr:global-glossary");
+      expect(raw).toBeTruthy();
+      expect(JSON.parse(raw!)).toEqual({ terms: ["Alpha", "Beta"] });
+    });
+  });
+
+  it("녹음 중이면 전역 용어 사전 textarea가 disabled이다", async () => {
+    renderPanel(true);
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("global-glossary-textarea")).toBeTruthy();
+    });
+    expect(
+      (screen.getByTestId("global-glossary-textarea") as HTMLTextAreaElement)
+        .disabled,
+    ).toBe(true);
   });
 });

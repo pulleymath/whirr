@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RecordButton } from "@/components/record-button";
+import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
 import { Button } from "@/components/ui/button";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
@@ -10,6 +11,8 @@ import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession, saveSessionAudio } from "@/lib/db";
+import { useGlossary } from "@/lib/glossary/context";
+import type { SessionContext } from "@/lib/glossary/types";
 import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { useSettings } from "@/lib/settings/context";
@@ -27,8 +30,28 @@ export type RecorderProps = {
 
 const STREAMING_SESSION_SOFT_MS = OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
 
+const EMPTY_SESSION_CONTEXT: SessionContext = {
+  participants: "",
+  topic: "",
+  keywords: "",
+};
+
+function sessionContextForEnqueue(
+  value: SessionContext,
+): SessionContext | null {
+  if (
+    !value.participants.trim() &&
+    !value.topic.trim() &&
+    !value.keywords.trim()
+  ) {
+    return null;
+  }
+  return value;
+}
+
 export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const { settings } = useSettings();
+  const { glossary } = useGlossary();
   const { setIsRecording } = useRecordingActivity();
   const { enqueue: enqueuePipeline, ...pipeline } = usePostRecordingPipeline();
   const isBatchMode = settings.mode === "batch";
@@ -84,6 +107,9 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     string | null
   >(null);
   const [persistError, setPersistError] = useState<string | null>(null);
+  const [sessionContext, setSessionContext] = useState<SessionContext>(
+    EMPTY_SESSION_CONTEXT,
+  );
 
   useEffect(() => {
     const recording = isBatchMode
@@ -170,6 +196,8 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           model: settings.batchModel,
           language: settings.language,
           meetingMinutesModel: settings.meetingMinutesModel,
+          glossary: glossary.terms,
+          sessionContext: sessionContextForEnqueue(sessionContext),
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -198,6 +226,8 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           model: settings.batchModel,
           language: settings.language,
           meetingMinutesModel: settings.meetingMinutesModel,
+          glossary: glossary.terms,
+          sessionContext: sessionContextForEnqueue(sessionContext),
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -215,6 +245,8 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     settings.mode,
     stopBatchTranscribe,
     stopRecording,
+    glossary.terms,
+    sessionContext,
   ]);
 
   const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;
@@ -392,6 +424,12 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           </p>
         ) : null}
       </section>
+
+      <SessionContextInput
+        value={sessionContext}
+        onChange={setSessionContext}
+        disabled={pipeline.isBusy}
+      />
 
       {persistError || pipeline.errorMessage ? (
         <p

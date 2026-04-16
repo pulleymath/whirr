@@ -1,3 +1,10 @@
+import type { SessionContext } from "@/lib/glossary/types";
+
+export type FetchMeetingMinutesOptions = {
+  glossary?: string[];
+  sessionContext?: SessionContext | null;
+};
+
 /**
  * 브라우저에서 회의록 API를 호출해 요약 본문(`summary`) 문자열만 반환한다.
  */
@@ -5,11 +12,19 @@ export async function fetchMeetingMinutesSummary(
   text: string,
   model: string,
   signal?: AbortSignal,
+  options?: FetchMeetingMinutesOptions,
 ): Promise<string> {
+  const body: Record<string, unknown> = { text, model };
+  if (options?.glossary !== undefined) {
+    body.glossary = options.glossary;
+  }
+  if (options?.sessionContext !== undefined) {
+    body.sessionContext = options.sessionContext;
+  }
   const res = await fetch("/api/meeting-minutes", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ text, model }),
+    body: JSON.stringify(body),
     signal,
   });
   const data: unknown = await res.json().catch(() => ({}));

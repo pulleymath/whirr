@@ -25,6 +25,7 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
       errorMessage: null,
       summaryText: null,
       displayTranscript: null,
+      completedSessionId: null,
       enqueue: mockEnqueue,
     }),
   };

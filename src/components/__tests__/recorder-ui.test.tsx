@@ -2,6 +2,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
+import { GlossaryProvider } from "@/lib/glossary/context";
 import { Recorder } from "../recorder";
 import {
   PostRecordingPipelineContext,
@@ -69,6 +70,7 @@ const basePipeline: PostRecordingPipelineContextValue = {
   errorMessage: null,
   summaryText: null,
   displayTranscript: null,
+  completedSessionId: null,
   enqueue: vi.fn(),
 };
 
@@ -76,9 +78,11 @@ function renderRecorderWithPipeline(value: PostRecordingPipelineContextValue) {
   return render(
     <PostRecordingPipelineContext.Provider value={value}>
       <SettingsProvider>
-        <RecordingActivityProvider>
-          <Recorder />
-        </RecordingActivityProvider>
+        <GlossaryProvider>
+          <RecordingActivityProvider>
+            <Recorder />
+          </RecordingActivityProvider>
+        </GlossaryProvider>
       </SettingsProvider>
     </PostRecordingPipelineContext.Provider>,
   );

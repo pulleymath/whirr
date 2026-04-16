@@ -1,3 +1,4 @@
+import type { MeetingContext } from "@/lib/glossary/types";
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 export type SessionStatus = "transcribing" | "summarizing" | "ready" | "error";
@@ -10,6 +11,8 @@ export type Session = {
   summary?: string | null;
   /** 파이프라인·저장 상태 (구 레코드는 생략 가능 → ready로 간주) */
   status?: SessionStatus;
+  /** 회의록 생성 시 사용한 용어·세션 컨텍스트(선택) */
+  context?: MeetingContext;
 };
 
 export type SaveSessionOptions = {
@@ -83,7 +86,7 @@ export async function saveSession(
 }
 
 export type SessionUpdate = Partial<
-  Pick<Session, "text" | "summary" | "status">
+  Pick<Session, "text" | "summary" | "status" | "context">
 >;
 
 export async function updateSession(

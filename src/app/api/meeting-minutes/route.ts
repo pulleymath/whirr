@@ -1,6 +1,12 @@
-import { MEETING_MINUTES_MAX_TEXT_LENGTH } from "@/lib/api/meeting-minutes-api-constants";
+import {
+  MEETING_MINUTES_MAX_GLOSSARY_ITEMS,
+  MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH,
+  MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH,
+  MEETING_MINUTES_MAX_TEXT_LENGTH,
+} from "@/lib/api/meeting-minutes-api-constants";
 import { isMeetingMinutesRateLimited } from "@/lib/api/meeting-minutes-rate-limit";
 import { getClientKeyFromRequest } from "@/lib/api/stt-token-rate-limit";
+import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import {
   generateMeetingMinutes,
   openAiChatCompletion,
@@ -14,6 +20,59 @@ import { NextResponse } from "next/server";
 export type MeetingMinutesResponseBody = {
   summary: string;
 };
+
+function parseGlossary(
+  raw: unknown,
+): { ok: true; value: string[] } | { ok: false; error: string } {
+  if (raw === undefined) {
+    return { ok: true, value: [] };
+  }
+  if (!Array.isArray(raw)) {
+    return { ok: false, error: "invalid glossary" };
+  }
+  if (raw.length > MEETING_MINUTES_MAX_GLOSSARY_ITEMS) {
+    return { ok: false, error: "glossary too long" };
+  }
+  for (const item of raw) {
+    if (typeof item !== "string") {
+      return { ok: false, error: "invalid glossary item" };
+    }
+    if (item.length > MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH) {
+      return { ok: false, error: "glossary item too long" };
+    }
+  }
+  return { ok: true, value: raw as string[] };
+}
+
+function parseSessionContext(
+  raw: unknown,
+): { ok: true; value: SessionContext | null } | { ok: false; error: string } {
+  if (raw === undefined || raw === null) {
+    return { ok: true, value: null };
+  }
+  if (typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, error: "invalid sessionContext" };
+  }
+  const o = raw as Record<string, unknown>;
+  const read = (key: string): string =>
+    typeof o[key] === "string" ? (o[key] as string) : "";
+  const participants = read("participants");
+  const topic = read("topic");
+  const keywords = read("keywords");
+  if (participants.length > MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH) {
+    return { ok: false, error: "sessionContext.participants too long" };
+  }
+  if (topic.length > MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH) {
+    return { ok: false, error: "sessionContext.topic too long" };
+  }
+  if (keywords.length > MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH) {
+    return { ok: false, error: "sessionContext.keywords too long" };
+  }
+  return {
+    ok: true,
+    value: { participants, topic, keywords },
+  };
+}
 
 export async function POST(request: Request) {
   const clientKey = getClientKeyFromRequest(request);
@@ -57,6 +116,25 @@ export async function POST(request: Request) {
     model = DEFAULT_MEETING_MINUTES_MODEL;
   }
 
+  const glossaryResult = parseGlossary(
+    (body as { glossary?: unknown }).glossary,
+  );
+  if (!glossaryResult.ok) {
+    return NextResponse.json({ error: glossaryResult.error }, { status: 400 });
+  }
+
+  const sessionResult = parseSessionContext(
+    (body as { sessionContext?: unknown }).sessionContext,
+  );
+  if (!sessionResult.ok) {
+    return NextResponse.json({ error: sessionResult.error }, { status: 400 });
+  }
+
+  const meetingContext: MeetingContext = {
+    glossary: glossaryResult.value,
+    sessionContext: sessionResult.value,
+  };
+
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
     if (process.env.NODE_ENV === "production") {
@@ -75,6 +153,7 @@ export async function POST(request: Request) {
     const summary = await generateMeetingMinutes(text, {
       model,
       completeChat: (args) => openAiChatCompletion(apiKey, args),
+      context: meetingContext,
     });
     return NextResponse.json({ summary } satisfies MeetingMinutesResponseBody);
   } catch (e) {

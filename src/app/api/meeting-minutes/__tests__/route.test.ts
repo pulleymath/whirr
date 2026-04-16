@@ -1,5 +1,10 @@
-import { MEETING_MINUTES_MAX_TEXT_LENGTH } from "@/lib/api/meeting-minutes-api-constants";
+import {
+  MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH,
+  MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH,
+  MEETING_MINUTES_MAX_TEXT_LENGTH,
+} from "@/lib/api/meeting-minutes-api-constants";
 import { resetMeetingMinutesRateLimitForTests } from "@/lib/api/meeting-minutes-rate-limit";
+import * as mapReduce from "@/lib/meeting-minutes/map-reduce";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "../route";
 
@@ -147,5 +152,123 @@ describe("POST /api/meeting-minutes", () => {
     const [, init] = fetchMock.mock.calls[0]!;
     const parsed = JSON.parse(init?.body as string) as { model: string };
     expect(parsed.model).toBe("gpt-5.4-nano");
+  });
+
+  it("glossary가 배열이 아니면 400", async () => {
+    const res = await POST(jsonPost({ text: "내용", glossary: "bad" }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid glossary" });
+  });
+
+  it("glossary 항목이 200개를 초과하면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        glossary: Array.from({ length: 201 }, (_, i) => String(i)),
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "glossary too long" });
+  });
+
+  it("glossary 항목 중 string이 아닌 것이 있으면 400", async () => {
+    const res = await POST(jsonPost({ text: "내용", glossary: ["ok", null] }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid glossary item" });
+  });
+
+  it("sessionContext.participants가 2000자를 초과하면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        sessionContext: {
+          participants: "x".repeat(
+            MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH + 1,
+          ),
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "sessionContext.participants too long",
+    });
+  });
+
+  it("sessionContext.topic이 2000자를 초과하면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        sessionContext: {
+          topic: "x".repeat(
+            MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH + 1,
+          ),
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "sessionContext.topic too long",
+    });
+  });
+
+  it("sessionContext.keywords가 2000자를 초과하면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        sessionContext: {
+          keywords: "x".repeat(
+            MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH + 1,
+          ),
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({
+      error: "sessionContext.keywords too long",
+    });
+  });
+
+  it("glossary 항목이 너무 길면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        glossary: ["x".repeat(MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH + 1)],
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "glossary item too long" });
+  });
+
+  it("유효한 glossary와 sessionContext가 generateMeetingMinutes에 context로 전달된다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("NODE_ENV", "test");
+    const spy = vi
+      .spyOn(mapReduce, "generateMeetingMinutes")
+      .mockResolvedValue("요약");
+    const res = await POST(
+      jsonPost({
+        text: "스크립트",
+        model: "gpt-4o",
+        glossary: ["Vercel"],
+        sessionContext: {
+          participants: "A",
+          topic: "B",
+          keywords: "C",
+        },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ summary: "요약" });
+    expect(spy).toHaveBeenCalledWith(
+      "스크립트",
+      expect.objectContaining({
+        model: "gpt-4o",
+        context: {
+          glossary: ["Vercel"],
+          sessionContext: { participants: "A", topic: "B", keywords: "C" },
+        },
+      }),
+    );
+    spy.mockRestore();
   });
 });

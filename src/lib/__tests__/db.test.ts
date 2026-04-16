@@ -81,6 +81,27 @@ describe("db (IndexedDB)", () => {
     expect(row?.status).toBe("ready");
   });
 
+  it("Session에 context 필드 없이 저장·조회해도 정상 동작한다", async () => {
+    const id = await saveSession("ctx-less");
+    const row = await getSessionById(id);
+    expect(row?.context).toBeUndefined();
+  });
+
+  it("SessionUpdate에 context를 포함하여 updateSession하면 저장된다", async () => {
+    const id = await saveSession("a", { status: "transcribing" });
+    const ctx = {
+      glossary: ["Whirr"],
+      sessionContext: {
+        participants: "팀",
+        topic: "스프린트",
+        keywords: "배포",
+      },
+    };
+    await updateSession(id, { context: ctx });
+    const row = await getSessionById(id);
+    expect(row?.context).toEqual(ctx);
+  });
+
   it("존재하지 않는 id로 updateSession하면 에러를 던진다", async () => {
     await expect(updateSession("missing-id", { text: "x" })).rejects.toThrow(
       /Session not found/,

@@ -1,10 +1,11 @@
 "use client";
 
+import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
+import { updateSession } from "@/lib/db";
 import {
   transcribeBlobWithRetries,
   userFacingTranscribeError,
 } from "@/lib/transcribe-segment";
-import { updateSession } from "@/lib/db";
 import {
   createContext,
   useCallback,
@@ -25,6 +26,8 @@ export type PostRecordingPipelineEnqueueInput = {
   language: string;
   /** 회의록 생성에 사용할 Chat 모델 id */
   meetingMinutesModel: string;
+  glossary?: string[];
+  sessionContext?: SessionContext | null;
 };
 
 export type PostRecordingPipelinePhase =
@@ -41,6 +44,8 @@ export type PostRecordingPipelineContextValue = {
   summaryText: string | null;
   /** 홈 스크립트 영역에 보여 줄 문자열(파이프라인 진행 중·완료 직후) */
   displayTranscript: string | null;
+  /** 회의록이 완료된 세션 id (idle 리셋 전까지 유지, 토스트 네비게이션용) */
+  completedSessionId: string | null;
   enqueue: (input: PostRecordingPipelineEnqueueInput) => void;
 };
 
@@ -49,6 +54,15 @@ export const PostRecordingPipelineContext =
   createContext<PostRecordingPipelineContextValue | null>(null);
 
 const IDLE_RESET_MS = 2500;
+
+function buildMeetingContextForPersistence(
+  input: PostRecordingPipelineEnqueueInput,
+): MeetingContext {
+  return {
+    glossary: input.glossary ?? [],
+    sessionContext: input.sessionContext ?? null,
+  };
+}
 
 export function PostRecordingPipelineProvider({
   children,
@@ -59,6 +73,9 @@ export function PostRecordingPipelineProvider({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [displayTranscript, setDisplayTranscript] = useState<string | null>(
+    null,
+  );
+  const [completedSessionId, setCompletedSessionId] = useState<string | null>(
     null,
   );
   const abortRef = useRef<AbortController | null>(null);
@@ -95,6 +112,7 @@ export function PostRecordingPipelineProvider({
 
       setErrorMessage(null);
       setSummaryText(null);
+      setCompletedSessionId(null);
       setDisplayTranscript(input.partialText.trim() || null);
       setPhase("transcribing");
 
@@ -123,6 +141,7 @@ export function PostRecordingPipelineProvider({
               await updateSession(input.sessionId, { status: "error" });
               setErrorMessage(userFacingTranscribeError(tr.errRaw));
               setPhase("error");
+              setCompletedSessionId(null);
               continueOrIdle();
               return;
             }
@@ -143,6 +162,8 @@ export function PostRecordingPipelineProvider({
             body: JSON.stringify({
               text: fullText,
               model: input.meetingMinutesModel,
+              glossary: input.glossary,
+              sessionContext: input.sessionContext,
             }),
             signal,
           });
@@ -153,6 +174,7 @@ export function PostRecordingPipelineProvider({
             await updateSession(input.sessionId, { status: "error" });
             setErrorMessage("회의록을 생성하지 못했습니다.");
             setPhase("error");
+            setCompletedSessionId(null);
             continueOrIdle();
             return;
           }
@@ -165,15 +187,19 @@ export function PostRecordingPipelineProvider({
             typeof (data as { summary: unknown }).summary === "string"
               ? (data as { summary: string }).summary
               : "";
+          const persistedContext = buildMeetingContextForPersistence(input);
           await updateSession(input.sessionId, {
             summary,
             status: "ready",
+            context: persistedContext,
           });
           setSummaryText(summary);
+          setCompletedSessionId(input.sessionId);
           setPhase("done");
           idleTimerRef.current = setTimeout(() => {
             setPhase("idle");
             setDisplayTranscript(null);
+            setCompletedSessionId(null);
             idleTimerRef.current = null;
             continueOrIdle();
           }, IDLE_RESET_MS);
@@ -189,6 +215,7 @@ export function PostRecordingPipelineProvider({
           }
           setErrorMessage("처리 중 오류가 발생했습니다.");
           setPhase("error");
+          setCompletedSessionId(null);
           continueOrIdle();
         }
       })();
@@ -211,9 +238,17 @@ export function PostRecordingPipelineProvider({
       errorMessage,
       summaryText,
       displayTranscript,
+      completedSessionId,
       enqueue,
     }),
-    [phase, errorMessage, summaryText, displayTranscript, enqueue],
+    [
+      phase,
+      errorMessage,
+      summaryText,
+      displayTranscript,
+      completedSessionId,
+      enqueue,
+    ],
   );
 
   return (
