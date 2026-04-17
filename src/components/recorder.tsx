@@ -1,16 +1,14 @@
 "use client";
 
-import { BatchRetryControl } from "@/components/batch-retry-control";
-import { RecordButton } from "@/components/record-button";
+import { RecordingCard } from "@/components/recording-card";
 import { SessionContextInput } from "@/components/session-context-input";
-import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
 import { TranscriptView } from "@/components/transcript-view";
 import {
   useBatchTranscription,
   type BatchStopResult,
 } from "@/hooks/use-batch-transcription";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
-import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
+import { useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession, saveSessionAudio } from "@/lib/db";
@@ -20,7 +18,6 @@ import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context"
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { buildScriptMeta } from "@/lib/session-script-meta";
 import { useSettings } from "@/lib/settings/context";
-import { BATCH_MODEL_OPTIONS } from "@/lib/settings/options";
 import {
   createAssemblyAiRealtimeProvider,
   createOpenAiRealtimeProvider,
@@ -28,19 +25,10 @@ import {
   isWebSpeechApiSupported,
 } from "@/lib/stt";
 import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
-  /** 홈 2열 레이아웃용: 녹음 카드 아래 모델 패널(보통 `ModelQuickPanel`) */
-  modelPanel?: ReactNode;
   /** 설정 모드를 특정 값으로 고정할 때 사용 (현재 `batch`만 지원) */
   fixedMode?: "batch";
 };
@@ -66,12 +54,8 @@ function sessionContextForEnqueue(
   return value;
 }
 
-export function Recorder({
-  onSessionSaved,
-  modelPanel = null,
-  fixedMode,
-}: RecorderProps = {}) {
-  const { settings, updateSettings } = useSettings();
+export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
+  const { settings } = useSettings();
   const { glossary } = useGlossary();
   const { setIsRecording } = useRecordingActivity();
   const { enqueue: enqueuePipeline, ...pipeline } = usePostRecordingPipeline();
@@ -373,14 +357,6 @@ export function Recorder({
     batchRecording &&
     batch.totalCount > 0 &&
     batch.completedCount < batch.totalCount;
-  const scriptSettingsDisabled =
-    recordingActive || pipeline.isBusy || batchTranscribing;
-  const modeLabel = isBatchMode
-    ? "녹음 후 스크립트"
-    : effectiveMode === "webSpeechApi"
-      ? "Web Speech API"
-      : "실시간 스크립트";
-
   const streamingSessionHint =
     !isBatchMode &&
     status === "recording" &&
@@ -394,246 +370,77 @@ export function Recorder({
 
   return (
     <div
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6 md:grid md:grid-cols-2 md:items-start"
+      className="mx-auto flex w-full max-w-5xl flex-col gap-6"
       data-testid="recorder-root"
       data-transcription-mode={effectiveMode}
     >
-      <div className="flex min-w-0 flex-col gap-6 md:max-w-md">
-        <section
-          className="flex w-full flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-          aria-label="마이크 녹음"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <p className="font-mono text-2xl tabular-nums text-zinc-900 dark:text-zinc-50">
-              {formatElapsed(displayElapsedMs)}
-            </p>
-            <div className="flex gap-2">
-              {showStart ? (
-                <RecordButton
-                  mode="start"
-                  disabled={pipeline.isBusy}
-                  onClick={() => void start()}
-                />
-              ) : showStop ? (
-                <RecordButton mode="stop" onClick={() => void stop()} />
-              ) : null}
-            </div>
-          </div>
-
-          {pipeline.isBusy && !recordingActive ? (
-            <p
-              className="text-sm text-zinc-600 dark:text-zinc-400"
-              role="status"
-            >
-              이전 녹음을 처리 중입니다. 잠시만 기다려 주세요.
-            </p>
-          ) : null}
-
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              입력 레벨
-            </span>
-            <div
-              className="h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
-              role="meter"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(displayLevel * 100)}
-              aria-label="마이크 레벨"
-            >
-              <div
-                className="h-full rounded-full bg-emerald-500 transition-[width] duration-75 ease-out"
-                style={{ width: `${Math.round(displayLevel * 100)}%` }}
-              />
-            </div>
-          </div>
-
-          {isBatchMode && batch.status === "recording" && (
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                  <span>현재 세그먼트 (5분)</span>
-                  <span>{Math.round(batch.segmentProgress * 100)}%</span>
-                </div>
-                <div
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
-                  role="progressbar"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={Math.round(batch.segmentProgress * 100)}
-                >
-                  <div
-                    className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
-                    style={{
-                      width: `${Math.round(batch.segmentProgress * 100)}%`,
-                    }}
-                  />
-                </div>
-              </div>
-              {batch.totalCount > 0 && (
-                <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-                  <span>스크립트 진행률</span>
-                  <span>
-                    {batch.completedCount} / {batch.totalCount} 세그먼트 완료
-                  </span>
-                </div>
-              )}
-              <BatchRetryControl
-                mode="recording"
-                failedCount={batch.failedSegments.length}
-                isRetrying={false}
-                retryProcessed={0}
-                retryTotal={0}
-                onRetry={() => {}}
-              />
-            </div>
-          )}
-
-          {isBatchMode && batch.softLimitMessage ? (
-            <p
-              className="text-sm text-amber-700 dark:text-amber-300"
-              role="status"
-            >
-              {batch.softLimitMessage}
-            </p>
-          ) : null}
-
-          {!isBatchMode && streamingSessionHint ? (
-            <p
-              className="text-sm text-amber-700 dark:text-amber-300"
-              role="status"
-            >
-              {streamingSessionHint}
-            </p>
-          ) : null}
-
-          {!isBatchMode && reconnectToast ? (
-            <p
-              className="text-sm text-zinc-600 dark:text-zinc-400"
-              role="status"
-            >
-              {reconnectToast}
-            </p>
-          ) : null}
-
-          {isBatchMode &&
+      <RecordingCard
+        elapsedMs={displayElapsedMs}
+        level={displayLevel}
+        showStart={showStart}
+        showStop={showStop}
+        recordingActive={recordingActive}
+        onStart={() => void start()}
+        onStop={() => void stop()}
+        isBatchMode={isBatchMode}
+        batchRecording={batchRecording}
+        segmentProgress={batch.segmentProgress}
+        completedCount={batch.completedCount}
+        totalCount={batch.totalCount}
+        failedCount={batch.failedSegments.length}
+        stoppedRetry={
+          isBatchMode &&
           ((batch.status === "error" && batch.errorMessage) ||
-            (batch.status === "transcribing" && batch.retryTotalCount > 0)) ? (
-            <BatchRetryControl
-              mode="stopped"
-              failedCount={batch.failedSegments.length}
-              isRetrying={
-                batch.status === "transcribing" && batch.retryTotalCount > 0
+            (batch.status === "transcribing" && batch.retryTotalCount > 0))
+            ? {
+                failedCount: batch.failedSegments.length,
+                isRetrying:
+                  batch.status === "transcribing" && batch.retryTotalCount > 0,
+                retryProcessed: batch.retryProcessedCount,
+                retryTotal: batch.retryTotalCount,
+                onRetry: () => void handleBatchRetry(),
+                disabled: pipeline.isBusy,
               }
-              retryProcessed={batch.retryProcessedCount}
-              retryTotal={batch.retryTotalCount}
-              onRetry={() => void handleBatchRetry()}
-              disabled={pipeline.isBusy}
-            />
-          ) : null}
+            : null
+        }
+        messages={[
+          ...(isBatchMode && batch.softLimitMessage
+            ? [{ text: batch.softLimitMessage, tone: "warning" as const }]
+            : []),
+          ...(streamingSessionHint
+            ? [{ text: streamingSessionHint, tone: "warning" as const }]
+            : []),
+          ...(reconnectToast
+            ? [{ text: reconnectToast, tone: "muted" as const }]
+            : []),
+          ...(unsupportedModeMessage
+            ? [{ text: unsupportedModeMessage, tone: "warning" as const }]
+            : []),
+          ...(recorderError
+            ? [{ text: recorderError, tone: "error" as const }]
+            : []),
+        ]}
+      />
 
-          {unsupportedModeMessage ? (
-            <p
-              className="text-sm text-amber-700 dark:text-amber-300"
-              role="status"
-            >
-              {unsupportedModeMessage}
-            </p>
-          ) : null}
-          {recorderError ? (
-            <p
-              className="text-sm text-rose-600 dark:text-rose-400"
-              role="alert"
-            >
-              {recorderError}
-            </p>
-          ) : null}
-        </section>
+      <SessionContextInput
+        value={sessionContext}
+        onChange={setSessionContext}
+        disabled={pipeline.isBusy}
+      />
 
-        <section
-          className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-          aria-label="스크립트 설정"
-          data-testid="recorder-script-settings"
-        >
-          <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-            스크립트 설정
-          </h2>
-
-          <div className="mb-4">
-            <label
-              htmlFor="recorder-script-model"
-              className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              스크립트 모드
-            </label>
-            <select
-              id="recorder-script-model"
-              data-testid="recorder-script-model-select"
-              disabled={true}
-              value={effectiveMode}
-              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-              <option value={effectiveMode}>{modeLabel}</option>
-            </select>
-          </div>
-
-          <div>
-            <label
-              htmlFor="recorder-script-model"
-              className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              스크립트 모델
-            </label>
-            <select
-              id="recorder-script-model"
-              data-testid="recorder-script-model-select"
-              disabled={scriptSettingsDisabled}
-              value={settings.batchModel}
-              onChange={(e) => updateSettings({ batchModel: e.target.value })}
-              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-            >
-              {BATCH_MODEL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </section>
-
-        {modelPanel}
-
-        <TranscriptView
-          partial={transcriptPartial}
-          finals={transcriptFinals}
-          errorMessage={transcriptError}
-          showHeading={false}
-          emptyStateHint={batchRecordingHint}
-          loadingMessage={batchLoadingMessage}
-          isSegmentInFlight={segmentInFlight}
-        />
-      </div>
-
-      <div className="flex min-w-0 flex-col gap-6">
-        <SessionContextInput
-          value={sessionContext}
-          onChange={setSessionContext}
-          disabled={pipeline.isBusy}
-          topContent={
-            <SessionMinutesModelSelect
-              value={settings.meetingMinutesModel}
-              onChange={(modelId) =>
-                updateSettings({ meetingMinutesModel: modelId })
-              }
-              disabled={scriptSettingsDisabled}
-            />
-          }
-        />
-      </div>
+      <TranscriptView
+        partial={transcriptPartial}
+        finals={transcriptFinals}
+        errorMessage={transcriptError}
+        showHeading={false}
+        emptyStateHint={batchRecordingHint}
+        loadingMessage={batchLoadingMessage}
+        isSegmentInFlight={segmentInFlight}
+      />
 
       {persistError || pipeline.errorMessage ? (
         <p
-          className="text-sm text-rose-600 dark:text-rose-400 md:col-span-2"
+          className="text-sm text-rose-600 dark:text-rose-400"
           role="alert"
           data-testid="recorder-pipeline-user-error"
         >

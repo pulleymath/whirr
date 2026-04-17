@@ -8,17 +8,17 @@ afterEach(() => {
   cleanup();
 });
 
-describe("SettingsPanel (간소화)", () => {
-  it("스크립트 모드 관련 필드가 렌더링되지 않는다", () => {
+describe("SettingsPanel", () => {
+  it("스크립트 모드 라디오가 렌더링된다", () => {
     render(
       <MainAppProviders>
         <SettingsPanel open isRecording={false} onClose={() => {}} />
       </MainAppProviders>,
     );
 
-    expect(screen.queryByTestId("mode-webSpeechApi")).toBeNull();
-    expect(screen.queryByTestId("mode-realtime")).toBeNull();
-    expect(screen.queryByTestId("engine-openai")).toBeNull();
+    expect(screen.getByTestId("settings-mode-webSpeechApi")).toBeTruthy();
+    expect(screen.getByTestId("settings-mode-realtime")).toBeTruthy();
+    expect(screen.getByTestId("settings-mode-batch")).toBeTruthy();
   });
 
   it("전역 용어 사전 textarea는 계속 렌더링된다", () => {

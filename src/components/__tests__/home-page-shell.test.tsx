@@ -88,16 +88,22 @@ describe("HomePageShell", () => {
     expect(trigger.className).toMatch(/md:hidden/);
   });
 
-  it("홈에 스크립트/회의록 2영역이 렌더링되고 배치 모드로 고정된다", async () => {
+  it("홈에 녹음·회의 컨텍스트·스크립트 영역이 렌더링되고 배치 모드로 고정된다", async () => {
     renderHome();
     await vi.waitFor(() => {
-      expect(screen.getByTestId("recorder-script-settings")).toBeTruthy();
+      expect(screen.queryByTestId("recorder-script-settings")).toBeNull();
       expect(screen.getByTestId("session-context-input")).toBeTruthy();
       expect(screen.getByTestId("transcript-view-card")).toBeTruthy();
       expect(screen.getByTestId("recorder-root")).toHaveAttribute(
         "data-transcription-mode",
         "batch",
       );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "설정" }));
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("settings-script-settings")).toBeTruthy();
+      expect(screen.getByTestId("session-minutes-model-select")).toBeTruthy();
     });
   });
 });
