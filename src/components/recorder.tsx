@@ -25,7 +25,38 @@ import {
   isWebSpeechApiSupported,
 } from "@/lib/stt";
 import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+
+type RevealSectionProps = {
+  visible: boolean;
+  testId: string;
+  children: ReactNode;
+};
+
+/** 세로 간격은 루트 `gap` 대신 `mt-6`로 두어, `h-0` 숨김 래퍼가 flex gap 빈틈을 남기지 않게 한다. */
+function RevealSection({ visible, testId, children }: RevealSectionProps) {
+  return (
+    <div
+      data-testid={testId}
+      aria-hidden={visible ? undefined : true}
+      inert={visible ? undefined : true}
+      className={
+        visible
+          ? "mt-6 translate-y-0 overflow-visible opacity-100 blur-0 motion-safe:transition-[opacity,transform,filter] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none"
+          : "pointer-events-none mt-0 h-0 max-h-0 translate-y-2 overflow-hidden opacity-0 blur-sm motion-safe:transition-[opacity,transform,filter] motion-safe:duration-300 motion-safe:ease-out motion-reduce:transition-none"
+      }
+    >
+      {children}
+    </div>
+  );
+}
 
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
@@ -347,6 +378,14 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
         ? []
         : finals;
   const transcriptError = isBatchMode ? batch.errorMessage : sttError;
+  const hasTranscriptScript = isBatchMode
+    ? Boolean(batchTranscriptText?.trim())
+    : transcriptFinals.some((f) => f.trim().length > 0) ||
+      transcriptPartial.trim().length > 0;
+  const showSessionContext = recordingActive;
+  const showTranscript = recordingActive && hasTranscriptScript;
+  const showTranscriptErrorOnCard =
+    recordingActive && Boolean(transcriptError?.trim()) && !hasTranscriptScript;
   const batchRecordingHint = batchRecording
     ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
     : null;
@@ -370,7 +409,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
 
   return (
     <div
-      className="mx-auto flex w-full max-w-5xl flex-col gap-6"
+      className="mx-auto flex w-full max-w-5xl flex-col"
       data-testid="recorder-root"
       data-transcription-mode={effectiveMode}
     >
@@ -419,28 +458,38 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
           ...(recorderError
             ? [{ text: recorderError, tone: "error" as const }]
             : []),
+          ...(showTranscriptErrorOnCard && transcriptError
+            ? [{ text: transcriptError.trim(), tone: "error" as const }]
+            : []),
         ]}
       />
 
-      <SessionContextInput
-        value={sessionContext}
-        onChange={setSessionContext}
-        disabled={pipeline.isBusy}
-      />
+      <RevealSection
+        visible={showSessionContext}
+        testId="reveal-session-context"
+      >
+        <SessionContextInput
+          value={sessionContext}
+          onChange={setSessionContext}
+          disabled={pipeline.isBusy}
+        />
+      </RevealSection>
 
-      <TranscriptView
-        partial={transcriptPartial}
-        finals={transcriptFinals}
-        errorMessage={transcriptError}
-        showHeading={false}
-        emptyStateHint={batchRecordingHint}
-        loadingMessage={batchLoadingMessage}
-        isSegmentInFlight={segmentInFlight}
-      />
+      <RevealSection visible={showTranscript} testId="reveal-transcript">
+        <TranscriptView
+          partial={transcriptPartial}
+          finals={transcriptFinals}
+          errorMessage={showTranscript ? transcriptError : null}
+          showHeading={false}
+          emptyStateHint={batchRecordingHint}
+          loadingMessage={batchLoadingMessage}
+          isSegmentInFlight={segmentInFlight}
+        />
+      </RevealSection>
 
       {persistError || pipeline.errorMessage ? (
         <p
-          className="text-sm text-rose-600 dark:text-rose-400"
+          className="mt-6 text-sm text-rose-600 dark:text-rose-400"
           role="alert"
           data-testid="recorder-pipeline-user-error"
         >

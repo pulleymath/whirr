@@ -72,7 +72,7 @@ export type UseBatchTranscriptionReturn = {
 };
 
 export function useBatchTranscription(
-  options: UseBatchTranscriptionOptions = {}
+  options: UseBatchTranscriptionOptions = {},
 ): UseBatchTranscriptionReturn {
   const model = options.model?.trim() || "whisper-1";
   const language = options.language?.trim() || "ko";
@@ -150,7 +150,7 @@ export function useBatchTranscription(
       setErrorMessage(userFacingTranscribeError(r.errRaw));
       return null;
     },
-    [language, model]
+    [language, model],
   );
 
   const beginWorkerIdlePromise = useCallback(() => {
@@ -257,7 +257,7 @@ export function useBatchTranscription(
       beginWorkerIdlePromise();
       void runWorker();
     },
-    [beginWorkerIdlePromise, resolveWorkerIdleIfIdle, runWorker]
+    [beginWorkerIdlePromise, resolveWorkerIdleIfIdle, runWorker],
   );
 
   const awaitWorkerIdle = useCallback(async () => {
@@ -543,7 +543,7 @@ export function useBatchTranscription(
           levelDataRef.current = data;
         }
         a.getByteTimeDomainData(
-          data as Parameters<AnalyserNode["getByteTimeDomainData"]>[0]
+          data as Parameters<AnalyserNode["getByteTimeDomainData"]>[0],
         );
         let sum = 0;
         for (let i = 0; i < data.length; i++) {

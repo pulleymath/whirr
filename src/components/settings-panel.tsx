@@ -166,7 +166,8 @@ export function SettingsPanel({
                         const nextMode = opt.value;
                         updateSettings({
                           mode: nextMode,
-                          ...(settings.language === "auto" && nextMode !== "batch"
+                          ...(settings.language === "auto" &&
+                          nextMode !== "batch"
                             ? { language: "ko" }
                             : {}),
                         });

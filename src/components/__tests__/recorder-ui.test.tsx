@@ -107,8 +107,12 @@ describe("Recorder 홈 UI", () => {
     expect(screen.queryByRole("tab", { name: "회의록" })).toBeNull();
   });
 
-  it("TranscriptView 영역이 탭 없이 표시된다", () => {
+  it("idle에서는 스크립트 reveal이 숨겨지고 partial 영역은 DOM에 남는다", () => {
     renderRecorder();
+    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
+      "aria-hidden",
+      "true",
+    );
     expect(screen.getByTestId("transcript-partial")).toBeInTheDocument();
   });
 

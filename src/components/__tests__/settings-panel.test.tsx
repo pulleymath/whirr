@@ -79,7 +79,11 @@ describe("SettingsPanel", () => {
       <SettingsProvider>
         <PostRecordingPipelineProvider>
           <GlossaryProvider>
-            <SettingsPanel open={false} onClose={() => {}} isRecording={false} />
+            <SettingsPanel
+              open={false}
+              onClose={() => {}}
+              isRecording={false}
+            />
           </GlossaryProvider>
         </PostRecordingPipelineProvider>
       </SettingsProvider>,
