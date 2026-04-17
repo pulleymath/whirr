@@ -88,10 +88,16 @@ describe("HomePageShell", () => {
     expect(trigger.className).toMatch(/md:hidden/);
   });
 
-  it("홈에 모델 빠른 변경 패널이 렌더링된다", async () => {
+  it("홈에 스크립트/회의록 2영역이 렌더링되고 배치 모드로 고정된다", async () => {
     renderHome();
     await vi.waitFor(() => {
-      expect(screen.getByTestId("home-model-panel")).toBeTruthy();
+      expect(screen.getByTestId("recorder-script-settings")).toBeTruthy();
+      expect(screen.getByTestId("session-context-input")).toBeTruthy();
+      expect(screen.getByTestId("transcript-view-card")).toBeTruthy();
+      expect(screen.getByTestId("recorder-root")).toHaveAttribute(
+        "data-transcription-mode",
+        "batch",
+      );
     });
   });
 });

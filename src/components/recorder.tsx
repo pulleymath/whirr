@@ -1,5 +1,33 @@
 "use client";
 
+import { BatchRetryControl } from "@/components/batch-retry-control";
+import { RecordButton } from "@/components/record-button";
+import { SessionContextInput } from "@/components/session-context-input";
+import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
+import { TranscriptView } from "@/components/transcript-view";
+import {
+  useBatchTranscription,
+  type BatchStopResult,
+} from "@/hooks/use-batch-transcription";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
+import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
+import { useTranscription } from "@/hooks/use-transcription";
+import { buildSessionText } from "@/lib/build-session-text";
+import { saveSession, saveSessionAudio } from "@/lib/db";
+import { useGlossary } from "@/lib/glossary/context";
+import type { SessionContext } from "@/lib/glossary/types";
+import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
+import { useRecordingActivity } from "@/lib/recording-activity/context";
+import { buildScriptMeta } from "@/lib/session-script-meta";
+import { useSettings } from "@/lib/settings/context";
+import { BATCH_MODEL_OPTIONS } from "@/lib/settings/options";
+import {
+  createAssemblyAiRealtimeProvider,
+  createOpenAiRealtimeProvider,
+  createWebSpeechProvider,
+  isWebSpeechApiSupported,
+} from "@/lib/stt";
+import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
 import {
   useCallback,
   useEffect,
@@ -8,37 +36,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { BatchRetryControl } from "@/components/batch-retry-control";
-import { RecordButton } from "@/components/record-button";
-import { SessionContextInput } from "@/components/session-context-input";
-import { TranscriptView } from "@/components/transcript-view";
-import { useBeforeUnload } from "@/hooks/use-before-unload";
-import {
-  useBatchTranscription,
-  type BatchStopResult,
-} from "@/hooks/use-batch-transcription";
-import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
-import { useTranscription } from "@/hooks/use-transcription";
-import { buildSessionText } from "@/lib/build-session-text";
-import { saveSession, saveSessionAudio } from "@/lib/db";
-import { buildScriptMeta } from "@/lib/session-script-meta";
-import { useGlossary } from "@/lib/glossary/context";
-import type { SessionContext } from "@/lib/glossary/types";
-import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
-import { useRecordingActivity } from "@/lib/recording-activity/context";
-import { useSettings } from "@/lib/settings/context";
-import {
-  createAssemblyAiRealtimeProvider,
-  createOpenAiRealtimeProvider,
-  createWebSpeechProvider,
-  isWebSpeechApiSupported,
-} from "@/lib/stt";
-import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
 
 export type RecorderProps = {
   onSessionSaved?: (id: string) => void;
   /** 홈 2열 레이아웃용: 녹음 카드 아래 모델 패널(보통 `ModelQuickPanel`) */
   modelPanel?: ReactNode;
+  /** 설정 모드를 특정 값으로 고정할 때 사용 (현재 `batch`만 지원) */
+  fixedMode?: "batch";
 };
 
 const STREAMING_SESSION_SOFT_MS = OPENAI_PROACTIVE_RENEWAL_AFTER_MS;
@@ -65,12 +69,14 @@ function sessionContextForEnqueue(
 export function Recorder({
   onSessionSaved,
   modelPanel = null,
+  fixedMode,
 }: RecorderProps = {}) {
-  const { settings } = useSettings();
+  const { settings, updateSettings } = useSettings();
   const { glossary } = useGlossary();
   const { setIsRecording } = useRecordingActivity();
   const { enqueue: enqueuePipeline, ...pipeline } = usePostRecordingPipeline();
-  const isBatchMode = settings.mode === "batch";
+  const effectiveMode = fixedMode ?? settings.mode;
+  const isBatchMode = effectiveMode === "batch";
 
   const {
     startRecording: startBatchRecording,
@@ -83,12 +89,15 @@ export function Recorder({
   });
 
   const transcriptionOptions = useMemo(() => {
-    if (settings.mode === "webSpeechApi") {
+    if (effectiveMode === "webSpeechApi") {
       return {
         tokenlessProvider: () => createWebSpeechProvider(settings.language),
       };
     }
-    if (settings.realtimeEngine === "assemblyai") {
+    if (
+      effectiveMode === "realtime" &&
+      settings.realtimeEngine === "assemblyai"
+    ) {
       return {
         createProvider: createAssemblyAiRealtimeProvider,
         useAssemblyAiPcmFraming: true as const,
@@ -98,7 +107,7 @@ export function Recorder({
       createProvider: createOpenAiRealtimeProvider,
       useAssemblyAiPcmFraming: false as const,
     };
-  }, [settings.mode, settings.realtimeEngine, settings.language]);
+  }, [effectiveMode, settings.language, settings.realtimeEngine]);
 
   const {
     partial,
@@ -161,7 +170,7 @@ export function Recorder({
         return;
       }
       const scriptMeta = buildScriptMeta({
-        mode: settings.mode,
+        mode: effectiveMode,
         realtimeEngine: settings.realtimeEngine,
         batchModel: settings.batchModel,
         language: settings.language,
@@ -184,9 +193,9 @@ export function Recorder({
         meetingMinutesModel: settings.meetingMinutesModel,
         glossary: glossary.terms,
         sessionContext: sessionContextForEnqueue(sessionContext),
-        mode: settings.mode,
+        mode: effectiveMode,
         engine:
-          settings.mode === "realtime" ? settings.realtimeEngine : undefined,
+          effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
       });
     },
     [
@@ -197,8 +206,8 @@ export function Recorder({
       settings.batchModel,
       settings.language,
       settings.meetingMinutesModel,
-      settings.mode,
       settings.realtimeEngine,
+      effectiveMode,
     ],
   );
 
@@ -229,7 +238,7 @@ export function Recorder({
     if (pipeline.isBusy) {
       return;
     }
-    if (settings.mode === "webSpeechApi") {
+    if (effectiveMode === "webSpeechApi") {
       if (!isWebSpeechApiSupported()) {
         setUnsupportedModeMessage(
           "이 브라우저에서는 Web Speech API를 사용할 수 없습니다.",
@@ -243,7 +252,7 @@ export function Recorder({
       await startRecording();
       return;
     }
-    if (settings.mode === "batch") {
+    if (effectiveMode === "batch") {
       await startBatchRecording();
       return;
     }
@@ -253,8 +262,8 @@ export function Recorder({
     }
     await startRecording();
   }, [
+    effectiveMode,
     prepareStreaming,
-    settings.mode,
     startBatchRecording,
     startRecording,
     pipeline.isBusy,
@@ -262,7 +271,7 @@ export function Recorder({
 
   const stop = useCallback(async () => {
     setPersistError(null);
-    if (settings.mode === "batch") {
+    if (effectiveMode === "batch") {
       const stopped = await stopBatchTranscribe();
       if (!stopped) {
         return;
@@ -288,7 +297,7 @@ export function Recorder({
       }
       try {
         const scriptMeta = buildScriptMeta({
-          mode: settings.mode,
+          mode: effectiveMode,
           realtimeEngine: settings.realtimeEngine,
           batchModel: settings.batchModel,
           language: settings.language,
@@ -308,9 +317,9 @@ export function Recorder({
           meetingMinutesModel: settings.meetingMinutesModel,
           glossary: glossary.terms,
           sessionContext: sessionContextForEnqueue(sessionContext),
-          mode: settings.mode,
+          mode: effectiveMode,
           engine:
-            settings.mode === "realtime" ? settings.realtimeEngine : undefined,
+            effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
         });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
@@ -327,8 +336,8 @@ export function Recorder({
     settings.batchModel,
     settings.language,
     settings.meetingMinutesModel,
-    settings.mode,
     settings.realtimeEngine,
+    effectiveMode,
     stopBatchTranscribe,
     stopRecording,
     persistBatchResult,
@@ -364,14 +373,21 @@ export function Recorder({
     batchRecording &&
     batch.totalCount > 0 &&
     batch.completedCount < batch.totalCount;
+  const scriptSettingsDisabled =
+    recordingActive || pipeline.isBusy || batchTranscribing;
+  const modeLabel = isBatchMode
+    ? "녹음 후 스크립트"
+    : effectiveMode === "webSpeechApi"
+      ? "Web Speech API"
+      : "실시간 스크립트";
 
   const streamingSessionHint =
     !isBatchMode &&
     status === "recording" &&
     elapsedMs >= STREAMING_SESSION_SOFT_MS
-      ? settings.mode === "realtime"
+      ? effectiveMode === "realtime"
         ? "세션이 곧 갱신됩니다."
-        : settings.mode === "webSpeechApi"
+        : effectiveMode === "webSpeechApi"
           ? "녹음 시간이 길어지고 있습니다. 스크립트 변환이 중단될 수 있습니다."
           : null
       : null;
@@ -380,7 +396,7 @@ export function Recorder({
     <div
       className="mx-auto flex w-full max-w-5xl flex-col gap-6 md:grid md:grid-cols-2 md:items-start"
       data-testid="recorder-root"
-      data-transcription-mode={settings.mode}
+      data-transcription-mode={effectiveMode}
     >
       <div className="flex min-w-0 flex-col gap-6 md:max-w-md">
         <section
@@ -534,15 +550,58 @@ export function Recorder({
           ) : null}
         </section>
 
-        {modelPanel}
-      </div>
+        <section
+          className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+          aria-label="스크립트 설정"
+          data-testid="recorder-script-settings"
+        >
+          <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+            스크립트 설정
+          </h2>
 
-      <div className="flex min-w-0 flex-col gap-6">
-        <SessionContextInput
-          value={sessionContext}
-          onChange={setSessionContext}
-          disabled={pipeline.isBusy}
-        />
+          <div className="mb-4">
+            <label
+              htmlFor="recorder-script-model"
+              className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+            >
+              스크립트 모드
+            </label>
+            <select
+              id="recorder-script-model"
+              data-testid="recorder-script-model-select"
+              disabled={true}
+              value={effectiveMode}
+              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            >
+              <option value={effectiveMode}>{modeLabel}</option>
+            </select>
+          </div>
+
+          <div>
+            <label
+              htmlFor="recorder-script-model"
+              className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+            >
+              스크립트 모델
+            </label>
+            <select
+              id="recorder-script-model"
+              data-testid="recorder-script-model-select"
+              disabled={scriptSettingsDisabled}
+              value={settings.batchModel}
+              onChange={(e) => updateSettings({ batchModel: e.target.value })}
+              className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+            >
+              {BATCH_MODEL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </section>
+
+        {modelPanel}
 
         <TranscriptView
           partial={transcriptPartial}
@@ -552,6 +611,23 @@ export function Recorder({
           emptyStateHint={batchRecordingHint}
           loadingMessage={batchLoadingMessage}
           isSegmentInFlight={segmentInFlight}
+        />
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-6">
+        <SessionContextInput
+          value={sessionContext}
+          onChange={setSessionContext}
+          disabled={pipeline.isBusy}
+          topContent={
+            <SessionMinutesModelSelect
+              value={settings.meetingMinutesModel}
+              onChange={(modelId) =>
+                updateSettings({ meetingMinutesModel: modelId })
+              }
+              disabled={scriptSettingsDisabled}
+            />
+          }
         />
       </div>
 

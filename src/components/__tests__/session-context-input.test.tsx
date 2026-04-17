@@ -20,6 +20,28 @@ describe("SessionContextInput", () => {
     expect(screen.getByTestId("session-context-keywords")).toBeTruthy();
   });
 
+  it("입력 가이드 플레이스홀더가 표시된다", () => {
+    const onChange = vi.fn();
+    render(
+      <SessionContextInput value={base} onChange={onChange} disabled={false} />,
+    );
+    expect(
+      (
+        screen.getByTestId(
+          "session-context-participants",
+        ) as HTMLTextAreaElement
+      ).placeholder,
+    ).toContain("김지호 PM");
+    expect(
+      (screen.getByTestId("session-context-topic") as HTMLInputElement)
+        .placeholder,
+    ).toContain("2분기 제품 로드맵");
+    expect(
+      (screen.getByTestId("session-context-keywords") as HTMLInputElement)
+        .placeholder,
+    ).toContain("우선순위");
+  });
+
   it("값 입력 시 onChange 콜백이 호출된다", () => {
     const onChange = vi.fn();
     render(

@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import type { SessionContext } from "@/lib/glossary/types";
 import { useId, useState } from "react";
 
@@ -7,12 +8,14 @@ export type SessionContextInputProps = {
   value: SessionContext;
   onChange: (next: SessionContext) => void;
   disabled?: boolean;
+  topContent?: ReactNode;
 };
 
 export function SessionContextInput({
   value,
   onChange,
   disabled = false,
+  topContent = null,
 }: SessionContextInputProps) {
   const baseId = useId();
   const [open, setOpen] = useState(true);
@@ -42,6 +45,8 @@ export function SessionContextInput({
 
       {open ? (
         <div className="mt-4 flex flex-col gap-4">
+          {topContent}
+
           {disabled ? (
             <p
               className="text-xs text-zinc-600 dark:text-zinc-400"
@@ -65,6 +70,7 @@ export function SessionContextInput({
               onChange={(e) => patch({ participants: e.target.value })}
               disabled={disabled}
               data-testid="session-context-participants"
+              placeholder={"김지호 PM\n이나영 엔지니어"}
             />
           </div>
 
@@ -83,6 +89,7 @@ export function SessionContextInput({
               onChange={(e) => patch({ topic: e.target.value })}
               disabled={disabled}
               data-testid="session-context-topic"
+              placeholder="2분기 제품 로드맵 및 출시 일정 점검"
             />
           </div>
 
@@ -101,6 +108,7 @@ export function SessionContextInput({
               onChange={(e) => patch({ keywords: e.target.value })}
               disabled={disabled}
               data-testid="session-context-keywords"
+              placeholder="우선순위, 리스크, 의사결정, 액션 아이템"
             />
           </div>
         </div>

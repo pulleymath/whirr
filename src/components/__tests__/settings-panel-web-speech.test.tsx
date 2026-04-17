@@ -1,54 +1,33 @@
 /** @vitest-environment happy-dom */
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { SettingsPanel } from "@/components/settings-panel";
 
-const isWebSpeechApiSupported = vi.hoisted(() => vi.fn(() => true));
-
-vi.mock("@/lib/stt", async (importOriginal) => {
-  const mod = await importOriginal<typeof import("@/lib/stt")>();
-  return { ...mod, isWebSpeechApiSupported };
-});
-
 afterEach(() => {
   cleanup();
-  vi.clearAllMocks();
-  isWebSpeechApiSupported.mockReturnValue(true);
 });
 
-describe("SettingsPanel Web Speech", () => {
-  it("지원하지 않으면 Web Speech 라디오 비활성화 및 안내", async () => {
-    isWebSpeechApiSupported.mockReturnValue(false);
-
+describe("SettingsPanel (간소화)", () => {
+  it("스크립트 모드 관련 필드가 렌더링되지 않는다", () => {
     render(
       <MainAppProviders>
         <SettingsPanel open isRecording={false} onClose={() => {}} />
       </MainAppProviders>,
     );
 
-    await waitFor(() => {
-      expect(
-        (screen.getByTestId("mode-webSpeechApi") as HTMLInputElement).disabled,
-      ).toBe(true);
-    });
-    expect(
-      screen.getByTestId("web-speech-unsupported-hint").textContent,
-    ).toContain("이 브라우저에서 지원되지 않습니다");
+    expect(screen.queryByTestId("mode-webSpeechApi")).toBeNull();
+    expect(screen.queryByTestId("mode-realtime")).toBeNull();
+    expect(screen.queryByTestId("engine-openai")).toBeNull();
   });
 
-  it("지원하면 Web Speech 라디오 선택 가능", async () => {
-    isWebSpeechApiSupported.mockReturnValue(true);
-
+  it("전역 용어 사전 textarea는 계속 렌더링된다", () => {
     render(
       <MainAppProviders>
         <SettingsPanel open isRecording={false} onClose={() => {}} />
       </MainAppProviders>,
     );
 
-    expect(
-      (screen.getByTestId("mode-webSpeechApi") as HTMLInputElement).disabled,
-    ).toBe(false);
-    expect(screen.queryByTestId("web-speech-unsupported-hint")).toBeNull();
+    expect(screen.getByTestId("global-glossary-textarea")).toBeTruthy();
   });
 });

@@ -340,7 +340,7 @@ function SessionDetailReadyContent({
         </div>
       ) : hasText ? (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-          아직 회의록이 없습니다. 상단 영역에서 회의록을 생성하세요.
+          아직 회의록이 없습니다. 스크립트 탭 하단에서 회의록을 생성하세요.
         </p>
       ) : (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
@@ -348,57 +348,6 @@ function SessionDetailReadyContent({
         </p>
       )}
     </div>
-  );
-
-  const meetingMinutesMetaPanel = (
-    <section
-      className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-      aria-label="회의록 생성 설정"
-    >
-      <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-        회의록 생성
-      </h2>
-      <div className="flex flex-col gap-4">
-        <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
-        <SessionContextInput
-          value={contextDraft}
-          onChange={setContextDraft}
-          disabled={mmLoading}
-        />
-        <SessionGlossaryEditor
-          value={glossaryDraft}
-          onChange={setGlossaryDraft}
-          disabled={mmLoading}
-        />
-        <SessionMinutesModelSelect
-          value={minutesModelDraft}
-          onChange={setMinutesModelDraft}
-          disabled={mmLoading}
-        />
-        <Button
-          type="button"
-          variant="primary"
-          disabled={mmLoading || !hasText}
-          onClick={() => void handleMeetingMinutes()}
-        >
-          {mmLoading ? (
-            <span className="inline-flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
-              생성 중…
-            </span>
-          ) : session.summary ? (
-            "회의록 재생성"
-          ) : (
-            "회의록 생성"
-          )}
-        </Button>
-        {mmError ? (
-          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-            {mmError}
-          </p>
-        ) : null}
-      </div>
-    </section>
   );
 
   const transcriptPanel = (
@@ -450,6 +399,55 @@ function SessionDetailReadyContent({
           {scriptSaveError}
         </p>
       ) : null}
+
+      <section
+        className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700"
+        aria-label="회의록 생성 설정"
+      >
+        <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+          회의록 생성
+        </h2>
+        <div className="flex flex-col gap-4">
+          <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
+          <SessionContextInput
+            value={contextDraft}
+            onChange={setContextDraft}
+            disabled={mmLoading}
+          />
+          <SessionGlossaryEditor
+            value={glossaryDraft}
+            onChange={setGlossaryDraft}
+            disabled={mmLoading}
+          />
+          <SessionMinutesModelSelect
+            value={minutesModelDraft}
+            onChange={setMinutesModelDraft}
+            disabled={mmLoading}
+          />
+          <Button
+            type="button"
+            variant="primary"
+            disabled={mmLoading || !hasText}
+            onClick={() => void handleMeetingMinutes()}
+          >
+            {mmLoading ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                생성 중…
+              </span>
+            ) : session.summary ? (
+              "회의록 재생성"
+            ) : (
+              "회의록 생성"
+            )}
+          </Button>
+          {mmError ? (
+            <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+              {mmError}
+            </p>
+          ) : null}
+        </div>
+      </section>
     </div>
   );
 
@@ -478,8 +476,6 @@ function SessionDetailReadyContent({
           />
         </div>
       ) : null}
-
-      {meetingMinutesMetaPanel}
 
       <MainTranscriptTabs
         key={session.id}

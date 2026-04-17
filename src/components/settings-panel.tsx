@@ -1,15 +1,6 @@
 "use client";
 
 import { useGlossary } from "@/lib/glossary/context";
-import { useSettings } from "@/lib/settings/context";
-import {
-  BATCH_MODEL_OPTIONS,
-  ENGINE_OPTIONS,
-  MEETING_MINUTES_MODEL_OPTIONS,
-  MODE_OPTIONS,
-} from "@/lib/settings/options";
-import { isWebSpeechApiSupported } from "@/lib/stt";
-import { useSyncExternalStore } from "react";
 
 export type SettingsPanelProps = {
   open: boolean;
@@ -22,25 +13,17 @@ export function SettingsPanel({
   onClose,
   isRecording,
 }: SettingsPanelProps) {
-  const { settings, updateSettings } = useSettings();
   const { glossary, updateGlossary } = useGlossary();
-  const webSpeechSupported = useSyncExternalStore(
-    () => () => {},
-    () => isWebSpeechApiSupported(),
-    () => true,
-  );
 
   if (!open) {
     return null;
   }
 
   const disabled = isRecording;
-  const autoLanguageDisabled = settings.mode !== "batch" || disabled;
-  const webSpeechOptionDisabled = disabled || !webSpeechSupported;
 
   return (
     <div
-      className="fixed inset-0 z-[60] flex items-end justify-center sm:items-center sm:p-4"
+      className="fixed inset-0 z-60 flex items-end justify-center sm:items-center sm:p-4"
       role="presentation"
     >
       <button
@@ -82,156 +65,6 @@ export function SettingsPanel({
             </p>
           ) : null}
 
-          <fieldset className="mb-6 space-y-3" disabled={disabled}>
-            <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              스크립트 모드
-            </legend>
-            {MODE_OPTIONS.map((opt) => {
-              const isWebSpeech = opt.value === "webSpeechApi";
-              const optionDisabled =
-                opt.value === "webSpeechApi"
-                  ? webSpeechOptionDisabled
-                  : disabled;
-              return (
-                <label
-                  key={opt.value}
-                  className={`flex gap-3 rounded-lg border border-transparent p-2 ${
-                    optionDisabled
-                      ? "cursor-not-allowed opacity-60"
-                      : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="transcription-mode"
-                    value={opt.value}
-                    checked={settings.mode === opt.value}
-                    disabled={optionDisabled}
-                    aria-disabled={optionDisabled}
-                    onChange={() => {
-                      const nextMode = opt.value;
-                      updateSettings({
-                        mode: nextMode,
-                        ...(settings.language === "auto" && nextMode !== "batch"
-                          ? { language: "ko" }
-                          : {}),
-                      });
-                    }}
-                    className="mt-1"
-                    data-testid={`mode-${opt.value}`}
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                      {opt.label}
-                      {isWebSpeech && !webSpeechSupported ? (
-                        <span
-                          className="ml-1.5 font-normal text-zinc-500 dark:text-zinc-400"
-                          data-testid="web-speech-unsupported-hint"
-                        >
-                          (이 브라우저에서 지원되지 않습니다)
-                        </span>
-                      ) : null}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                      {opt.hint}
-                    </span>
-                  </span>
-                </label>
-              );
-            })}
-          </fieldset>
-
-          {settings.mode === "realtime" ? (
-            <fieldset className="mb-6 space-y-3" disabled={disabled}>
-              <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-                실시간 스크립트 엔진
-              </legend>
-              {ENGINE_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className="flex cursor-pointer gap-3 rounded-lg border border-transparent p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
-                >
-                  <input
-                    type="radio"
-                    name="realtime-engine"
-                    value={opt.value}
-                    checked={settings.realtimeEngine === opt.value}
-                    onChange={() =>
-                      updateSettings({ realtimeEngine: opt.value })
-                    }
-                    className="mt-1"
-                    data-testid={`engine-${opt.value}`}
-                  />
-                  <span>
-                    <span className="block text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                      {opt.label}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                      {opt.hint}
-                    </span>
-                  </span>
-                </label>
-              ))}
-            </fieldset>
-          ) : null}
-
-          {settings.mode === "batch" ? (
-            <div className="mb-6">
-              <label
-                htmlFor="batch-model-select"
-                className="mb-2 block text-sm font-medium text-zinc-800 dark:text-zinc-200"
-              >
-                일괄 스크립트 모델
-              </label>
-              <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-                녹음 후 스크립트에 사용할 모델입니다.
-              </p>
-              <select
-                id="batch-model-select"
-                disabled={disabled}
-                value={settings.batchModel}
-                onChange={(e) => updateSettings({ batchModel: e.target.value })}
-                className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-                data-testid="batch-model-select"
-              >
-                {BATCH_MODEL_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-
-          <div className="mb-6">
-            <label
-              htmlFor="meeting-minutes-model-select"
-              className="mb-2 block text-sm font-medium text-zinc-800 dark:text-zinc-200"
-            >
-              회의록 작성 모델
-            </label>
-            <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-              녹음이 끝난 뒤 스크립트를 바탕으로 회의록을 작성할 때 사용할
-              모델입니다.
-            </p>
-            <select
-              id="meeting-minutes-model-select"
-              disabled={disabled}
-              value={settings.meetingMinutesModel}
-              onChange={(e) =>
-                updateSettings({ meetingMinutesModel: e.target.value })
-              }
-              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
-              data-testid="meeting-minutes-model-select"
-            >
-              {MEETING_MINUTES_MODEL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
           <div className="mb-6">
             <label
               htmlFor="global-glossary-textarea"
@@ -260,62 +93,6 @@ export function SettingsPanel({
               }}
             />
           </div>
-
-          <fieldset className="space-y-3" disabled={disabled}>
-            <legend className="mb-2 text-sm font-medium text-zinc-800 dark:text-zinc-200">
-              언어
-            </legend>
-            <label className="flex cursor-pointer gap-3 rounded-lg border border-transparent p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
-              <input
-                type="radio"
-                name="language"
-                value="ko"
-                checked={settings.language === "ko"}
-                onChange={() => updateSettings({ language: "ko" })}
-                className="mt-1"
-                data-testid="lang-ko"
-              />
-              <span className="text-sm text-zinc-900 dark:text-zinc-50">
-                한국어 (ko)
-              </span>
-            </label>
-            <label className="flex cursor-pointer gap-3 rounded-lg border border-transparent p-2 hover:bg-zinc-50 dark:hover:bg-zinc-900/60">
-              <input
-                type="radio"
-                name="language"
-                value="en"
-                checked={settings.language === "en"}
-                onChange={() => updateSettings({ language: "en" })}
-                className="mt-1"
-                data-testid="lang-en"
-              />
-              <span className="text-sm text-zinc-900 dark:text-zinc-50">
-                English (en)
-              </span>
-            </label>
-            <label
-              className={`flex gap-3 rounded-lg border border-transparent p-2 ${autoLanguageDisabled ? "cursor-not-allowed opacity-50" : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/60"}`}
-            >
-              <input
-                type="radio"
-                name="language"
-                value="auto"
-                checked={settings.language === "auto"}
-                disabled={autoLanguageDisabled}
-                onChange={() => updateSettings({ language: "auto" })}
-                className="mt-1"
-                data-testid="lang-auto"
-              />
-              <span>
-                <span className="block text-sm text-zinc-900 dark:text-zinc-50">
-                  자동 감지 (auto)
-                </span>
-                <span className="mt-0.5 block text-xs text-zinc-500 dark:text-zinc-400">
-                  녹음 후 스크립트 모드에서만 사용할 수 있습니다.
-                </span>
-              </span>
-            </label>
-          </fieldset>
         </div>
       </div>
     </div>

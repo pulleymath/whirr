@@ -322,10 +322,17 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+
+    await waitFor(() => {
       expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
     });
+    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
     expect(
-      screen.getByText(/아직 회의록이 없습니다\. 상단 영역에서/),
+      screen.getByText(/아직 회의록이 없습니다\. 스크립트 탭 하단에서/),
     ).toBeTruthy();
   });
 
@@ -343,7 +350,14 @@ describe("SessionDetail", () => {
         screen.getByText("스크립트가 비어 있으면 회의록을 만들 수 없습니다."),
       ).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: "회의록 생성" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "회의록 생성" }),
+      ).toBeDisabled();
+    });
   });
 
   it("저장하지 않은 스크립트 편집이 회의록 생성 API 본문에 반영된다", async () => {
@@ -382,8 +396,6 @@ describe("SessionDetail", () => {
       "저장하지 않은 내용은 회의록 생성",
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
-
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
     });
@@ -419,15 +431,26 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+
+    await waitFor(() => {
       expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "회의록 생성" }));
 
     await waitFor(() => {
+      expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
+
+    await waitFor(() => {
       expect(screen.getByText("생성된 회의록")).toBeTruthy();
     });
-    expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
     expect(vi.mocked(updateSession)).toHaveBeenLastCalledWith("sess-1", {
       summary: "생성된 회의록",
       status: "ready",
@@ -444,6 +467,12 @@ describe("SessionDetail", () => {
       .mockRejectedValueOnce(new Error("idb"));
 
     renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
@@ -471,6 +500,13 @@ describe("SessionDetail", () => {
     await waitFor(() => {
       expect(screen.getByText("기존 회의록")).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: "회의록 재생성" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "회의록 재생성" }),
+      ).toBeTruthy();
+    });
   });
 });
