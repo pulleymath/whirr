@@ -25,7 +25,8 @@ const resilienceState = vi.hoisted(() => ({
     | "done"
     | "error",
   batchError: null as string | null,
-  retryBatch: vi.fn(async () => null as string | null),
+  batchFailedSegments: [] as number[],
+  retryBatch: vi.fn(async () => null),
 }));
 
 const prepareStreaming = vi.fn(async () => true);
@@ -81,9 +82,15 @@ vi.mock("@/hooks/use-batch-transcription", () => ({
     softLimitMessage: null,
     segmentProgress: 0,
     segments: [],
+    failedSegments: resilienceState.batchFailedSegments,
+    retryTotalCount: 0,
+    retryProcessedCount: 0,
+    completedCount: 0,
+    totalCount: 0,
     startRecording: vi.fn(),
     stopAndTranscribe: vi.fn(),
     retryTranscription: resilienceState.retryBatch,
+    sessionRef: { current: null },
   }),
 }));
 
@@ -97,6 +104,7 @@ beforeEach(() => {
   resilienceState.elapsedMs = 0;
   resilienceState.batchStatus = "idle";
   resilienceState.batchError = null;
+  resilienceState.batchFailedSegments = [];
   testRecorderState.status = "idle";
   vi.clearAllMocks();
   localStorage.setItem(
@@ -164,8 +172,9 @@ describe("Recorder 세션 복원력 UI", () => {
     );
     resilienceState.batchStatus = "error";
     resilienceState.batchError = "일시적 오류";
+    resilienceState.batchFailedSegments = [0];
     renderRecorder();
-    fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
+    fireEvent.click(screen.getByRole("button", { name: /다시 시도/ }));
     expect(resilienceState.retryBatch).toHaveBeenCalledTimes(1);
   });
 });

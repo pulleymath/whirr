@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BatchRetryControl } from "@/components/batch-retry-control";
 import { RecordButton } from "@/components/record-button";
 import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
-import { Button } from "@/components/ui/button";
 import { useBeforeUnload } from "@/hooks/use-before-unload";
-import { useBatchTranscription } from "@/hooks/use-batch-transcription";
+import {
+  useBatchTranscription,
+  type BatchStopResult,
+} from "@/hooks/use-batch-transcription";
 import { formatElapsed, useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
@@ -124,14 +127,75 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
   const recordingActive = isBatchMode
     ? batch.status === "recording"
     : status === "recording";
-  useBeforeUnload(recordingActive || pipeline.isBusy);
+  useBeforeUnload(
+    recordingActive ||
+      pipeline.isBusy ||
+      (isBatchMode && batch.status === "transcribing"),
+  );
 
   const finalsRef = useRef(finals);
   const partialRef = useRef(partial);
+  const batchRetryInFlightRef = useRef(false);
   useEffect(() => {
     finalsRef.current = finals;
     partialRef.current = partial;
   }, [finals, partial]);
+
+  const persistBatchResult = useCallback(
+    async (stopped: BatchStopResult) => {
+      const { partialText, finalBlob, segments } = stopped;
+      if (!partialText.trim() && segments.length === 0) {
+        return;
+      }
+      const id = await saveSession(partialText, {
+        status: "transcribing",
+      });
+      if (segments.length > 0) {
+        await saveSessionAudio(id, segments);
+      }
+      onSessionSaved?.(id);
+      enqueuePipeline({
+        sessionId: id,
+        partialText,
+        finalBlob,
+        model: settings.batchModel,
+        language: settings.language,
+        meetingMinutesModel: settings.meetingMinutesModel,
+        glossary: glossary.terms,
+        sessionContext: sessionContextForEnqueue(sessionContext),
+      });
+    },
+    [
+      enqueuePipeline,
+      glossary.terms,
+      onSessionSaved,
+      sessionContext,
+      settings.batchModel,
+      settings.language,
+      settings.meetingMinutesModel,
+    ],
+  );
+
+  const handleBatchRetry = useCallback(async () => {
+    if (batchRetryInFlightRef.current || pipeline.isBusy) {
+      return;
+    }
+    batchRetryInFlightRef.current = true;
+    setPersistError(null);
+    try {
+      const stopped = await retryBatchTranscription();
+      if (!stopped) {
+        return;
+      }
+      await persistBatchResult(stopped);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error("[session-storage] save failed:", msg);
+      setPersistError("세션을 저장하지 못했습니다.");
+    } finally {
+      batchRetryInFlightRef.current = false;
+    }
+  }, [persistBatchResult, pipeline.isBusy, retryBatchTranscription]);
 
   const start = useCallback(async () => {
     setUnsupportedModeMessage(null);
@@ -177,28 +241,8 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
       if (!stopped) {
         return;
       }
-      const { partialText, finalBlob, segments } = stopped;
-      if (!partialText.trim() && segments.length === 0) {
-        return;
-      }
       try {
-        const id = await saveSession(partialText, {
-          status: "transcribing",
-        });
-        if (segments.length > 0) {
-          await saveSessionAudio(id, segments);
-        }
-        onSessionSaved?.(id);
-        enqueuePipeline({
-          sessionId: id,
-          partialText,
-          finalBlob,
-          model: settings.batchModel,
-          language: settings.language,
-          meetingMinutesModel: settings.meetingMinutesModel,
-          glossary: glossary.terms,
-          sessionContext: sessionContextForEnqueue(sessionContext),
-        });
+        await persistBatchResult(stopped);
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("[session-storage] save failed:", msg);
@@ -245,8 +289,7 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
     settings.mode,
     stopBatchTranscribe,
     stopRecording,
-    glossary.terms,
-    sessionContext,
+    persistBatchResult,
   ]);
 
   const displayElapsedMs = isBatchMode ? batch.elapsedMs : elapsedMs;
@@ -373,6 +416,14 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
                 </span>
               </div>
             )}
+            <BatchRetryControl
+              mode="recording"
+              failedCount={batch.failedSegments.length}
+              isRetrying={false}
+              retryProcessed={0}
+              retryTotal={0}
+              onRetry={() => {}}
+            />
           </div>
         )}
 
@@ -400,14 +451,20 @@ export function Recorder({ onSessionSaved }: RecorderProps = {}) {
           </p>
         ) : null}
 
-        {isBatchMode && batch.status === "error" && batch.errorMessage ? (
-          <Button
-            variant="outline"
-            className="self-start"
-            onClick={() => void retryBatchTranscription()}
-          >
-            다시 시도
-          </Button>
+        {isBatchMode &&
+        ((batch.status === "error" && batch.errorMessage) ||
+          (batch.status === "transcribing" && batch.retryTotalCount > 0)) ? (
+          <BatchRetryControl
+            mode="stopped"
+            failedCount={batch.failedSegments.length}
+            isRetrying={
+              batch.status === "transcribing" && batch.retryTotalCount > 0
+            }
+            retryProcessed={batch.retryProcessedCount}
+            retryTotal={batch.retryTotalCount}
+            onRetry={() => void handleBatchRetry()}
+            disabled={pipeline.isBusy}
+          />
         ) : null}
 
         {unsupportedModeMessage ? (

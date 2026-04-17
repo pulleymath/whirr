@@ -72,3 +72,7 @@
 - [✅ 완료] [용어 사전·세션 컨텍스트·회의록 프롬프트·완료 토스트](./glossary-and-toast/00_issue.md)
 - [ ] 사운드 피드백
 - [ ] 세션 검색
+
+### 배치 재시도·회의록 연동
+
+- [✅ 완료] [배치 녹음 STT 재시도 및 회의록 파이프라인 연동](./batch-retry-and-minutes-flow/00_issue.md)

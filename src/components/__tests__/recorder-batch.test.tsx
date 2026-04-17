@@ -235,4 +235,69 @@ describe("Recorder 배치 모드", () => {
     await expect(savedAudioSegments[0].text()).resolves.toBe("rotated-segment");
     await expect(savedAudioSegments[1].text()).resolves.toBe("final-segment");
   });
+
+  it("배치 전사 실패 후 다시 시도하면 세션 저장과 파이프라인 enqueue가 호출된다", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    vi.useFakeTimers();
+
+    let sttFail = true;
+    globalThis.fetch = vi.fn(async () => {
+      if (sttFail) {
+        return new Response(JSON.stringify({ error: "down" }), { status: 503 });
+      }
+      return new Response(JSON.stringify({ text: "복구 스크립트" }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
+    render(
+      <MainAppProviders>
+        <Recorder onSessionSaved={vi.fn()} />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
+      ).toBe("batch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+    });
+
+    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1_000);
+    await vi.waitFor(() => {
+      expect(vi.mocked(globalThis.fetch).mock.calls.length).toBeGreaterThan(0);
+    });
+    await vi.advanceTimersByTimeAsync(35_000);
+
+    const saveCallsBeforeStop = vi.mocked(saveSession).mock.calls.length;
+    const enqueueCallsBeforeStop = mockEnqueue.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+    await vi.advanceTimersByTimeAsync(40_000);
+
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: /다시 시도/ })).toBeTruthy();
+    });
+
+    expect(vi.mocked(saveSession).mock.calls.length).toBe(saveCallsBeforeStop);
+    expect(mockEnqueue.mock.calls.length).toBe(enqueueCallsBeforeStop);
+
+    sttFail = false;
+    fireEvent.click(screen.getByRole("button", { name: /다시 시도/ }));
+    await vi.advanceTimersByTimeAsync(40_000);
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(saveSession).mock.calls.length).toBeGreaterThan(
+        saveCallsBeforeStop,
+      );
+    });
+    expect(mockEnqueue).toHaveBeenCalled();
+  });
 });

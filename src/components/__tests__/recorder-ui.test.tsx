@@ -53,6 +53,10 @@ vi.mock("@/hooks/use-batch-transcription", () => ({
     totalCount: 0,
     segmentProgress: 0,
     softLimitMessage: null,
+    failedSegments: [],
+    retryTotalCount: 0,
+    retryProcessedCount: 0,
+    segments: [],
   }),
 }));
 

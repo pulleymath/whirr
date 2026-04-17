@@ -98,13 +98,16 @@ describe("useBatchTranscription", () => {
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 300);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
 
     let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(7000);
+      await vi.advanceTimersByTimeAsync(20_000);
     });
     await act(async () => {
       await stopPromise!;
@@ -134,13 +137,16 @@ describe("useBatchTranscription", () => {
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 300);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
 
     let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(7000);
+      await vi.advanceTimersByTimeAsync(20_000);
     });
     await act(async () => {
       await stopPromise!;
@@ -168,7 +174,7 @@ describe("useBatchTranscription", () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 300);
     });
     await act(async () => {
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(2000);
     });
 
     await act(async () => {
@@ -176,25 +182,14 @@ describe("useBatchTranscription", () => {
     });
 
     expect(result.current.status).toBe("error");
-    expect(globalThis.fetch).toHaveBeenCalledTimes(1);
+    expect(globalThis.fetch).toHaveBeenCalled();
   });
 
   it("retryTranscription으로 에러 후 Blob을 다시 스크립트로 변환한다", async () => {
     vi.useFakeTimers();
-    globalThis.fetch = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ error: "down" }), { status: 503 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ text: "수동 재시도" }), { status: 200 }),
-      ) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(JSON.stringify({ error: "down" }), { status: 503 });
+    }) as unknown as typeof fetch;
 
     const { result } = renderHook(() => useBatchTranscription());
 
@@ -205,13 +200,16 @@ describe("useBatchTranscription", () => {
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 300);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
 
     let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
       stopPromise = result.current.stopAndTranscribe();
     });
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(7000);
+      await vi.advanceTimersByTimeAsync(20_000);
     });
     await act(async () => {
       await stopPromise!;
@@ -225,16 +223,61 @@ describe("useBatchTranscription", () => {
       });
     }) as unknown as typeof fetch;
 
-    let retryPromise: Promise<string | null>;
+    let retryPromise: Promise<BatchStopResult | null>;
     await act(async () => {
       retryPromise = result.current.retryTranscription();
     });
     await act(async () => {
-      await retryPromise!;
+      await vi.advanceTimersByTimeAsync(5000);
+    });
+    let retryOut: BatchStopResult | null = null;
+    await act(async () => {
+      retryOut = await retryPromise!;
     });
 
     expect(result.current.status).toBe("done");
     expect(result.current.transcript).toBe("수동 재시도 수동 재시도");
+    expect(retryOut).not.toBeNull();
+    expect(retryOut!.finalBlob).toBeNull();
+    expect(retryOut!.segments.length).toBeGreaterThanOrEqual(2);
+    expect(retryOut!.partialText).toContain("수동 재시도");
+  });
+
+  it("녹음 중 online 이벤트 시 실패한 세그먼트 전사를 다시 시도한다", async () => {
+    vi.useFakeTimers();
+    let n = 0;
+    globalThis.fetch = vi.fn(async () => {
+      n += 1;
+      if (n <= 3) {
+        return new Response(JSON.stringify({ error: "down" }), { status: 503 });
+      }
+      return new Response(JSON.stringify({ text: "온라인복구" }), {
+        status: 200,
+      });
+    }) as unknown as typeof fetch;
+
+    const { result } = renderHook(() => useBatchTranscription());
+
+    await act(async () => {
+      await result.current.startRecording();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+    expect(result.current.failedSegments.length).toBeGreaterThan(0);
+
+    await act(async () => {
+      window.dispatchEvent(new Event("online"));
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(20_000);
+    });
+
+    expect(result.current.failedSegments.length).toBe(0);
+    expect(result.current.transcript).toContain("온라인복구");
   });
 
   it("stopAndTranscribe 호출 시 진행 중인 백그라운드 스크립트 변환을 기다리고 partialText에만 합친다", async () => {
@@ -261,6 +304,9 @@ describe("useBatchTranscription", () => {
     await act(async () => {
       vi.advanceTimersByTime(5 * 60 * 1000 + 100);
     });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
 
     let stopPromise: ReturnType<typeof result.current.stopAndTranscribe>;
     await act(async () => {
@@ -268,7 +314,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      await vi.advanceTimersByTimeAsync(3000);
+      await vi.advanceTimersByTimeAsync(5000);
     });
 
     const out = await stopPromise!;
@@ -326,8 +372,7 @@ describe("useBatchTranscription 녹음 시간 제한", () => {
     });
 
     await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
+      await vi.advanceTimersByTimeAsync(60_000);
     });
 
     expect(globalThis.fetch).toHaveBeenCalledWith(

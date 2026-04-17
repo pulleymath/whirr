@@ -54,6 +54,10 @@ export type UseBatchTranscriptionReturn = {
   totalCount: number;
   /** 실패한 세그먼트 인덱스 목록 */
   failedSegments: number[];
+  /** 수동 재시도 시 총 대상 개수(진행률 분모) */
+  retryTotalCount: number;
+  /** 수동 재시도 시 처리 완료 개수(진행률 분자) */
+  retryProcessedCount: number;
   /** 내부 세션 참조 (병합된 오디오 추출용) */
   sessionRef: React.RefObject<SegmentedRecordingSession | null>;
   startRecording: () => Promise<void>;
@@ -63,7 +67,7 @@ export type UseBatchTranscriptionReturn = {
    */
   stopAndTranscribe: () => Promise<BatchStopResult | null>;
   /** 직전 실패한 녹음 세그먼트들로 스크립트 변환을 다시 시도한다 */
-  retryTranscription: () => Promise<string | null>;
+  retryTranscription: () => Promise<BatchStopResult | null>;
 };
 
 export function useBatchTranscription(
@@ -84,6 +88,8 @@ export function useBatchTranscription(
   const [completedCount, setCompletedCount] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const [failedSegments, setFailedSegments] = useState<number[]>([]);
+  const [retryTotalCount, setRetryTotalCount] = useState(0);
+  const [retryProcessedCount, setRetryProcessedCount] = useState(0);
 
   const sessionRef = useRef<SegmentedRecordingSession | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -100,9 +106,16 @@ export function useBatchTranscription(
   const transcribeInFlightRef = useRef(false);
   const segmentsRef = useRef<Blob[]>([]);
   const partialTranscriptsRef = useRef<(string | null)[]>([]);
-  const pendingPromisesRef = useRef<Set<Promise<void>>>(new Set());
   const statusRef = useRef(status);
   statusRef.current = status;
+
+  const queueRef = useRef<number[]>([]);
+  const queueSetRef = useRef<Set<number>>(new Set());
+  const workerRunningRef = useRef(false);
+  const workerIdleResolveRef = useRef<(() => void) | null>(null);
+  const workerIdlePromiseRef = useRef<Promise<void> | null>(null);
+  /** true only during `retryTranscription` — UI 진행률 카운터용 */
+  const trackRetryProgressRef = useRef(false);
 
   const clearTimers = useCallback(() => {
     if (intervalRef.current != null) {
@@ -115,6 +128,13 @@ export function useBatchTranscription(
     }
     setLevel(0);
     setSegmentProgress(0);
+  }, []);
+
+  const refreshTranscriptFromPartials = useCallback(() => {
+    const joined = partialTranscriptsRef.current
+      .filter((t): t is string => t !== null && t.length > 0)
+      .join(" ");
+    setTranscript(joined.length > 0 ? joined : null);
   }, []);
 
   const runTranscribeWithRetries = useCallback(
@@ -131,6 +151,120 @@ export function useBatchTranscription(
     },
     [language, model],
   );
+
+  const beginWorkerIdlePromise = useCallback(() => {
+    if (workerIdlePromiseRef.current != null) {
+      return;
+    }
+    workerIdlePromiseRef.current = new Promise<void>((resolve) => {
+      workerIdleResolveRef.current = resolve;
+    });
+  }, []);
+
+  const resolveWorkerIdleIfIdle = useCallback(() => {
+    if (
+      queueRef.current.length === 0 &&
+      !workerRunningRef.current &&
+      workerIdleResolveRef.current
+    ) {
+      workerIdleResolveRef.current();
+      workerIdleResolveRef.current = null;
+      workerIdlePromiseRef.current = null;
+    }
+  }, []);
+
+  const runWorker = useCallback(async () => {
+    if (workerRunningRef.current) {
+      return;
+    }
+    workerRunningRef.current = true;
+    beginWorkerIdlePromise();
+
+    try {
+      for (;;) {
+        while (queueRef.current.length > 0) {
+          const index = queueRef.current.shift()!;
+          queueSetRef.current.delete(index);
+          if (index < 0 || index >= segmentsRef.current.length) {
+            continue;
+          }
+          const existing = partialTranscriptsRef.current[index];
+          if (existing !== null) {
+            continue;
+          }
+          const blob = segmentsRef.current[index];
+          if (!blob || blob.size === 0) {
+            partialTranscriptsRef.current[index] = "";
+            refreshTranscriptFromPartials();
+            if (trackRetryProgressRef.current) {
+              setRetryProcessedCount((prev) => prev + 1);
+            }
+            continue;
+          }
+          const text = await runTranscribeWithRetries(blob, index);
+          partialTranscriptsRef.current[index] = text;
+          refreshTranscriptFromPartials();
+          if (trackRetryProgressRef.current) {
+            setRetryProcessedCount((prev) => prev + 1);
+          }
+        }
+        workerRunningRef.current = false;
+        resolveWorkerIdleIfIdle();
+        if (queueRef.current.length === 0) {
+          break;
+        }
+        workerRunningRef.current = true;
+      }
+    } catch (e) {
+      workerRunningRef.current = false;
+      resolveWorkerIdleIfIdle();
+      // void runWorker() 호출부에서 처리되지 않은 rejection을 막기 위해 여기서 삼킨다.
+      // STT 경로는 대부분 결과 객체로 실패를 돌려주며, 예외는 극히 드물다.
+      if (process.env.NODE_ENV !== "production") {
+        console.error("[use-batch-transcription] worker:", e);
+      }
+    }
+  }, [
+    beginWorkerIdlePromise,
+    refreshTranscriptFromPartials,
+    resolveWorkerIdleIfIdle,
+    runTranscribeWithRetries,
+  ]);
+
+  const enqueueIndices = useCallback(
+    (indices: number[]) => {
+      let added = false;
+      for (const index of indices) {
+        if (index < 0 || index >= segmentsRef.current.length) {
+          continue;
+        }
+        if (partialTranscriptsRef.current[index] !== null) {
+          continue;
+        }
+        if (queueSetRef.current.has(index)) {
+          continue;
+        }
+        queueRef.current.push(index);
+        queueSetRef.current.add(index);
+        added = true;
+      }
+      if (!added) {
+        resolveWorkerIdleIfIdle();
+        return;
+      }
+      queueRef.current.sort((a, b) => a - b);
+      beginWorkerIdlePromise();
+      void runWorker();
+    },
+    [beginWorkerIdlePromise, resolveWorkerIdleIfIdle, runWorker],
+  );
+
+  const awaitWorkerIdle = useCallback(async () => {
+    const p = workerIdlePromiseRef.current;
+    if (p) {
+      await p;
+    }
+  }, []);
 
   const stopAndTranscribe =
     useCallback(async (): Promise<BatchStopResult | null> => {
@@ -186,10 +320,19 @@ export function useBatchTranscription(
 
         setStatus("transcribing");
 
-        await Promise.allSettled(Array.from(pendingPromisesRef.current));
-
         const segs = segmentsRef.current;
         const lastIdx = segs.length - 1;
+        const pending: number[] = [];
+        for (let i = 0; i < lastIdx; i++) {
+          if (partialTranscriptsRef.current[i] === null) {
+            pending.push(i);
+          }
+        }
+        if (pending.length > 0) {
+          enqueueIndices(pending);
+        }
+
+        await awaitWorkerIdle();
 
         for (let i = 0; i < lastIdx; i++) {
           if (partialTranscriptsRef.current[i] === null) {
@@ -218,50 +361,92 @@ export function useBatchTranscription(
       } finally {
         transcribeInFlightRef.current = false;
       }
-    }, [clearTimers]);
+    }, [awaitWorkerIdle, clearTimers, enqueueIndices]);
 
   const stopAndTranscribeRef = useRef(stopAndTranscribe);
   stopAndTranscribeRef.current = stopAndTranscribe;
 
-  const retryTranscription = useCallback(async (): Promise<string | null> => {
-    if (transcribeInFlightRef.current) {
-      return null;
-    }
-    if (segmentsRef.current.length === 0 || statusRef.current !== "error") {
-      return null;
-    }
-    transcribeInFlightRef.current = true;
-    setErrorMessage(null);
-    setStatus("transcribing");
-
-    try {
-      const promises = segmentsRef.current.map((blob, index) => {
-        if (partialTranscriptsRef.current[index] === null) {
-          return runTranscribeWithRetries(blob, index).then((text) => {
-            partialTranscriptsRef.current[index] = text;
-          });
-        }
-        return Promise.resolve();
-      });
-
-      await Promise.allSettled(promises);
-
-      const hasFailed = partialTranscriptsRef.current.some((t) => t === null);
-      const fullText = partialTranscriptsRef.current
-        .filter((t): t is string => t !== null && t.length > 0)
-        .join(" ");
-
-      setTranscript(fullText);
-      if (hasFailed) {
-        setStatus("error");
+  const retryTranscription =
+    useCallback(async (): Promise<BatchStopResult | null> => {
+      if (transcribeInFlightRef.current) {
         return null;
       }
-      setStatus("done");
-      return fullText;
-    } finally {
-      transcribeInFlightRef.current = false;
+      if (segmentsRef.current.length === 0 || statusRef.current !== "error") {
+        return null;
+      }
+      transcribeInFlightRef.current = true;
+      setErrorMessage(null);
+      setStatus("transcribing");
+
+      const lastIdx = segmentsRef.current.length - 1;
+      const pending: number[] = [];
+      for (let i = 0; i <= lastIdx; i++) {
+        if (partialTranscriptsRef.current[i] === null) {
+          pending.push(i);
+        }
+      }
+      setRetryTotalCount(pending.length);
+      setRetryProcessedCount(0);
+
+      try {
+        if (pending.length > 0) {
+          trackRetryProgressRef.current = true;
+          enqueueIndices(pending);
+          await awaitWorkerIdle();
+        }
+
+        const hasFailed = partialTranscriptsRef.current.some((t) => t === null);
+        const fullText = partialTranscriptsRef.current
+          .filter((t): t is string => t !== null && t.length > 0)
+          .join(" ");
+
+        setTranscript(fullText.length > 0 ? fullText : null);
+        setRetryTotalCount(0);
+        setRetryProcessedCount(0);
+
+        if (hasFailed) {
+          setStatus("error");
+          return null;
+        }
+        setStatus("done");
+        return {
+          partialText: fullText,
+          finalBlob: null,
+          segments: [...segmentsRef.current],
+        };
+      } finally {
+        trackRetryProgressRef.current = false;
+        transcribeInFlightRef.current = false;
+      }
+    }, [awaitWorkerIdle, enqueueIndices]);
+
+  const enqueueIndicesRef = useRef(enqueueIndices);
+  enqueueIndicesRef.current = enqueueIndices;
+
+  useEffect(() => {
+    if (status !== "recording") {
+      return;
     }
-  }, [runTranscribeWithRetries]);
+    const handler = () => {
+      if (statusRef.current !== "recording") {
+        return;
+      }
+      const pending: number[] = [];
+      const n = segmentsRef.current.length;
+      for (let i = 0; i < n; i++) {
+        if (partialTranscriptsRef.current[i] === null) {
+          pending.push(i);
+        }
+      }
+      if (pending.length > 0) {
+        enqueueIndicesRef.current(pending);
+      }
+    };
+    window.addEventListener("online", handler);
+    return () => {
+      window.removeEventListener("online", handler);
+    };
+  }, [status]);
 
   const startRecording = useCallback(async () => {
     if (startingRef.current || sessionRef.current != null) {
@@ -272,6 +457,11 @@ export function useBatchTranscription(
     segmentsRef.current = [];
     setSegments([]);
     partialTranscriptsRef.current = [];
+    queueRef.current = [];
+    queueSetRef.current = new Set();
+    workerRunningRef.current = false;
+    workerIdleResolveRef.current = null;
+    workerIdlePromiseRef.current = null;
     setErrorMessage(null);
     setTranscript(null);
     setSoftLimitMessage(null);
@@ -282,6 +472,8 @@ export function useBatchTranscription(
     setCompletedCount(0);
     setTotalCount(0);
     setFailedSegments([]);
+    setRetryTotalCount(0);
+    setRetryProcessedCount(0);
     setStatus("idle");
 
     try {
@@ -315,20 +507,14 @@ export function useBatchTranscription(
             setTotalCount((prev) => prev + 1);
             const index = segmentsRef.current.length - 1;
             partialTranscriptsRef.current[index] = null;
-            const promise = runTranscribeWithRetries(blob, index).then(
-              (text) => {
-                partialTranscriptsRef.current[index] = text;
-                setTranscript(() => {
-                  return partialTranscriptsRef.current
-                    .filter((t): t is string => t !== null && t.length > 0)
-                    .join(" ");
-                });
-              },
-            );
-            pendingPromisesRef.current.add(promise);
-            promise.finally(() => {
-              pendingPromisesRef.current.delete(promise);
-            });
+            const toEnqueue: number[] = [];
+            for (let i = 0; i < index; i++) {
+              if (partialTranscriptsRef.current[i] === null) {
+                toEnqueue.push(i);
+              }
+            }
+            toEnqueue.push(index);
+            enqueueIndices(toEnqueue);
           }
         }
 
@@ -378,12 +564,14 @@ export function useBatchTranscription(
     } finally {
       startingRef.current = false;
     }
-  }, [runTranscribeWithRetries]);
+  }, [enqueueIndices]);
 
   useEffect(() => {
     return () => {
       cancelledRef.current = true;
       clearTimers();
+      queueRef.current = [];
+      queueSetRef.current = new Set();
       const s = sessionRef.current;
       sessionRef.current = null;
       if (s) {
@@ -405,6 +593,8 @@ export function useBatchTranscription(
     completedCount,
     totalCount,
     failedSegments,
+    retryTotalCount,
+    retryProcessedCount,
     startRecording,
     stopAndTranscribe,
     retryTranscription,
