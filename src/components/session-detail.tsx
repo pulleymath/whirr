@@ -3,15 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import {
-  Check,
-  Copy,
-  Download,
-  Loader2,
-  RefreshCw,
-  Save,
-  Sparkles,
-} from "lucide-react";
+import { Check, Copy, Download, Loader2, Save } from "lucide-react";
 import {
   getSessionAudio,
   getSessionById,
@@ -20,11 +12,36 @@ import {
 } from "@/lib/db";
 import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
+import { SessionContextInput } from "@/components/session-context-input";
+import { SessionGlossaryEditor } from "@/components/session-glossary-editor";
+import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
+import { SessionScriptMetaDisplay } from "@/components/session-script-meta-display";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { downloadRecordingSegments } from "@/lib/download-recording";
+import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
-import { useSettings } from "@/lib/settings/context";
+import {
+  DEFAULT_MEETING_MINUTES_MODEL,
+  isAllowedMeetingMinutesModelId,
+} from "@/lib/settings/types";
+
+const EMPTY_SESSION_CONTEXT: SessionContext = {
+  participants: "",
+  topic: "",
+  keywords: "",
+};
+
+function sessionContextForApi(value: SessionContext): SessionContext | null {
+  if (
+    !value.participants.trim() &&
+    !value.topic.trim() &&
+    !value.keywords.trim()
+  ) {
+    return null;
+  }
+  return value;
+}
 
 type DetailState =
   | { status: "loading" }
@@ -167,7 +184,6 @@ function SessionDetailReadyContent({
   setIsDownloading: (v: boolean) => void;
   onSessionRefresh: () => Promise<boolean>;
 }) {
-  const { settings } = useSettings();
   const [scriptDraft, setScriptDraft] = useState(session.text);
   const [copiedScript, setCopiedScript] = useState(false);
   const [copiedSummary, setCopiedSummary] = useState(false);
@@ -175,10 +191,27 @@ function SessionDetailReadyContent({
   const [scriptSaveError, setScriptSaveError] = useState<string | null>(null);
   const [mmLoading, setMmLoading] = useState(false);
   const [mmError, setMmError] = useState<string | null>(null);
+  const [contextDraft, setContextDraft] = useState<SessionContext>(
+    session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT,
+  );
+  const [glossaryDraft, setGlossaryDraft] = useState<string[]>(
+    session.context?.glossary ?? [],
+  );
+  const [minutesModelDraft, setMinutesModelDraft] = useState(
+    session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
+  );
 
   useEffect(() => {
     setScriptDraft(session.text);
   }, [session.id, session.text]);
+
+  useEffect(() => {
+    setContextDraft(session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT);
+    setGlossaryDraft(session.context?.glossary ?? []);
+    setMinutesModelDraft(
+      session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
+    );
+  }, [session.id, session.context, session.scriptMeta]);
 
   const copyScript = useCallback(async () => {
     const t = scriptDraft.trim();
@@ -233,9 +266,33 @@ function SessionDetailReadyContent({
     setMmLoading(true);
     setMmError(null);
     try {
+      const minutesModelSafe = isAllowedMeetingMinutesModelId(minutesModelDraft)
+        ? minutesModelDraft
+        : DEFAULT_MEETING_MINUTES_MODEL;
+
+      const sc = sessionContextForApi(contextDraft);
+      const contextPayload: MeetingContext = {
+        glossary: glossaryDraft,
+        sessionContext: sc,
+      };
+      const scriptMetaUpdate =
+        session.scriptMeta != null
+          ? { ...session.scriptMeta, minutesModel: minutesModelSafe }
+          : undefined;
+
+      await updateSession(session.id, {
+        context: contextPayload,
+        ...(scriptMetaUpdate ? { scriptMeta: scriptMetaUpdate } : {}),
+      });
+
       const summary = await fetchMeetingMinutesSummary(
         t,
-        settings.meetingMinutesModel,
+        minutesModelSafe,
+        undefined,
+        {
+          glossary: glossaryDraft,
+          sessionContext: sc ?? undefined,
+        },
       );
       await updateSession(session.id, { summary, status: "ready" });
       const refreshed = await onSessionRefresh();
@@ -250,7 +307,15 @@ function SessionDetailReadyContent({
     } finally {
       setMmLoading(false);
     }
-  }, [onSessionRefresh, session.id, scriptDraft, settings.meetingMinutesModel]);
+  }, [
+    contextDraft,
+    glossaryDraft,
+    minutesModelDraft,
+    onSessionRefresh,
+    session.id,
+    session.scriptMeta,
+    scriptDraft,
+  ]);
 
   const summaryPanel = (
     <div
@@ -267,15 +332,6 @@ function SessionDetailReadyContent({
             variant="outline"
             onClick={() => void copySummaryMarkdown()}
           />
-          <IconButton
-            icon={mmLoading ? Loader2 : RefreshCw}
-            ariaLabel="다시 생성"
-            label={mmLoading ? "생성 중…" : undefined}
-            variant="outline"
-            disabled={mmLoading || !hasText}
-            iconClassName={mmLoading ? "animate-spin" : ""}
-            onClick={() => void handleMeetingMinutes()}
-          />
         </div>
       ) : null}
       {session.summary ? (
@@ -283,32 +339,66 @@ function SessionDetailReadyContent({
           <MeetingMinutesMarkdown markdown={session.summary} />
         </div>
       ) : hasText ? (
-        <div className="mt-4 flex flex-col gap-2">
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            아직 회의록이 없습니다.
-          </p>
-          <IconButton
-            icon={mmLoading ? Loader2 : Sparkles}
-            ariaLabel="회의록 생성"
-            label={mmLoading ? "생성 중…" : "회의록 생성"}
-            variant="primary"
-            disabled={mmLoading}
-            iconClassName={mmLoading ? "animate-spin" : ""}
-            className="w-fit"
-            onClick={() => void handleMeetingMinutes()}
-          />
-        </div>
+        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+          아직 회의록이 없습니다. 상단 영역에서 회의록을 생성하세요.
+        </p>
       ) : (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
           스크립트가 비어 있으면 회의록을 만들 수 없습니다.
         </p>
       )}
-      {mmError ? (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
-          {mmError}
-        </p>
-      ) : null}
     </div>
+  );
+
+  const meetingMinutesMetaPanel = (
+    <section
+      className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+      aria-label="회의록 생성 설정"
+    >
+      <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        회의록 생성
+      </h2>
+      <div className="flex flex-col gap-4">
+        <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
+        <SessionContextInput
+          value={contextDraft}
+          onChange={setContextDraft}
+          disabled={mmLoading}
+        />
+        <SessionGlossaryEditor
+          value={glossaryDraft}
+          onChange={setGlossaryDraft}
+          disabled={mmLoading}
+        />
+        <SessionMinutesModelSelect
+          value={minutesModelDraft}
+          onChange={setMinutesModelDraft}
+          disabled={mmLoading}
+        />
+        <Button
+          type="button"
+          variant="primary"
+          disabled={mmLoading || !hasText}
+          onClick={() => void handleMeetingMinutes()}
+        >
+          {mmLoading ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              생성 중…
+            </span>
+          ) : session.summary ? (
+            "회의록 재생성"
+          ) : (
+            "회의록 생성"
+          )}
+        </Button>
+        {mmError ? (
+          <p className="text-sm text-red-600 dark:text-red-400" role="alert">
+            {mmError}
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 
   const transcriptPanel = (
@@ -388,6 +478,8 @@ function SessionDetailReadyContent({
           />
         </div>
       ) : null}
+
+      {meetingMinutesMetaPanel}
 
       <MainTranscriptTabs
         key={session.id}

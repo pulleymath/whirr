@@ -1,4 +1,5 @@
 import type { MeetingContext } from "@/lib/glossary/types";
+import type { SessionScriptMeta } from "@/lib/session-script-meta";
 import { openDB, type DBSchema, type IDBPDatabase } from "idb";
 
 export type SessionStatus = "transcribing" | "summarizing" | "ready" | "error";
@@ -13,10 +14,13 @@ export type Session = {
   status?: SessionStatus;
   /** 회의록 생성 시 사용한 용어·세션 컨텍스트(선택) */
   context?: MeetingContext;
+  /** 녹음·파이프라인 생성 시점 스크립트·회의록 모델 메타(레거시 생략 가능) */
+  scriptMeta?: SessionScriptMeta;
 };
 
 export type SaveSessionOptions = {
   status?: SessionStatus;
+  scriptMeta?: SessionScriptMeta;
 };
 
 export type SessionAudio = {
@@ -39,7 +43,7 @@ interface WhirrDB extends DBSchema {
 const DB_NAME = "whirr-db";
 const STORE = "sessions";
 const AUDIO_STORE = "session-audio";
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbPromise: Promise<IDBPDatabase<WhirrDB>> | null = null;
 
@@ -53,6 +57,9 @@ function getDb(): Promise<IDBPDatabase<WhirrDB>> {
         }
         if (oldVersion < 2) {
           db.createObjectStore(AUDIO_STORE, { keyPath: "sessionId" });
+        }
+        if (oldVersion < 3) {
+          /* Session.scriptMeta 필드 추가 — 스토어 스키마 변경 없음 */
         }
       },
     });
@@ -81,12 +88,19 @@ export async function saveSession(
   const createdAt = Date.now();
   const status: SessionStatus = options?.status ?? "ready";
   const db = await getDb();
-  await db.put(STORE, { id, createdAt, text, status });
+  const row: Session = {
+    id,
+    createdAt,
+    text,
+    status,
+    ...(options?.scriptMeta ? { scriptMeta: options.scriptMeta } : {}),
+  };
+  await db.put(STORE, row);
   return id;
 }
 
 export type SessionUpdate = Partial<
-  Pick<Session, "text" | "summary" | "status" | "context">
+  Pick<Session, "text" | "summary" | "status" | "context" | "scriptMeta">
 >;
 
 export async function updateSession(

@@ -67,6 +67,7 @@
 - [✅ 완료] [녹음 후 파이프라인·내비게이션·상세 UX](./feature-15-post-recording-pipeline/00_issue.md)
 - [✅ 완료] [녹음 완료 후 AI 회의록 (모델 선택 가능, 장문 누락 방지)](./feature-16-ai-meeting-minutes/00_issue.md)
 - [✅ 완료] [홈·세션 상세 UI — 녹음 컨트롤, 스크립트 전용 홈, 아이콘 버튼, 공유 Button](./feature-17-ui-recorder-session/00_issue.md)
+- [✅ 완료] [메인·세션 상세 — 모델 표시, 회의 컨텍스트, 재생성 UX](./feature-18-model-context-ui/00_issue.md)
 - [ ] 세션 삭제 및 편집 기능
 - [ ] 텍스트 내보내기 (txt, 클립보드 복사)
 - [✅ 완료] [용어 사전·세션 컨텍스트·회의록 프롬프트·완료 토스트](./glossary-and-toast/00_issue.md)

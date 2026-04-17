@@ -39,6 +39,8 @@ function EnqueueMeetingMinutes({
       meetingMinutesModel,
       glossary,
       sessionContext,
+      mode: "batch",
+      engine: undefined,
     });
   }, [enqueue, partialText, meetingMinutesModel, glossary, sessionContext]);
   return null;

@@ -2,6 +2,8 @@
 
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { updateSession } from "@/lib/db";
+import { buildScriptMeta } from "@/lib/session-script-meta";
+import type { RealtimeEngine, TranscriptionMode } from "@/lib/settings/types";
 import {
   transcribeBlobWithRetries,
   userFacingTranscribeError,
@@ -28,6 +30,10 @@ export type PostRecordingPipelineEnqueueInput = {
   meetingMinutesModel: string;
   glossary?: string[];
   sessionContext?: SessionContext | null;
+  /** 녹음 시점 스크립트 모드 */
+  mode: TranscriptionMode;
+  /** mode가 realtime일 때 엔진 */
+  engine?: RealtimeEngine;
 };
 
 export type PostRecordingPipelinePhase =
@@ -188,10 +194,18 @@ export function PostRecordingPipelineProvider({
               ? (data as { summary: string }).summary
               : "";
           const persistedContext = buildMeetingContextForPersistence(input);
+          const scriptMeta = buildScriptMeta({
+            mode: input.mode,
+            realtimeEngine: input.engine ?? "openai",
+            batchModel: input.model,
+            language: input.language,
+            meetingMinutesModel: input.meetingMinutesModel,
+          });
           await updateSession(input.sessionId, {
             summary,
             status: "ready",
             context: persistedContext,
+            scriptMeta,
           });
           setSummaryText(summary);
           setCompletedSessionId(input.sessionId);

@@ -10,7 +10,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionDetail } from "@/components/session-detail";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
 import { getSessionAudio, getSessionById, updateSession } from "@/lib/db";
-import { SettingsProvider } from "@/lib/settings/context";
 
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: "sess-1" }),
@@ -31,11 +30,7 @@ vi.mock("@/lib/db", async (importOriginal) => {
 });
 
 function renderSessionDetail() {
-  return render(
-    <SettingsProvider>
-      <SessionDetail />
-    </SettingsProvider>,
-  );
+  return render(<SessionDetail />);
 }
 
 afterEach(() => {
@@ -329,10 +324,12 @@ describe("SessionDetail", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
     });
-    expect(screen.getByText("아직 회의록이 없습니다.")).toBeTruthy();
+    expect(
+      screen.getByText(/아직 회의록이 없습니다\. 상단 영역에서/),
+    ).toBeTruthy();
   });
 
-  it("스크립트가 비어 있으면 회의록 생성 버튼 대신 안내를 보여준다", async () => {
+  it("스크립트가 비어 있으면 회의록 생성 버튼이 비활성화된다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -346,7 +343,7 @@ describe("SessionDetail", () => {
         screen.getByText("스크립트가 비어 있으면 회의록을 만들 수 없습니다."),
       ).toBeTruthy();
     });
-    expect(screen.queryByRole("button", { name: "회의록 생성" })).toBeNull();
+    expect(screen.getByRole("button", { name: "회의록 생성" })).toBeDisabled();
   });
 
   it("저장하지 않은 스크립트 편집이 회의록 생성 API 본문에 반영된다", async () => {
@@ -397,6 +394,10 @@ describe("SessionDetail", () => {
       expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalledWith(
         "편집본",
         expect.any(String),
+        undefined,
+        expect.objectContaining({
+          glossary: [],
+        }),
       );
     });
   });
@@ -427,7 +428,7 @@ describe("SessionDetail", () => {
       expect(screen.getByText("생성된 회의록")).toBeTruthy();
     });
     expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
-    expect(vi.mocked(updateSession)).toHaveBeenCalledWith("sess-1", {
+    expect(vi.mocked(updateSession)).toHaveBeenLastCalledWith("sess-1", {
       summary: "생성된 회의록",
       status: "ready",
     });
@@ -457,7 +458,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("회의록이 있으면 다시 생성 버튼을 보여준다", async () => {
+  it("회의록이 있으면 재생성 버튼 라벨을 보여준다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -470,6 +471,6 @@ describe("SessionDetail", () => {
     await waitFor(() => {
       expect(screen.getByText("기존 회의록")).toBeTruthy();
     });
-    expect(screen.getByRole("button", { name: "다시 생성" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "회의록 재생성" })).toBeTruthy();
   });
 });

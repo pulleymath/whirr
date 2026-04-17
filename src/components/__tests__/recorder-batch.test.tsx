@@ -157,7 +157,13 @@ describe("Recorder 배치 모드", () => {
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
 
     await vi.waitFor(() => {
-      expect(saveSession).toHaveBeenCalledWith("", { status: "transcribing" });
+      expect(saveSession).toHaveBeenCalledWith(
+        "",
+        expect.objectContaining({
+          status: "transcribing",
+          scriptMeta: expect.objectContaining({ mode: "batch" }),
+        }),
+      );
     });
     await vi.waitFor(() => {
       expect(saveSessionAudio).toHaveBeenCalledWith(
@@ -183,6 +189,8 @@ describe("Recorder 배치 모드", () => {
         meetingMinutesModel: "gpt-5.4-nano",
         glossary: [],
         sessionContext: null,
+        mode: "batch",
+        engine: undefined,
       }),
     );
   });

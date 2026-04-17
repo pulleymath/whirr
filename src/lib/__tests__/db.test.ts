@@ -7,6 +7,7 @@ import {
   getSessionAudio,
   updateSession,
 } from "../db";
+import type { SessionScriptMeta } from "../session-script-meta";
 import { resetWhirrDbForTests } from "./db-test-utils";
 
 describe("db (IndexedDB)", () => {
@@ -106,6 +107,31 @@ describe("db (IndexedDB)", () => {
     await expect(updateSession("missing-id", { text: "x" })).rejects.toThrow(
       /Session not found/,
     );
+  });
+
+  it("saveSession에 scriptMeta를 넘기면 조회 시 반영된다", async () => {
+    const meta: SessionScriptMeta = {
+      mode: "batch",
+      batchModel: "whisper-1",
+      language: "ko",
+      minutesModel: "gpt-4o-mini",
+    };
+    const id = await saveSession("t", { status: "ready", scriptMeta: meta });
+    const row = await getSessionById(id);
+    expect(row?.scriptMeta).toEqual(meta);
+  });
+
+  it("updateSession으로 scriptMeta를 갱신할 수 있다", async () => {
+    const id = await saveSession("a");
+    const meta: SessionScriptMeta = {
+      mode: "realtime",
+      engine: "openai",
+      language: "en",
+      minutesModel: "gpt-4o",
+    };
+    await updateSession(id, { scriptMeta: meta });
+    const row = await getSessionById(id);
+    expect(row?.scriptMeta).toEqual(meta);
   });
 
   it("saveSessionAudio 및 getSessionAudio가 정상 동작한다", async () => {

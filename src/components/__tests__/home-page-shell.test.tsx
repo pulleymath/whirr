@@ -87,4 +87,11 @@ describe("HomePageShell", () => {
     const trigger = screen.getByRole("button", { name: "History 열기" });
     expect(trigger.className).toMatch(/md:hidden/);
   });
+
+  it("홈에 모델 빠른 변경 패널이 렌더링된다", async () => {
+    renderHome();
+    await vi.waitFor(() => {
+      expect(screen.getByTestId("home-model-panel")).toBeTruthy();
+    });
+  });
 });

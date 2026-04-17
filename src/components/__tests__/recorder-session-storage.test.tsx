@@ -130,9 +130,17 @@ describe("Recorder 세션 저장", () => {
     });
 
     expect(saveSession).toHaveBeenCalledTimes(1);
-    expect(saveSession).toHaveBeenCalledWith("hello world", {
-      status: "summarizing",
-    });
+    expect(saveSession).toHaveBeenCalledWith(
+      "hello world",
+      expect.objectContaining({
+        status: "summarizing",
+        scriptMeta: expect.objectContaining({
+          mode: "realtime",
+          language: expect.any(String),
+          minutesModel: expect.any(String),
+        }),
+      }),
+    );
   });
 
   it("finals와 partial이 모두 비어 있으면 saveSession을 호출하지 않는다", async () => {
