@@ -28,6 +28,8 @@ export function TranscriptView({
     : joinedFinals;
   const emptyHint = emptyStateHint ?? "녹음을 시작하면 스크립트가 표시됩니다.";
   const showEmptyHint = !hasContent && !loadingMessage;
+  const showLivePartialRow =
+    Boolean(loadingMessage?.trim()) || partial.trim().length > 0;
 
   return (
     <section
@@ -50,30 +52,28 @@ export function TranscriptView({
         </p>
       ) : null}
 
-      <div
-        className="min-h-6 text-sm text-zinc-700 dark:text-zinc-300"
-        aria-live="polite"
-        aria-atomic="true"
-        data-testid="transcript-partial"
-      >
-        {loadingMessage ? (
-          <span
-            className="text-zinc-600 dark:text-zinc-400"
-            role="status"
-            data-testid="transcript-loading"
-          >
-            {loadingMessage}
-          </span>
-        ) : partial ? (
-          <span className="italic text-zinc-600 dark:text-zinc-400">
-            {partial}
-          </span>
-        ) : (
-          <span className="text-zinc-400 dark:text-zinc-500">
-            {showEmptyHint ? emptyHint : ""}
-          </span>
-        )}
-      </div>
+      {showLivePartialRow ? (
+        <div
+          className="min-h-6 text-sm text-zinc-700 dark:text-zinc-300"
+          aria-live="polite"
+          aria-atomic="true"
+          data-testid="transcript-partial"
+        >
+          {loadingMessage ? (
+            <span
+              className="text-zinc-600 dark:text-zinc-400"
+              role="status"
+              data-testid="transcript-loading"
+            >
+              {loadingMessage}
+            </span>
+          ) : (
+            <span className="italic text-zinc-600 dark:text-zinc-400">
+              {partial}
+            </span>
+          )}
+        </div>
+      ) : null}
 
       <textarea
         readOnly

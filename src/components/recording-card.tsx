@@ -1,12 +1,13 @@
 "use client";
 
-import { BatchRetryControl } from "@/components/batch-retry-control";
 import type { BatchRetryControlProps } from "@/components/batch-retry-control";
+import { BatchRetryControl } from "@/components/batch-retry-control";
 import { RecordButton } from "@/components/record-button";
 import { formatElapsed } from "@/hooks/use-recorder";
 import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
 import { useSettings } from "@/lib/settings/context";
 import { BATCH_MODEL_OPTIONS } from "@/lib/settings/options";
+import { Mic, NotebookPen } from "lucide-react";
 
 export type StatusMessage = {
   text: string;
@@ -91,10 +92,9 @@ export function RecordingCard({
         </p>
       ) : null}
 
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-          입력 레벨
-        </span>
+      <div className="flex gap-2 items-center">
+        <Mic className="h-4 w-4" />
+
         <div
           className="h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
           role="meter"
@@ -110,7 +110,45 @@ export function RecordingCard({
         </div>
       </div>
 
-      {isBatchMode && batchRecording && (
+      {isBatchMode && (
+        <div className="flex flex-col gap-2">
+          <div className="flex gap-2 items-center">
+            <NotebookPen className="h-3 w-4" />
+
+            <div
+              className="h-3 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(segmentProgress * 100)}
+            >
+              <div
+                className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
+                style={{
+                  width: `${Math.round(segmentProgress * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+
+          {totalCount > 0 && (
+            <span className="text-[10px] text-end font-medium text-zinc-500 dark:text-zinc-400">
+              {completedCount} / {totalCount}
+            </span>
+          )}
+
+          <BatchRetryControl
+            mode="recording"
+            failedCount={failedCount}
+            isRetrying={false}
+            retryProcessed={0}
+            retryTotal={0}
+            onRetry={() => {}}
+          />
+        </div>
+      )}
+
+      {/* {isBatchMode && batchRecording && (
         <div className="flex flex-col gap-2">
           <div className="flex flex-col gap-1">
             <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
@@ -149,7 +187,7 @@ export function RecordingCard({
             onRetry={() => {}}
           />
         </div>
-      )}
+      )} */}
 
       {stoppedRetry ? (
         <BatchRetryControl mode="stopped" {...stoppedRetry} />

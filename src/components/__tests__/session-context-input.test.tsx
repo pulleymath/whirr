@@ -31,7 +31,7 @@ describe("SessionContextInput", () => {
           "session-context-participants",
         ) as HTMLTextAreaElement
       ).placeholder,
-    ).toContain("김지호 PM");
+    ).toContain("고풀리 PM");
     expect(
       (screen.getByTestId("session-context-topic") as HTMLInputElement)
         .placeholder,
@@ -90,9 +90,10 @@ describe("SessionContextInput", () => {
       <SessionContextInput value={base} onChange={onChange} disabled={false} />,
     );
     expect(screen.getByTestId("session-context-topic")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: /접기/ }));
+    const toggle = screen.getByRole("button", { name: /회의 정보/ });
+    fireEvent.click(toggle);
     expect(screen.queryByTestId("session-context-topic")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /펼치기/ }));
+    fireEvent.click(toggle);
     expect(screen.getByTestId("session-context-topic")).toBeTruthy();
   });
 });

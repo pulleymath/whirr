@@ -22,11 +22,9 @@ describe("TranscriptView", () => {
     expect(list.textContent).toContain("둘째.");
   });
 
-  it("partial 없이 final만 있을 때 확정 목록만 보인다", () => {
+  it("partial 없이 final만 있을 때 라이브 partial 행은 숨기고 확정 목록만 보인다", () => {
     render(<TranscriptView partial="" finals={["완료 문장"]} />);
-    expect(screen.getByTestId("transcript-partial").textContent).not.toContain(
-      "완료 문장",
-    );
+    expect(screen.queryByTestId("transcript-partial")).toBeNull();
     expect(screen.getByTestId("transcript-finals").textContent).toContain(
       "완료 문장",
     );
@@ -41,6 +39,26 @@ describe("TranscriptView", () => {
   it("스크립트 카드 컨테이너가 렌더링된다", () => {
     render(<TranscriptView partial="" finals={[]} showHeading={false} />);
     expect(screen.getByTestId("transcript-view-card")).toBeTruthy();
+  });
+
+  it("partial·로딩이 모두 없으면 라이브 partial 행을 렌더하지 않는다", () => {
+    render(<TranscriptView partial="" finals={[]} showHeading={false} />);
+    expect(screen.queryByTestId("transcript-partial")).toBeNull();
+  });
+
+  it("loadingMessage가 있으면 라이브 partial 행을 렌더한다", () => {
+    render(
+      <TranscriptView
+        partial=""
+        finals={[]}
+        showHeading={false}
+        loadingMessage="변환 중…"
+      />,
+    );
+    expect(screen.getByTestId("transcript-partial")).toBeInTheDocument();
+    expect(screen.getByTestId("transcript-loading")).toHaveTextContent(
+      "변환 중…",
+    );
   });
 
   it("isSegmentInFlight이면 마지막 final 뒤에 로딩 표시가 있다", () => {

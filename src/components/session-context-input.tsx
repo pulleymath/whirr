@@ -36,10 +36,7 @@ export function SessionContextInput({
         aria-expanded={open}
       >
         <span className="text-sm font-medium text-zinc-900 dark:text-zinc-50">
-          회의 컨텍스트
-        </span>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
-          {open ? "접기" : "펼치기"}
+          회의 정보
         </span>
       </button>
 
@@ -70,7 +67,7 @@ export function SessionContextInput({
               onChange={(e) => patch({ participants: e.target.value })}
               disabled={disabled}
               data-testid="session-context-participants"
-              placeholder={"김지호 PM\n이나영 엔지니어"}
+              placeholder={"고풀리 PM\n이풀리 엔지니어"}
             />
           </div>
 

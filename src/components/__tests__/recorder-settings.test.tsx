@@ -141,7 +141,7 @@ describe("Recorder + 설정", () => {
 
     await vi.waitFor(() => {
       expect(
-        screen.getByText(
+        screen.getByPlaceholderText(
           /녹음 중입니다\. 5분마다 스크립트 결과가 업데이트됩니다/,
         ),
       ).toBeTruthy();

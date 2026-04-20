@@ -107,13 +107,13 @@ describe("Recorder 홈 UI", () => {
     expect(screen.queryByRole("tab", { name: "회의록" })).toBeNull();
   });
 
-  it("idle에서는 스크립트 reveal이 숨겨지고 partial 영역은 DOM에 남는다", () => {
+  it("idle에서는 스크립트 reveal이 숨겨지고 빈 partial 라이브 행은 렌더하지 않는다", () => {
     renderRecorder();
     expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
       "aria-hidden",
       "true",
     );
-    expect(screen.getByTestId("transcript-partial")).toBeInTheDocument();
+    expect(screen.queryByTestId("transcript-partial")).toBeNull();
   });
 
   it("파이프라인 처리 중이면 안내 문구를 표시한다", () => {
