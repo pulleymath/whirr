@@ -11,6 +11,7 @@ import {
   generateMeetingMinutes,
   openAiChatCompletion,
 } from "@/lib/meeting-minutes/map-reduce";
+import { parseMeetingMinutesTemplateFromRequest } from "@/lib/meeting-minutes/parse-template";
 import {
   DEFAULT_MEETING_MINUTES_MODEL,
   isAllowedMeetingMinutesModelId,
@@ -130,9 +131,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: sessionResult.error }, { status: 400 });
   }
 
+  const templateResult = parseMeetingMinutesTemplateFromRequest(
+    (body as { template?: unknown }).template,
+  );
+  if (!templateResult.ok) {
+    return NextResponse.json({ error: templateResult.error }, { status: 400 });
+  }
+
   const meetingContext: MeetingContext = {
     glossary: glossaryResult.value,
     sessionContext: sessionResult.value,
+    template: templateResult.value,
   };
 
   const apiKey = process.env.OPENAI_API_KEY?.trim();

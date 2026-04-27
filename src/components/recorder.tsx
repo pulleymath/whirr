@@ -1,5 +1,6 @@
 "use client";
 
+import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
 import { RecordingCard } from "@/components/recording-card";
 import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
@@ -14,6 +15,10 @@ import { buildSessionText } from "@/lib/build-session-text";
 import { saveSession, saveSessionAudio } from "@/lib/db";
 import { useGlossary } from "@/lib/glossary/context";
 import type { SessionContext } from "@/lib/glossary/types";
+import {
+  DEFAULT_MEETING_MINUTES_TEMPLATE,
+  type MeetingMinutesTemplate,
+} from "@/lib/meeting-minutes/templates";
 import { usePostRecordingPipeline } from "@/lib/post-recording-pipeline/context";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
 import { buildScriptMeta } from "@/lib/session-script-meta";
@@ -120,6 +125,8 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   const [sessionContext, setSessionContext] = useState<SessionContext>(
     EMPTY_SESSION_CONTEXT,
   );
+  const [meetingTemplate, setMeetingTemplate] =
+    useState<MeetingMinutesTemplate>(DEFAULT_MEETING_MINUTES_TEMPLATE);
 
   useEffect(() => {
     const recording = isBatchMode
@@ -178,6 +185,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
         meetingMinutesModel: settings.meetingMinutesModel,
         glossary: glossary.terms,
         sessionContext: sessionContextForEnqueue(sessionContext),
+        meetingTemplate,
         mode: effectiveMode,
         engine:
           effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
@@ -186,6 +194,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     [
       enqueuePipeline,
       glossary.terms,
+      meetingTemplate,
       onSessionSaved,
       sessionContext,
       settings.batchModel,
@@ -302,6 +311,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
           meetingMinutesModel: settings.meetingMinutesModel,
           glossary: glossary.terms,
           sessionContext: sessionContextForEnqueue(sessionContext),
+          meetingTemplate,
           mode: effectiveMode,
           engine:
             effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
@@ -317,6 +327,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     onSessionSaved,
     enqueuePipeline,
     glossary.terms,
+    meetingTemplate,
     sessionContext,
     settings.batchModel,
     settings.language,
@@ -442,6 +453,13 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
           value={sessionContext}
           onChange={setSessionContext}
           disabled={pipeline.isBusy}
+          topContent={
+            <MeetingTemplateSelector
+              value={meetingTemplate}
+              onChange={setMeetingTemplate}
+              disabled={pipeline.isBusy}
+            />
+          }
         />
       </RevealSection>
 

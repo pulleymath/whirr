@@ -1,4 +1,5 @@
 import {
+  MEETING_MINUTES_MAX_CUSTOM_TEMPLATE_LENGTH,
   MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH,
   MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH,
   MEETING_MINUTES_MAX_TEXT_LENGTH,
@@ -266,9 +267,99 @@ describe("POST /api/meeting-minutes", () => {
         context: {
           glossary: ["Vercel"],
           sessionContext: { participants: "A", topic: "B", keywords: "C" },
+          template: { id: "default" },
         },
       }),
     );
     spy.mockRestore();
+  });
+
+  it("template 생략 시 context에 기본 템플릿이 들어간다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("NODE_ENV", "test");
+    const spy = vi
+      .spyOn(mapReduce, "generateMeetingMinutes")
+      .mockResolvedValue("요약");
+    const res = await POST(jsonPost({ text: "스크립트", model: "gpt-4o" }));
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      "스크립트",
+      expect.objectContaining({
+        context: expect.objectContaining({
+          template: { id: "default" },
+        }),
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("template이 informationSharing이면 context에 반영된다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("NODE_ENV", "test");
+    const spy = vi
+      .spyOn(mapReduce, "generateMeetingMinutes")
+      .mockResolvedValue("요약");
+    const res = await POST(
+      jsonPost({
+        text: "스크립트",
+        model: "gpt-4o",
+        template: { id: "informationSharing" },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      "스크립트",
+      expect.objectContaining({
+        context: expect.objectContaining({
+          template: { id: "informationSharing" },
+        }),
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("template custom과 prompt가 context에 반영된다", async () => {
+    vi.stubEnv("OPENAI_API_KEY", "sk-test");
+    vi.stubEnv("NODE_ENV", "test");
+    const spy = vi
+      .spyOn(mapReduce, "generateMeetingMinutes")
+      .mockResolvedValue("요약");
+    const res = await POST(
+      jsonPost({
+        text: "스크립트",
+        model: "gpt-4o",
+        template: { id: "custom", prompt: "  ## 섹션  " },
+      }),
+    );
+    expect(res.status).toBe(200);
+    expect(spy).toHaveBeenCalledWith(
+      "스크립트",
+      expect.objectContaining({
+        context: expect.objectContaining({
+          template: { id: "custom", prompt: "## 섹션" },
+        }),
+      }),
+    );
+    spy.mockRestore();
+  });
+
+  it("template이 배열이면 400", async () => {
+    const res = await POST(jsonPost({ text: "내용", template: [] }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "invalid template" });
+  });
+
+  it("custom prompt가 너무 길면 400", async () => {
+    const res = await POST(
+      jsonPost({
+        text: "내용",
+        template: {
+          id: "custom",
+          prompt: "x".repeat(MEETING_MINUTES_MAX_CUSTOM_TEMPLATE_LENGTH + 1),
+        },
+      }),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "template.prompt too long" });
   });
 });

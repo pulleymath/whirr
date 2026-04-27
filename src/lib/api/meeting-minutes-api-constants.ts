@@ -9,3 +9,6 @@ export const MEETING_MINUTES_MAX_SESSION_CONTEXT_FIELD_LENGTH = 2000;
 
 /** glossary 단일 항목 최대 길이(문자 수) */
 export const MEETING_MINUTES_MAX_GLOSSARY_TERM_LENGTH = 500;
+
+/** 직접입력 회의록 템플릿(prompt) 최대 길이(문자 수) */
+export const MEETING_MINUTES_MAX_CUSTOM_TEMPLATE_LENGTH = 2000;

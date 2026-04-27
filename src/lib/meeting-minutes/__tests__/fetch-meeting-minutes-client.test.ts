@@ -50,6 +50,27 @@ describe("fetchMeetingMinutesSummary", () => {
     });
   });
 
+  it("template이 주어지면 fetch body에 포함된다", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ summary: "s" }), {
+        status: 200,
+      }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    await fetchMeetingMinutesSummary("t", "m", undefined, {
+      template: { id: "business" },
+    });
+
+    expect(
+      JSON.parse((fetchMock.mock.calls[0]![1] as RequestInit).body as string),
+    ).toEqual({
+      text: "t",
+      model: "m",
+      template: { id: "business" },
+    });
+  });
+
   it("ok가 아니면 에러를 던진다", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: "text too long" }), {

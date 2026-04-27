@@ -6,6 +6,8 @@ import {
   usePostRecordingPipeline,
 } from "../context";
 import { useEffect } from "react";
+import { updateSession } from "@/lib/db";
+import type { MeetingMinutesTemplate } from "@/lib/meeting-minutes/templates";
 
 vi.mock("@/lib/db", () => ({
   updateSession: vi.fn(async () => {}),
@@ -18,6 +20,7 @@ function EnqueueMeetingMinutes({
   meetingMinutesModel,
   glossary,
   sessionContext,
+  meetingTemplate,
 }: {
   partialText: string;
   meetingMinutesModel: string;
@@ -27,6 +30,7 @@ function EnqueueMeetingMinutes({
     topic: string;
     keywords: string;
   } | null;
+  meetingTemplate?: MeetingMinutesTemplate;
 }) {
   const { enqueue } = usePostRecordingPipeline();
   useEffect(() => {
@@ -39,10 +43,18 @@ function EnqueueMeetingMinutes({
       meetingMinutesModel,
       glossary,
       sessionContext,
+      meetingTemplate,
       mode: "batch",
       engine: undefined,
     });
-  }, [enqueue, partialText, meetingMinutesModel, glossary, sessionContext]);
+  }, [
+    enqueue,
+    partialText,
+    meetingMinutesModel,
+    glossary,
+    sessionContext,
+    meetingTemplate,
+  ]);
   return null;
 }
 
@@ -58,6 +70,7 @@ describe("PostRecordingPipeline → /api/meeting-minutes", () => {
 
   beforeEach(() => {
     fetchMock.mockReset();
+    vi.mocked(updateSession).mockClear();
   });
 
   afterEach(() => {
@@ -95,6 +108,7 @@ describe("PostRecordingPipeline → /api/meeting-minutes", () => {
     expect(JSON.parse(init.body as string)).toEqual({
       text: "스크립트 본문",
       model: "gpt-4o-mini",
+      template: { id: "default" },
     });
   });
 
@@ -132,6 +146,51 @@ describe("PostRecordingPipeline → /api/meeting-minutes", () => {
         topic: "t",
         keywords: "k",
       },
+      template: { id: "default" },
+    });
+  });
+
+  it("enqueue에 meetingTemplate를 전달하면 fetch body와 저장 context에 반영된다", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ summary: "회의록" }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock as unknown as typeof fetch;
+
+    render(
+      <PostRecordingPipelineProvider>
+        <EnqueueMeetingMinutes
+          partialText="본문"
+          meetingMinutesModel="gpt-4o-mini"
+          meetingTemplate={{ id: "informationSharing" }}
+        />
+      </PostRecordingPipelineProvider>,
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalled();
+    });
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(JSON.parse(init.body as string)).toEqual({
+      text: "본문",
+      model: "gpt-4o-mini",
+      template: { id: "informationSharing" },
+    });
+
+    await waitFor(() => {
+      const ready = vi
+        .mocked(updateSession)
+        .mock.calls.find(
+          (c) =>
+            c[1] &&
+            typeof c[1] === "object" &&
+            "status" in c[1] &&
+            (c[1] as { status?: string }).status === "ready",
+        );
+      expect(ready?.[1]).toMatchObject({
+        context: {
+          template: { id: "informationSharing" },
+        },
+      });
     });
   });
 

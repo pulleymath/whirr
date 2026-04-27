@@ -1,11 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
 import { RecordingCard } from "@/components/recording-card";
 import { RevealSection } from "@/components/recorder-reveal-section";
 import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
 import type { SessionContext } from "@/lib/glossary/types";
+import {
+  DEFAULT_MEETING_MINUTES_TEMPLATE,
+  type MeetingMinutesTemplate,
+} from "@/lib/meeting-minutes/templates";
 import { useState } from "react";
 
 const EMPTY_CONTEXT: SessionContext = {
@@ -24,6 +29,8 @@ export function RecorderUiPreview() {
   const [phase, setPhase] = useState<PreviewPhase>("idle");
   const [sessionContext, setSessionContext] =
     useState<SessionContext>(EMPTY_CONTEXT);
+  const [meetingTemplate, setMeetingTemplate] =
+    useState<MeetingMinutesTemplate>(DEFAULT_MEETING_MINUTES_TEMPLATE);
 
   const recordingActive = phase !== "idle";
   const hasScript = phase === "script";
@@ -109,11 +116,21 @@ export function RecorderUiPreview() {
           }
         />
 
-        <RevealSection visible={showSessionContext} testId="reveal-session-context">
+        <RevealSection
+          visible={showSessionContext}
+          testId="reveal-session-context"
+        >
           <SessionContextInput
             value={sessionContext}
             onChange={setSessionContext}
             disabled={false}
+            topContent={
+              <MeetingTemplateSelector
+                value={meetingTemplate}
+                onChange={setMeetingTemplate}
+                disabled={false}
+              />
+            }
           />
         </RevealSection>
 

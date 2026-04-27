@@ -30,9 +30,9 @@ describe("parseTranscriptionSettings", () => {
 
   it("production에서는 저장된 mode를 무시하고 batch", () => {
     vi.stubEnv("NODE_ENV", "production");
-    expect(
-      parseTranscriptionSettings({ mode: "realtime" }),
-    ).toMatchObject({ mode: "batch" });
+    expect(parseTranscriptionSettings({ mode: "realtime" })).toMatchObject({
+      mode: "batch",
+    });
   });
 
   it("잘못된 realtimeEngine은 기본값 openai", () => {

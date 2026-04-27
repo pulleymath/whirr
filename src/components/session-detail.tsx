@@ -12,6 +12,7 @@ import {
 } from "@/lib/db";
 import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
+import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
 import { SessionContextInput } from "@/components/session-context-input";
 import { SessionGlossaryEditor } from "@/components/session-glossary-editor";
 import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
@@ -21,6 +22,11 @@ import { IconButton } from "@/components/ui/icon-button";
 import { downloadRecordingSegments } from "@/lib/download-recording";
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
+import {
+  DEFAULT_MEETING_MINUTES_TEMPLATE,
+  resolveMeetingMinutesTemplate,
+  type MeetingMinutesTemplate,
+} from "@/lib/meeting-minutes/templates";
 import {
   DEFAULT_MEETING_MINUTES_MODEL,
   isAllowedMeetingMinutesModelId,
@@ -200,6 +206,9 @@ function SessionDetailReadyContent({
   const [minutesModelDraft, setMinutesModelDraft] = useState(
     session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
   );
+  const [templateDraft, setTemplateDraft] = useState<MeetingMinutesTemplate>(
+    session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
+  );
 
   useEffect(() => {
     setScriptDraft(session.text);
@@ -210,6 +219,9 @@ function SessionDetailReadyContent({
     setGlossaryDraft(session.context?.glossary ?? []);
     setMinutesModelDraft(
       session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
+    );
+    setTemplateDraft(
+      session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
     );
   }, [session.id, session.context, session.scriptMeta]);
 
@@ -271,9 +283,11 @@ function SessionDetailReadyContent({
         : DEFAULT_MEETING_MINUTES_MODEL;
 
       const sc = sessionContextForApi(contextDraft);
+      const templateResolved = resolveMeetingMinutesTemplate(templateDraft);
       const contextPayload: MeetingContext = {
         glossary: glossaryDraft,
         sessionContext: sc,
+        template: templateResolved,
       };
       const scriptMetaUpdate =
         session.scriptMeta != null
@@ -292,6 +306,7 @@ function SessionDetailReadyContent({
         {
           glossary: glossaryDraft,
           sessionContext: sc ?? undefined,
+          template: templateResolved,
         },
       );
       await updateSession(session.id, { summary, status: "ready" });
@@ -315,6 +330,7 @@ function SessionDetailReadyContent({
     session.id,
     session.scriptMeta,
     scriptDraft,
+    templateDraft,
   ]);
 
   const summaryPanel = (
@@ -413,6 +429,13 @@ function SessionDetailReadyContent({
             value={contextDraft}
             onChange={setContextDraft}
             disabled={mmLoading}
+            topContent={
+              <MeetingTemplateSelector
+                value={templateDraft}
+                onChange={setTemplateDraft}
+                disabled={mmLoading}
+              />
+            }
           />
           <SessionGlossaryEditor
             value={glossaryDraft}

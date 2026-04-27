@@ -68,6 +68,9 @@ describe("PostRecordingPipeline scriptMeta persistence", () => {
           language: "ko",
           minutesModel: "gpt-4o-mini",
         },
+        context: {
+          template: { id: "default" },
+        },
       });
     });
   });

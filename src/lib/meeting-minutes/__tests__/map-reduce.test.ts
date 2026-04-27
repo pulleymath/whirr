@@ -1,4 +1,3 @@
-import { MEETING_MINUTES_REDUCE_SYSTEM } from "../prompts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { generateMeetingMinutes } from "../map-reduce";
 
@@ -85,7 +84,8 @@ describe("generateMeetingMinutes", () => {
         return "부분";
       }
       if (user.includes("### 구간")) {
-        expect(sys).toBe(MEETING_MINUTES_REDUCE_SYSTEM);
+        expect(sys).toContain("부분 회의록");
+        expect(sys).toContain("## 회의록 템플릿 지침");
         return "합친 회의록";
       }
       return "부분";
@@ -106,5 +106,34 @@ describe("generateMeetingMinutes", () => {
     });
     const sys = completeChat.mock.calls[0]![0].messages[0]?.content ?? "";
     expect(sys).not.toContain("용어 교정 가이드");
+    expect(sys).not.toContain("## 회의록 템플릿 지침");
+  });
+
+  it("다수 청크 reduce 단계 시스템 메시지에 선택한 템플릿 지침이 포함된다", async () => {
+    const unit = "문장입니다. ";
+    const long = unit.repeat(3000);
+    const completeChat = vi.fn().mockImplementation(async ({ messages }) => {
+      const user = messages[1]?.content ?? "";
+      if (user.includes("[구간")) {
+        return "부분";
+      }
+      if (user.includes("### 구간")) {
+        const sys = messages[0]?.content ?? "";
+        expect(sys).toContain("핵심 메시지");
+        expect(sys).toContain("세션 흐름");
+        return "합친 회의록";
+      }
+      return "부분";
+    });
+    const out = await generateMeetingMinutes(long, {
+      model: "m",
+      completeChat,
+      context: {
+        glossary: [],
+        sessionContext: null,
+        template: { id: "informationSharing" },
+      },
+    });
+    expect(out).toBe("합친 회의록");
   });
 });

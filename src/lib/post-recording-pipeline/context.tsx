@@ -2,6 +2,11 @@
 
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { updateSession } from "@/lib/db";
+import {
+  DEFAULT_MEETING_MINUTES_TEMPLATE,
+  resolveMeetingMinutesTemplate,
+  type MeetingMinutesTemplate,
+} from "@/lib/meeting-minutes/templates";
 import { buildScriptMeta } from "@/lib/session-script-meta";
 import type { RealtimeEngine, TranscriptionMode } from "@/lib/settings/types";
 import {
@@ -30,6 +35,8 @@ export type PostRecordingPipelineEnqueueInput = {
   meetingMinutesModel: string;
   glossary?: string[];
   sessionContext?: SessionContext | null;
+  /** 회의록 출력 형식. 생략 시 기본회의 */
+  meetingTemplate?: MeetingMinutesTemplate;
   /** 녹음 시점 스크립트 모드 */
   mode: TranscriptionMode;
   /** mode가 realtime일 때 엔진 */
@@ -67,6 +74,9 @@ function buildMeetingContextForPersistence(
   return {
     glossary: input.glossary ?? [],
     sessionContext: input.sessionContext ?? null,
+    template: resolveMeetingMinutesTemplate(
+      input.meetingTemplate ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
+    ),
   };
 }
 
@@ -170,6 +180,9 @@ export function PostRecordingPipelineProvider({
               model: input.meetingMinutesModel,
               glossary: input.glossary,
               sessionContext: input.sessionContext,
+              template: resolveMeetingMinutesTemplate(
+                input.meetingTemplate ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
+              ),
             }),
             signal,
           });

@@ -1,8 +1,10 @@
 import type { SessionContext } from "@/lib/glossary/types";
+import type { MeetingMinutesTemplate } from "@/lib/meeting-minutes/templates";
 
 export type FetchMeetingMinutesOptions = {
   glossary?: string[];
   sessionContext?: SessionContext | null;
+  template?: MeetingMinutesTemplate;
 };
 
 /**
@@ -20,6 +22,9 @@ export async function fetchMeetingMinutesSummary(
   }
   if (options?.sessionContext !== undefined) {
     body.sessionContext = options.sessionContext;
+  }
+  if (options?.template !== undefined) {
+    body.template = options.template;
   }
   const res = await fetch("/api/meeting-minutes", {
     method: "POST",

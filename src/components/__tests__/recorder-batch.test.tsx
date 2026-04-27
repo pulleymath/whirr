@@ -189,10 +189,44 @@ describe("Recorder 배치 모드", () => {
         meetingMinutesModel: "gpt-5.4-nano",
         glossary: [],
         sessionContext: null,
+        meetingTemplate: { id: "default" },
         mode: "batch",
         engine: undefined,
       }),
     );
+  });
+
+  it("정보전달 템플릿을 선택한 뒤 중지하면 enqueue에 meetingTemplate이 반영된다", async () => {
+    render(
+      <MainAppProviders>
+        <Recorder onSessionSaved={vi.fn()} />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
+      ).toBe("batch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+    });
+
+    fireEvent.click(screen.getByTestId("meeting-template-informationSharing"));
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+
+    await vi.waitFor(() => {
+      expect(mockEnqueue).toHaveBeenCalledWith(
+        expect.objectContaining({
+          meetingTemplate: { id: "informationSharing" },
+        }),
+      );
+    });
   });
 
   it("5분 경과 후 중지하면 saveSessionAudio에 회전 세그먼트와 마지막 세그먼트가 모두 저장된다", async () => {

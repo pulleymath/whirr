@@ -97,6 +97,7 @@ describe("db (IndexedDB)", () => {
         topic: "스프린트",
         keywords: "배포",
       },
+      template: { id: "default" as const },
     };
     await updateSession(id, { context: ctx });
     const row = await getSessionById(id);

@@ -119,7 +119,13 @@ export async function generateMeetingMinutes(
   return completeChat({
     model,
     messages: [
-      { role: "system", content: MEETING_MINUTES_REDUCE_SYSTEM },
+      {
+        role: "system",
+        content: buildSystemPromptWithContext(
+          MEETING_MINUTES_REDUCE_SYSTEM,
+          ctx,
+        ),
+      },
       { role: "user", content: merged },
     ],
   });

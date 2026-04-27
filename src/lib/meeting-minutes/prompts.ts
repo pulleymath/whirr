@@ -1,4 +1,8 @@
 import type { MeetingContext } from "@/lib/glossary/types";
+import {
+  renderMeetingMinutesTemplateInstruction,
+  resolveMeetingMinutesTemplate,
+} from "./templates";
 
 export const MEETING_MINUTES_SINGLE_SYSTEM = `당신은 회의록 작성 보조입니다. 주어진 스크립트 전체를 바탕으로 한국어 회의록을 작성합니다.
 논점, 결정 사항, 액션 아이템(담당·기한이 언급되면 포함), 열린 이슈를 빠짐없이 정리하세요.`;
@@ -25,10 +29,6 @@ export function buildSystemPromptWithContext(
       sc.topic.trim().length > 0 ||
       sc.keywords.trim().length > 0);
 
-  if (!hasGlossary && !hasSession) {
-    return basePrompt;
-  }
-
   const sections: string[] = [basePrompt];
 
   if (hasGlossary) {
@@ -52,6 +52,11 @@ export function buildSystemPromptWithContext(
       sections.push(`\n\n## 이번 회의 키워드\n${sc.keywords.trim()}`);
     }
   }
+
+  const effectiveTemplate = resolveMeetingMinutesTemplate(context.template);
+  sections.push(
+    `\n\n${renderMeetingMinutesTemplateInstruction(effectiveTemplate)}`,
+  );
 
   return sections.join("");
 }

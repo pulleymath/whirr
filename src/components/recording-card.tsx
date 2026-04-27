@@ -68,6 +68,7 @@ export function RecordingCard({
     <section
       className="mx-auto flex w-full max-w-md flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
       aria-label="마이크 녹음"
+      data-batch-recording={isBatchMode ? String(batchRecording) : undefined}
     >
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-2xl tabular-nums text-zinc-900 dark:text-zinc-50">

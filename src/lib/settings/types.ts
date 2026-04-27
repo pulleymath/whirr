@@ -59,10 +59,7 @@ export function parseTranscriptionSettings(
   }
   const o = raw as Record<string, unknown>;
   /* 프로덕션에서는 스크립트 모드를 사용자가 바꿀 수 없으므로 저장값을 적용하지 않는다. */
-  if (
-    process.env.NODE_ENV !== "production" &&
-    isTranscriptionMode(o.mode)
-  ) {
+  if (process.env.NODE_ENV !== "production" && isTranscriptionMode(o.mode)) {
     base.mode = o.mode;
   }
   if (isRealtimeEngine(o.realtimeEngine)) {
