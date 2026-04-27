@@ -70,6 +70,11 @@ describe("SettingsProvider + useSettings", () => {
   });
 
   it("updateSettings 후 반영 및 localStorage 직렬화", async () => {
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ mode: "realtime", realtimeEngine: "openai" }),
+    );
+
     render(
       <SettingsProvider>
         <Consumer />

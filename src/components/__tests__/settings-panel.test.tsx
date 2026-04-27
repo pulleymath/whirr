@@ -37,7 +37,6 @@ describe("SettingsPanel", () => {
     expect(screen.getByTestId("settings-script-settings")).toBeTruthy();
     expect(screen.getByTestId("settings-batch-model-select")).toBeTruthy();
     expect(screen.getByTestId("session-minutes-model-select")).toBeTruthy();
-    expect(screen.getByTestId("settings-mode-batch")).toBeTruthy();
   });
 
   it("textarea에 입력하면 updateGlossary가 반영된다", async () => {

@@ -32,9 +32,9 @@ export type TranscriptionSettings = {
 };
 
 export const DEFAULT_TRANSCRIPTION_SETTINGS: TranscriptionSettings = {
-  mode: "realtime",
+  mode: "batch",
   realtimeEngine: "openai",
-  batchModel: "whisper-1",
+  batchModel: "gpt-4o-mini-transcribe",
   meetingMinutesModel: DEFAULT_MEETING_MINUTES_MODEL,
   language: "ko",
 };
@@ -58,7 +58,11 @@ export function parseTranscriptionSettings(
     return base;
   }
   const o = raw as Record<string, unknown>;
-  if (isTranscriptionMode(o.mode)) {
+  /* 프로덕션에서는 스크립트 모드를 사용자가 바꿀 수 없으므로 저장값을 적용하지 않는다. */
+  if (
+    process.env.NODE_ENV !== "production" &&
+    isTranscriptionMode(o.mode)
+  ) {
     base.mode = o.mode;
   }
   if (isRealtimeEngine(o.realtimeEngine)) {

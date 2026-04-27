@@ -9,6 +9,7 @@ import {
   MODE_OPTIONS,
 } from "@/lib/settings/options";
 import { useSettings } from "@/lib/settings/context";
+import { isScriptModeSettingsVisible } from "@/lib/settings/dev-ui";
 import type { RealtimeEngine } from "@/lib/settings/types";
 import { isWebSpeechApiSupported } from "@/lib/stt";
 import { useSyncExternalStore } from "react";
@@ -32,6 +33,7 @@ export function SettingsPanel({
     () => isWebSpeechApiSupported(),
     () => true,
   );
+  const showScriptModeSettings = isScriptModeSettingsVisible();
 
   if (!open) {
     return null;
@@ -133,87 +135,91 @@ export function SettingsPanel({
               스크립트 설정
             </h3>
 
-            <fieldset
-              className="mb-4 space-y-2"
-              disabled={transcriptionControlsDisabled}
-            >
-              <legend className="mb-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                스크립트 모드
-              </legend>
-              {MODE_OPTIONS.map((opt) => {
-                const isWebSpeech = opt.value === "webSpeechApi";
-                const optionDisabled =
-                  opt.value === "webSpeechApi"
-                    ? webSpeechOptionDisabled
-                    : transcriptionControlsDisabled;
-                return (
-                  <label
-                    key={opt.value}
-                    className={`flex gap-2 rounded-lg border border-transparent p-1.5 text-sm ${
-                      optionDisabled
-                        ? "cursor-not-allowed opacity-60"
-                        : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="settings-transcription-mode"
-                      value={opt.value}
-                      data-testid={`settings-mode-${opt.value}`}
-                      checked={settings.mode === opt.value}
-                      disabled={optionDisabled}
-                      onChange={() => {
-                        const nextMode = opt.value;
-                        updateSettings({
-                          mode: nextMode,
-                          ...(settings.language === "auto" &&
-                          nextMode !== "batch"
-                            ? { language: "ko" }
-                            : {}),
-                        });
-                      }}
-                      className="mt-0.5"
-                    />
-                    <span className="text-zinc-800 dark:text-zinc-200">
-                      {opt.label}
-                      {isWebSpeech && !webSpeechSupported ? (
-                        <span className="ml-1 text-xs font-normal text-zinc-500">
-                          (미지원)
-                        </span>
-                      ) : null}
-                    </span>
-                  </label>
-                );
-              })}
-            </fieldset>
-
-            {settings.mode === "realtime" ? (
-              <div className="mb-4">
-                <label
-                  htmlFor="settings-realtime-engine"
-                  className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
-                >
-                  실시간 엔진
-                </label>
-                <select
-                  id="settings-realtime-engine"
-                  data-testid="settings-realtime-engine-select"
+            {showScriptModeSettings ? (
+              <>
+                <fieldset
+                  className="mb-4 space-y-2"
                   disabled={transcriptionControlsDisabled}
-                  value={settings.realtimeEngine}
-                  onChange={(e) =>
-                    updateSettings({
-                      realtimeEngine: e.target.value as RealtimeEngine,
-                    })
-                  }
-                  className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
                 >
-                  {ENGINE_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <legend className="mb-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                    스크립트 모드
+                  </legend>
+                  {MODE_OPTIONS.map((opt) => {
+                    const isWebSpeech = opt.value === "webSpeechApi";
+                    const optionDisabled =
+                      opt.value === "webSpeechApi"
+                        ? webSpeechOptionDisabled
+                        : transcriptionControlsDisabled;
+                    return (
+                      <label
+                        key={opt.value}
+                        className={`flex gap-2 rounded-lg border border-transparent p-1.5 text-sm ${
+                          optionDisabled
+                            ? "cursor-not-allowed opacity-60"
+                            : "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="settings-transcription-mode"
+                          value={opt.value}
+                          data-testid={`settings-mode-${opt.value}`}
+                          checked={settings.mode === opt.value}
+                          disabled={optionDisabled}
+                          onChange={() => {
+                            const nextMode = opt.value;
+                            updateSettings({
+                              mode: nextMode,
+                              ...(settings.language === "auto" &&
+                              nextMode !== "batch"
+                                ? { language: "ko" }
+                                : {}),
+                            });
+                          }}
+                          className="mt-0.5"
+                        />
+                        <span className="text-zinc-800 dark:text-zinc-200">
+                          {opt.label}
+                          {isWebSpeech && !webSpeechSupported ? (
+                            <span className="ml-1 text-xs font-normal text-zinc-500">
+                              (미지원)
+                            </span>
+                          ) : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </fieldset>
+
+                {settings.mode === "realtime" ? (
+                  <div className="mb-4">
+                    <label
+                      htmlFor="settings-realtime-engine"
+                      className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400"
+                    >
+                      실시간 엔진
+                    </label>
+                    <select
+                      id="settings-realtime-engine"
+                      data-testid="settings-realtime-engine-select"
+                      disabled={transcriptionControlsDisabled}
+                      value={settings.realtimeEngine}
+                      onChange={(e) =>
+                        updateSettings({
+                          realtimeEngine: e.target.value as RealtimeEngine,
+                        })
+                      }
+                      className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+                    >
+                      {ENGINE_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
+              </>
             ) : null}
 
             <div>

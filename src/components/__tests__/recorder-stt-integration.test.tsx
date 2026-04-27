@@ -2,6 +2,7 @@
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
+import { SETTINGS_STORAGE_KEY } from "@/lib/settings/context";
 import { Recorder } from "../recorder";
 
 afterEach(() => {
@@ -15,6 +16,16 @@ function renderRecorder() {
       <Recorder />
     </MainAppProviders>,
   );
+}
+
+async function renderRecorderRealtime() {
+  const out = renderRecorder();
+  await vi.waitFor(() => {
+    expect(
+      document.querySelector('[data-transcription-mode="realtime"]'),
+    ).toBeTruthy();
+  });
+  return out;
 }
 
 const callOrder: string[] = [];
@@ -71,13 +82,17 @@ vi.mock("@/hooks/use-recorder", () => ({
 
 describe("Recorder STT 통합", () => {
   beforeEach(() => {
+    localStorage.setItem(
+      SETTINGS_STORAGE_KEY,
+      JSON.stringify({ mode: "realtime", realtimeEngine: "openai" }),
+    );
     callOrder.length = 0;
     testRecorderState.status = "idle";
     vi.clearAllMocks();
   });
 
   it("녹음 시작 시 prepareStreaming 후 녹음이 시작된다", async () => {
-    renderRecorder();
+    await renderRecorderRealtime();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
@@ -87,7 +102,7 @@ describe("Recorder STT 통합", () => {
   });
 
   it("PCM 청크가 sendPcm으로 전달된다", async () => {
-    renderRecorder();
+    await renderRecorderRealtime();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
@@ -97,7 +112,7 @@ describe("Recorder STT 통합", () => {
   });
 
   it("녹음 중지 시 stopRecording 후 finalizeStreaming이 호출된다", async () => {
-    const { rerender } = renderRecorder();
+    const { rerender } = await renderRecorderRealtime();
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
     await vi.waitFor(() => {

@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   DEFAULT_TRANSCRIPTION_SETTINGS,
   parseTranscriptionSettings,
 } from "../types";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("parseTranscriptionSettings", () => {
   it("undefined면 전 필드 기본값", () => {
@@ -18,10 +22,17 @@ describe("parseTranscriptionSettings", () => {
     });
   });
 
-  it("잘못된 mode 문자열은 기본값 realtime", () => {
+  it("잘못된 mode 문자열은 기본값 batch", () => {
     expect(parseTranscriptionSettings({ mode: "nope" })).toMatchObject({
-      mode: "realtime",
+      mode: "batch",
     });
+  });
+
+  it("production에서는 저장된 mode를 무시하고 batch", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    expect(
+      parseTranscriptionSettings({ mode: "realtime" }),
+    ).toMatchObject({ mode: "batch" });
   });
 
   it("잘못된 realtimeEngine은 기본값 openai", () => {
