@@ -1,15 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { useParams } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
-import { Check, Copy, Download, Loader2, Save } from "lucide-react";
-import {
-  getSessionAudio,
-  getSessionById,
-  updateSession,
-  type Session,
-} from "@/lib/db";
 import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
 import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
@@ -19,6 +9,12 @@ import { SessionMinutesModelSelect } from "@/components/session-minutes-model-se
 import { SessionScriptMetaDisplay } from "@/components/session-script-meta-display";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
+import {
+  getSessionAudio,
+  getSessionById,
+  updateSession,
+  type Session,
+} from "@/lib/db";
 import { downloadRecordingZip } from "@/lib/download-recording";
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
@@ -31,6 +27,10 @@ import {
   DEFAULT_MEETING_MINUTES_MODEL,
   isAllowedMeetingMinutesModelId,
 } from "@/lib/settings/types";
+import { Check, Copy, Download, Loader2, Save } from "lucide-react";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 const EMPTY_SESSION_CONTEXT: SessionContext = {
   participants: "",
@@ -198,16 +198,16 @@ function SessionDetailReadyContent({
   const [mmLoading, setMmLoading] = useState(false);
   const [mmError, setMmError] = useState<string | null>(null);
   const [contextDraft, setContextDraft] = useState<SessionContext>(
-    session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT,
+    session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT
   );
   const [glossaryDraft, setGlossaryDraft] = useState<string[]>(
-    session.context?.glossary ?? [],
+    session.context?.glossary ?? []
   );
   const [minutesModelDraft, setMinutesModelDraft] = useState(
-    session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
+    session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL
   );
   const [templateDraft, setTemplateDraft] = useState<MeetingMinutesTemplate>(
-    session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
+    session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE
   );
 
   useEffect(() => {
@@ -218,10 +218,10 @@ function SessionDetailReadyContent({
     setContextDraft(session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT);
     setGlossaryDraft(session.context?.glossary ?? []);
     setMinutesModelDraft(
-      session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
+      session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL
     );
     setTemplateDraft(
-      session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
+      session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE
     );
   }, [session.id, session.context, session.scriptMeta]);
 
@@ -261,7 +261,7 @@ function SessionDetailReadyContent({
       const refreshed = await onSessionRefresh();
       if (!refreshed) {
         setScriptSaveError(
-          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
         );
       }
     } catch (e) {
@@ -307,13 +307,13 @@ function SessionDetailReadyContent({
           glossary: glossaryDraft,
           sessionContext: sc ?? undefined,
           template: templateResolved,
-        },
+        }
       );
       await updateSession(session.id, { summary, status: "ready" });
       const refreshed = await onSessionRefresh();
       if (!refreshed) {
         setMmError(
-          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도하거나 세션 목록에서 다시 열어 주세요.",
+          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도하거나 세션 목록에서 다시 열어 주세요."
         );
       }
     } catch (e) {
@@ -480,8 +480,8 @@ function SessionDetailReadyContent({
         <div className="flex flex-wrap items-center justify-end gap-3">
           <IconButton
             icon={isDownloading ? Loader2 : Download}
-            ariaLabel={isDownloading ? "ZIP 생성 중" : "오디오 ZIP 다운로드"}
-            label={isDownloading ? "ZIP 생성 중..." : "오디오 ZIP 다운로드"}
+            ariaLabel={"오디오 다운로드"}
+            label={"오디오 다운로드"}
             variant="primary"
             disabled={isDownloading}
             iconClassName={isDownloading ? "animate-spin" : ""}
@@ -490,7 +490,7 @@ function SessionDetailReadyContent({
               try {
                 await downloadRecordingZip(
                   audioSegments,
-                  `session-${session.id}`,
+                  `session-${session.id}`
                 );
               } catch {
                 /* ZIP 생성·다운로드 실패는 UI만 복구(로딩 해제). 별도 토스트 없음. */

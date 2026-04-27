@@ -60,12 +60,12 @@ describe("SessionDetail 오디오 다운로드", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+        screen.getByRole("button", { name: "오디오 다운로드" }),
       ).toBeTruthy();
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+      screen.getByRole("button", { name: "오디오 다운로드" }),
     );
 
     await waitFor(() => {
@@ -94,7 +94,7 @@ describe("SessionDetail 오디오 다운로드", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("오디오 ZIP 다운로드")).toBeTruthy();
+      expect(screen.getByText("오디오 다운로드")).toBeTruthy();
     });
 
     expect(document.querySelector("audio")).toBeNull();
@@ -122,23 +122,23 @@ describe("SessionDetail 오디오 다운로드", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+        screen.getByRole("button", { name: "오디오 다운로드" }),
       ).toBeTruthy();
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+      screen.getByRole("button", { name: "오디오 다운로드" }),
     );
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+        screen.getByRole("button", { name: "오디오 다운로드" }),
       ).not.toBeDisabled();
     });
     expect(screen.queryByText("ZIP 생성 중...")).toBeNull();
   });
 
-  it("다운로드 진행 중에는 ZIP 생성 중 라벨을 표시한다", async () => {
+  it("다운로드 진행 중에는 버튼이 비활성화되었다가 완료 후 다시 활성화된다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "session-123",
       text: "스크립트 내용",
@@ -160,20 +160,23 @@ describe("SessionDetail 오디오 다운로드", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+        screen.getByRole("button", { name: "오디오 다운로드" }),
       ).toBeTruthy();
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
-    );
+    const btn = screen.getByRole("button", { name: "오디오 다운로드" });
+    fireEvent.click(btn);
 
     await waitFor(() => {
-      expect(screen.getByText("ZIP 생성 중...")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "오디오 다운로드" }),
+      ).toBeDisabled();
     });
 
     await waitFor(() => {
-      expect(screen.getByText("오디오 ZIP 다운로드")).toBeTruthy();
+      expect(
+        screen.getByRole("button", { name: "오디오 다운로드" }),
+      ).not.toBeDisabled();
     });
   });
 
@@ -192,7 +195,7 @@ describe("SessionDetail 오디오 다운로드", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByText("오디오 ZIP 다운로드")).toBeNull();
+      expect(screen.queryByText("오디오 다운로드")).toBeNull();
     });
   });
 });
