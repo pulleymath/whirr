@@ -1,3 +1,5 @@
+import { zipSync } from "fflate";
+
 /**
  * Blob을 브라우저에서 다운로드하도록 트리거합니다.
  */
@@ -17,18 +19,61 @@ export function triggerBlobDownload(blob: Blob, filename: string): void {
   }, 100);
 }
 
+function sanitizePrefix(prefix: string): string {
+  const trimmed = prefix.trim();
+  if (trimmed.length === 0) {
+    return "recording";
+  }
+  const replaced = trimmed
+    .replace(/[:/\\]/g, "_")
+    .replace(/[\u0000-\u001f]/g, "_");
+  if (!/[^_]/.test(replaced)) {
+    return "recording";
+  }
+  return replaced;
+}
+
+function segmentEntryName(safePrefix: string, index: number): string {
+  const segmentNumber = String(index + 1).padStart(3, "0");
+  return `${safePrefix}-segment-${segmentNumber}.webm`;
+}
+
 /**
- * 여러 오디오 세그먼트를 순차적으로 다운로드합니다.
+ * 녹음 세그먼트 Blob들로 zip Blob과 저장 파일명을 만든다. (단위 테스트·검증용)
  */
-export function downloadRecordingSegments(
+export async function buildRecordingZipBlob(
   blobs: Blob[],
   prefix: string = "recording",
-): void {
-  blobs.forEach((blob, index) => {
-    const segmentNumber = String(index + 1).padStart(3, "0");
-    // Windows 등 일부 OS에서 파일명에 ':' 문자가 포함되면 문제가 될 수 있으므로 치환합니다.
-    const safePrefix = prefix.replace(/:/g, "-");
-    const filename = `${safePrefix}-segment-${segmentNumber}.webm`;
-    triggerBlobDownload(blob, filename);
+): Promise<{ zipBlob: Blob; filename: string }> {
+  if (blobs.length === 0) {
+    throw new Error("buildRecordingZipBlob: blobs must be non-empty");
+  }
+  const safePrefix = sanitizePrefix(prefix);
+  const files: Record<string, Uint8Array> = {};
+  for (let i = 0; i < blobs.length; i++) {
+    const name = segmentEntryName(safePrefix, i);
+    const buf = await blobs[i].arrayBuffer();
+    files[name] = new Uint8Array(buf);
+  }
+  const zipped = zipSync(files);
+  const zipBlob = new Blob([Uint8Array.from(zipped)], {
+    type: "application/zip",
   });
+  return { zipBlob, filename: `${safePrefix}-audio.zip` };
+}
+
+/**
+ * 여러 오디오 세그먼트를 하나의 zip으로 묶어 한 번만 다운로드합니다.
+ * `blobs`가 비어 있으면 아무 작업도 하지 않습니다(예외 없음).
+ * ZIP 바이너리만 필요하면 `buildRecordingZipBlob`를 사용하세요(비어 있으면 예외).
+ */
+export async function downloadRecordingZip(
+  blobs: Blob[],
+  prefix: string = "recording",
+): Promise<void> {
+  if (blobs.length === 0) {
+    return;
+  }
+  const { zipBlob, filename } = await buildRecordingZipBlob(blobs, prefix);
+  triggerBlobDownload(zipBlob, filename);
 }

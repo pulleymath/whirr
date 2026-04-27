@@ -19,7 +19,7 @@ import { SessionMinutesModelSelect } from "@/components/session-minutes-model-se
 import { SessionScriptMetaDisplay } from "@/components/session-script-meta-display";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import { downloadRecordingSegments } from "@/lib/download-recording";
+import { downloadRecordingZip } from "@/lib/download-recording";
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
 import {
@@ -480,18 +480,20 @@ function SessionDetailReadyContent({
         <div className="flex flex-wrap items-center justify-end gap-3">
           <IconButton
             icon={isDownloading ? Loader2 : Download}
-            ariaLabel="오디오 다운로드"
-            label={isDownloading ? "다운로드 중..." : "오디오 다운로드"}
+            ariaLabel={isDownloading ? "ZIP 생성 중" : "오디오 ZIP 다운로드"}
+            label={isDownloading ? "ZIP 생성 중..." : "오디오 ZIP 다운로드"}
             variant="primary"
             disabled={isDownloading}
             iconClassName={isDownloading ? "animate-spin" : ""}
             onClick={async () => {
               setIsDownloading(true);
               try {
-                await downloadRecordingSegments(
+                await downloadRecordingZip(
                   audioSegments,
                   `session-${session.id}`,
                 );
+              } catch {
+                /* ZIP 생성·다운로드 실패는 UI만 복구(로딩 해제). 별도 토스트 없음. */
               } finally {
                 setIsDownloading(false);
               }

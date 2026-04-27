@@ -13,7 +13,7 @@ import {
   type Session,
   type SessionAudio,
 } from "@/lib/db";
-import { downloadRecordingSegments } from "@/lib/download-recording";
+import { downloadRecordingZip } from "@/lib/download-recording";
 import { SettingsProvider } from "@/lib/settings/context";
 import { SessionDetail } from "../session-detail";
 
@@ -28,7 +28,7 @@ vi.mock("@/lib/db", () => ({
 }));
 
 vi.mock("@/lib/download-recording", () => ({
-  downloadRecordingSegments: vi.fn(),
+  downloadRecordingZip: vi.fn().mockResolvedValue(undefined),
 }));
 
 afterEach(() => {
@@ -37,7 +37,7 @@ afterEach(() => {
 });
 
 describe("SessionDetail 오디오 다운로드", () => {
-  it("다운로드 버튼 클릭 시 오디오 세그먼트 전체를 다운로드 유틸에 전달한다", async () => {
+  it("다운로드 버튼 클릭 시 오디오 세그먼트 전체를 zip 다운로드 유틸에 전달한다", async () => {
     const segments = [
       new Blob(["audio-1"], { type: "audio/webm" }),
       new Blob(["audio-2"], { type: "audio/webm" }),
@@ -60,14 +60,16 @@ describe("SessionDetail 오디오 다운로드", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "오디오 다운로드" }),
+        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
       ).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "오디오 다운로드" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+    );
 
     await waitFor(() => {
-      expect(downloadRecordingSegments).toHaveBeenCalledWith(
+      expect(downloadRecordingZip).toHaveBeenCalledWith(
         segments,
         "session-session-123",
       );
@@ -92,10 +94,87 @@ describe("SessionDetail 오디오 다운로드", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("오디오 다운로드")).toBeTruthy();
+      expect(screen.getByText("오디오 ZIP 다운로드")).toBeTruthy();
     });
 
     expect(document.querySelector("audio")).toBeNull();
+  });
+
+  it("zip 다운로드 실패 후에도 버튼이 다시 활성화되고 라벨이 복귀한다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "session-123",
+      text: "스크립트 내용",
+      createdAt: Date.now(),
+    } as Session);
+    vi.mocked(getSessionAudio).mockResolvedValue({
+      sessionId: "session-123",
+      segments: [new Blob(["a"], { type: "audio/webm" })],
+    } as SessionAudio);
+    vi.mocked(downloadRecordingZip).mockRejectedValueOnce(
+      new Error("zip failed"),
+    );
+
+    render(
+      <SettingsProvider>
+        <SessionDetail />
+      </SettingsProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+      ).toBeTruthy();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+      ).not.toBeDisabled();
+    });
+    expect(screen.queryByText("ZIP 생성 중...")).toBeNull();
+  });
+
+  it("다운로드 진행 중에는 ZIP 생성 중 라벨을 표시한다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "session-123",
+      text: "스크립트 내용",
+      createdAt: Date.now(),
+    } as Session);
+    vi.mocked(getSessionAudio).mockResolvedValue({
+      sessionId: "session-123",
+      segments: [new Blob(["a"], { type: "audio/webm" })],
+    } as SessionAudio);
+    vi.mocked(downloadRecordingZip).mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(undefined), 80)),
+    );
+
+    render(
+      <SettingsProvider>
+        <SessionDetail />
+      </SettingsProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+      ).toBeTruthy();
+    });
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "오디오 ZIP 다운로드" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("ZIP 생성 중...")).toBeTruthy();
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("오디오 ZIP 다운로드")).toBeTruthy();
+    });
   });
 
   it("오디오가 없는 세션의 경우 다운로드 버튼을 표시하지 않는다", async () => {
@@ -113,7 +192,7 @@ describe("SessionDetail 오디오 다운로드", () => {
     );
 
     await waitFor(() => {
-      expect(screen.queryByText("오디오 다운로드")).toBeNull();
+      expect(screen.queryByText("오디오 ZIP 다운로드")).toBeNull();
     });
   });
 });
