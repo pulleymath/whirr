@@ -116,11 +116,10 @@ describe("Recorder 단계별 UI", () => {
     );
   });
 
-  it("idle 상태에서 reveal-session-context는 숨김(aria-hidden)이다", () => {
+  it("idle 상태에서도 reveal-session-context가 보인다", () => {
     renderRecorder();
-    expect(screen.getByTestId("reveal-session-context")).toHaveAttribute(
+    expect(screen.getByTestId("reveal-session-context")).not.toHaveAttribute(
       "aria-hidden",
-      "true",
     );
   });
 

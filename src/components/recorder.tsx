@@ -155,6 +155,11 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     partialRef.current = partial;
   }, [finals, partial]);
 
+  const resetSessionInputs = useCallback(() => {
+    setSessionContext(EMPTY_SESSION_CONTEXT);
+    setMeetingTemplate(DEFAULT_MEETING_MINUTES_TEMPLATE);
+  }, []);
+
   const persistBatchResult = useCallback(
     async (stopped: BatchStopResult) => {
       const { partialText, finalBlob, segments } = stopped;
@@ -190,12 +195,14 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
         engine:
           effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
       });
+      resetSessionInputs();
     },
     [
       enqueuePipeline,
       glossary.terms,
       meetingTemplate,
       onSessionSaved,
+      resetSessionInputs,
       sessionContext,
       settings.batchModel,
       settings.language,
@@ -316,6 +323,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
           engine:
             effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
         });
+        resetSessionInputs();
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         console.error("[session-storage] save failed:", msg);
@@ -328,6 +336,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     enqueuePipeline,
     glossary.terms,
     meetingTemplate,
+    resetSessionInputs,
     sessionContext,
     settings.batchModel,
     settings.language,
@@ -363,7 +372,6 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     ? Boolean(batchTranscriptText?.trim())
     : transcriptFinals.some((f) => f.trim().length > 0) ||
       transcriptPartial.trim().length > 0;
-  const showSessionContext = recordingActive;
   const showTranscript = recordingActive && hasTranscriptScript;
   const showTranscriptErrorOnCard =
     recordingActive && Boolean(transcriptError?.trim()) && !hasTranscriptScript;
@@ -445,10 +453,8 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
         ]}
       />
 
-      <RevealSection
-        visible={showSessionContext}
-        testId="reveal-session-context"
-      >
+      {/* 회의 정보·회의록 형식은 idle부터 항상 노출한다. pipeline.isBusy일 때만 입력이 비활성된다. */}
+      <RevealSection visible testId="reveal-session-context">
         <SessionContextInput
           value={sessionContext}
           onChange={setSessionContext}
