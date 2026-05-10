@@ -1,8 +1,17 @@
 @import "tailwindcss";
 
+/* DESIGN.md §1: 다크모드 단일 지원. 라이트 모드는 비목표.
+ * 시스템 prefers-color-scheme 와 무관하게 항상 다크 톤으로 렌더한다. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a0a;
+  --foreground: #ededed;
+
+  /* DESIGN.md §2: sky = 시스템 액센트(포커스·진행률·활성 강조) — 네이티브 폼 컨트롤(라디오·체크박스·범위)도 같은 색으로 통일한다. */
+  accent-color: var(--color-sky-500);
+  /* 스크롤바·폼 기본 톤을 다크 기준으로 맞춘다(브라우저 기본). */
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -13,13 +22,6 @@
 
   --header-height: 3.5rem;
   --sidebar-width: 16rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {

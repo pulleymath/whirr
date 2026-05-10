@@ -7,8 +7,7 @@ const variantClass: Record<TabPanelBodyVariant, string> = {
     "border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-950",
   dashed:
     "border-dashed border-zinc-200 bg-zinc-50/80 dark:border-zinc-700 dark:bg-zinc-900/40",
-  error:
-    "border-rose-200 bg-rose-50/80 dark:border-rose-900 dark:bg-rose-950/40",
+  error: "border-red-900 bg-red-950/40 dark:border-red-900 dark:bg-red-950/40",
 };
 
 export type TabPanelBodyProps = {

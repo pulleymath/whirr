@@ -9,7 +9,7 @@ function cx(...parts: (string | undefined)[]): string {
 const baseText = "text-zinc-800 dark:text-zinc-200";
 const heading = "font-semibold text-zinc-900 dark:text-zinc-50";
 const link =
-  "font-medium text-emerald-600 underline underline-offset-2 hover:text-emerald-500 dark:text-emerald-400";
+  "font-medium text-sky-500 underline underline-offset-2 hover:text-sky-400";
 
 const meetingMinutesComponents: Partial<Components> = {
   p: ({ className, ...props }) => (

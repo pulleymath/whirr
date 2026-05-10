@@ -120,7 +120,7 @@ export function MainShell({
         <h1 className="text-center text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-50 md:text-left">
           <Link
             href="/"
-            className="cursor-pointer rounded-sm hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:text-zinc-300 dark:focus-visible:ring-zinc-500 dark:focus-visible:ring-offset-zinc-950"
+            className="cursor-pointer rounded-sm hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:text-zinc-300 dark:focus-visible:ring-offset-zinc-950"
           >
             Whirr
           </Link>

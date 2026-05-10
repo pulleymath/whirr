@@ -103,8 +103,8 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
               const href = sessionHref(s.id);
               const isActive = pathnameDecoded === s.id;
               const rowClass = isActive
-                ? "block bg-zinc-100/90 px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
-                : "block px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-emerald-500/60 dark:hover:bg-zinc-900/60";
+                ? "block bg-zinc-100/90 px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-100 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500/60 dark:bg-zinc-800/80 dark:hover:bg-zinc-800"
+                : "block px-3 py-3 text-left outline-none transition-colors hover:bg-zinc-50 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-500/60 dark:hover:bg-zinc-900/60";
               const disabledClass =
                 "cursor-not-allowed opacity-50 hover:bg-transparent dark:hover:bg-transparent";
               return (

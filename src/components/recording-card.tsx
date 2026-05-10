@@ -36,7 +36,7 @@ export type RecordingCardProps = {
 
 const TONE_CLASS: Record<StatusMessage["tone"], string> = {
   warning: "text-sm text-amber-700 dark:text-amber-300",
-  error: "text-sm text-rose-600 dark:text-rose-400",
+  error: "text-sm text-red-600 dark:text-red-400",
   muted: "text-sm text-zinc-600 dark:text-zinc-400",
 };
 
@@ -105,7 +105,7 @@ export function RecordingCard({
           aria-label="마이크 레벨"
         >
           <div
-            className="h-full rounded-full bg-emerald-500 transition-[width] duration-75 ease-out"
+            className="h-full rounded-full bg-rose-500 transition-[width] duration-75 ease-out"
             style={{ width: `${Math.round(level * 100)}%` }}
           />
         </div>
@@ -124,7 +124,7 @@ export function RecordingCard({
               aria-valuenow={Math.round(segmentProgress * 100)}
             >
               <div
-                className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
+                className="h-full rounded-full bg-sky-500 transition-[width] duration-300 ease-linear"
                 style={{
                   width: `${Math.round(segmentProgress * 100)}%`,
                 }}
@@ -148,47 +148,6 @@ export function RecordingCard({
           />
         </div>
       )}
-
-      {/* {isBatchMode && batchRecording && (
-        <div className="flex flex-col gap-2">
-          <div className="flex flex-col gap-1">
-            <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-              <span>현재 세그먼트 (5분)</span>
-              <span>{Math.round(segmentProgress * 100)}%</span>
-            </div>
-            <div
-              className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-900"
-              role="progressbar"
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(segmentProgress * 100)}
-            >
-              <div
-                className="h-full rounded-full bg-blue-500 transition-[width] duration-300 ease-linear"
-                style={{
-                  width: `${Math.round(segmentProgress * 100)}%`,
-                }}
-              />
-            </div>
-          </div>
-          {totalCount > 0 && (
-            <div className="flex justify-between text-[10px] font-medium text-zinc-500 dark:text-zinc-400">
-              <span>스크립트 진행률</span>
-              <span>
-                {completedCount} / {totalCount} 세그먼트 완료
-              </span>
-            </div>
-          )}
-          <BatchRetryControl
-            mode="recording"
-            failedCount={failedCount}
-            isRetrying={false}
-            retryProcessed={0}
-            retryTotal={0}
-            onRetry={() => {}}
-          />
-        </div>
-      )} */}
 
       {stoppedRetry ? (
         <BatchRetryControl mode="stopped" {...stoppedRetry} />

@@ -135,7 +135,7 @@ function SessionDetailBody({
         </p>
         <Link
           href="/"
-          className="w-fit cursor-pointer text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+          className="w-fit cursor-pointer text-sm font-medium text-sky-500 hover:text-sky-400"
         >
           홈으로
         </Link>
@@ -399,7 +399,7 @@ function SessionDetailReadyContent({
         rows={14}
         spellCheck={false}
         aria-label="스크립트 편집"
-        className="mt-4 min-h-[12rem] w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        className="mt-4 min-h-[12rem] w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
       />
       {scriptDirty ? (
         <p
@@ -529,7 +529,7 @@ export function SessionDetail() {
         </p>
         <Link
           href="/"
-          className="w-fit cursor-pointer text-sm font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400"
+          className="w-fit cursor-pointer text-sm font-medium text-sky-500 hover:text-sky-400"
         >
           홈으로
         </Link>

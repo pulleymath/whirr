@@ -4,7 +4,7 @@ import { type ReactNode } from "react";
 
 const VARIANT_CLASSES: Record<"primary" | "outline" | "ghost", string> = {
   primary:
-    "border-transparent bg-emerald-600 text-white hover:bg-emerald-500 disabled:hover:bg-emerald-600",
+    "border-transparent bg-sky-600 text-white hover:bg-sky-500 disabled:hover:bg-sky-600",
   outline:
     "border border-zinc-200 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800",
   ghost:

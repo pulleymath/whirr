@@ -18,6 +18,7 @@
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | 시스템 경계, 구성 요소 책임, 데이터·신뢰 경계 |
 | [DECISIONS.md](./DECISIONS.md)       | 채택한 기술·정책 결정과 이유                  |
 | [GLOSSARY.md](./GLOSSARY.md)         | 자주 쓰는 용어 정의                           |
+| [USER_FLOWS.md](./USER_FLOWS.md)     | 상황별 happy path / edge case 시나리오        |
 
 ### 실행·배포·보안
 
@@ -30,8 +31,10 @@
 
 ### 개발 관행
 
-| 문서                               | 용도                                 |
-| ---------------------------------- | ------------------------------------ |
-| [CODEMAP.md](./CODEMAP.md)         | `src/` 주요 디렉터리 책임(탐색용)    |
-| [CONVENTIONS.md](./CONVENTIONS.md) | 포맷·린트·이름·import·테스트 배치    |
-| [TESTING.md](./TESTING.md)         | Vitest·환경·테스트 구역·완료 전 검증 |
+| 문서                               | 용도                                         |
+| ---------------------------------- | -------------------------------------------- |
+| [CODEMAP.md](./CODEMAP.md)         | `src/` 주요 디렉터리 책임(탐색용)            |
+| [CONVENTIONS.md](./CONVENTIONS.md) | 포맷·린트·이름·import·테스트 배치            |
+| [DESIGN.md](./DESIGN.md)           | 시각 토큰의 의도·경계(색·타이포·간격·라운드) |
+| [UI_PATTERNS.md](./UI_PATTERNS.md) | 컴포넌트 선택·상태·모션·접근성 패턴          |
+| [TESTING.md](./TESTING.md)         | Vitest·환경·테스트 구역·완료 전 검증         |

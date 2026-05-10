@@ -45,7 +45,7 @@ export function TranscriptView({
 
       {errorMessage ? (
         <p
-          className="mb-3 text-sm text-rose-600 dark:text-rose-400"
+          className="mb-3 text-sm text-red-600 dark:text-red-400"
           role="alert"
         >
           {errorMessage}
@@ -83,7 +83,7 @@ export function TranscriptView({
         placeholder={showEmptyHint ? emptyHint : ""}
         data-testid="transcript-textarea"
         aria-label="실시간 스크립트 텍스트"
-        className="mt-3 min-h-48 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        className="mt-3 min-h-48 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
       />
 
       {isSegmentInFlight ? (

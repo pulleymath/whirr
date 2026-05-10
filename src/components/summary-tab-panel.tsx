@@ -71,7 +71,7 @@ export function SummaryTabPanel({
       return (
         <TabPanelBody
           variant="error"
-          scrollClassName="text-rose-800 dark:text-rose-200"
+          scrollClassName="text-red-800 dark:text-red-200"
         >
           <div role="alert" aria-label="회의록 오류">
             <p>

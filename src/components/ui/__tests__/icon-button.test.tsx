@@ -62,10 +62,10 @@ describe("IconButton", () => {
     );
   });
 
-  it("variant='primary'이면 emerald 배경이다", () => {
+  it("variant='primary'이면 sky 배경이다(시스템 액센트)", () => {
     render(<IconButton icon={Copy} ariaLabel="복사" variant="primary" />);
     expect(screen.getByRole("button", { name: "복사" }).className).toMatch(
-      /bg-emerald-600/,
+      /bg-sky-600/,
     );
   });
 });

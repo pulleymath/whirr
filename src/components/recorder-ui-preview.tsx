@@ -43,14 +43,14 @@ export function RecorderUiPreview() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200/80 bg-amber-50 px-4 py-3 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-amber-700 dark:text-amber-300">
         <p>
           <strong className="font-semibold">UI 프리뷰</strong> — 마이크·API 호출
           없음. 단계만 고릅니다.
         </p>
         <Link
           href="/"
-          className="shrink-0 text-amber-800 underline underline-offset-2 hover:text-amber-950 dark:text-amber-200 dark:hover:text-amber-50"
+          className="shrink-0 text-sky-500 underline underline-offset-2 hover:text-sky-400"
         >
           홈으로
         </Link>

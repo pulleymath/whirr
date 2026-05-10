@@ -477,7 +477,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
 
       {persistError || pipeline.errorMessage ? (
         <p
-          className="mt-6 text-sm text-rose-600 dark:text-rose-400"
+          className="mt-6 text-sm text-red-600 dark:text-red-400"
           role="alert"
           data-testid="recorder-pipeline-user-error"
         >

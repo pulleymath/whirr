@@ -8,7 +8,7 @@ const VARIANT_CLASSES: Record<"ghost" | "outline" | "primary", string> = {
   outline:
     "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800",
   primary:
-    "border-transparent bg-emerald-600 text-white hover:bg-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500",
+    "border-transparent bg-sky-600 text-white hover:bg-sky-500 dark:bg-sky-600 dark:hover:bg-sky-500",
 };
 
 export type IconButtonProps = {
