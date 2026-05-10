@@ -34,7 +34,6 @@ export function RecorderUiPreview() {
 
   const recordingActive = phase !== "idle";
   const hasScript = phase === "script";
-  const showSessionContext = recordingActive;
   const showTranscript = recordingActive && hasScript;
 
   const displayElapsedMs = recordingActive ? 125_000 : 0;
@@ -63,8 +62,8 @@ export function RecorderUiPreview() {
       >
         {(
           [
-            ["idle", "녹음 전 (카드만)"],
-            ["recording", "녹음 중 (컨텍스트까지)"],
+            ["idle", "녹음 전 (카드+컨텍스트)"],
+            ["recording", "녹음 중"],
             ["script", "스크립트 수신 후"],
           ] as const
         ).map(([value, label]) => (
@@ -116,10 +115,8 @@ export function RecorderUiPreview() {
           }
         />
 
-        <RevealSection
-          visible={showSessionContext}
-          testId="reveal-session-context"
-        >
+        {/* 회의 정보 영역은 idle부터 항상 노출 — Recorder 본체와 동일 정책. */}
+        <RevealSection visible testId="reveal-session-context">
           <SessionContextInput
             value={sessionContext}
             onChange={setSessionContext}
