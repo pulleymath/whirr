@@ -94,6 +94,24 @@ describe("useRecorder", () => {
     expect(result.current.errorMessage).toMatch(/권한/);
   });
 
+  it("마이크 권한 거부 후 재시도하면 recording 상태가 된다", async () => {
+    vi.mocked(startPcmRecording)
+      .mockRejectedValueOnce({ name: "NotAllowedError" })
+      .mockResolvedValueOnce({
+        stop: mockStop,
+        analyser: mockAnalyser as unknown as AnalyserNode,
+      });
+    const { result } = renderHook(() => useRecorder());
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.status).toBe("error");
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(result.current.status).toBe("recording");
+  });
+
   it("진행 중 중복 start는 startPcmRecording을 한 번만 호출한다", async () => {
     let resolveSession!: (value: PcmRecordingSession) => void;
 

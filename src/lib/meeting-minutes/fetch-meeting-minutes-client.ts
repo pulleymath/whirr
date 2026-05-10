@@ -1,3 +1,4 @@
+import { userFacingHttpErrorMessage } from "@/lib/api/user-facing-fetch-error";
 import type { SessionContext } from "@/lib/glossary/types";
 import type { MeetingMinutesTemplate } from "@/lib/meeting-minutes/templates";
 
@@ -34,13 +35,20 @@ export async function fetchMeetingMinutesSummary(
   });
   const data: unknown = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg =
+    const serverMsg =
       data &&
       typeof data === "object" &&
       data !== null &&
       "error" in data &&
       typeof (data as { error: unknown }).error === "string"
         ? (data as { error: string }).error
+        : null;
+    if (res.status === 429) {
+      throw new Error(userFacingHttpErrorMessage(429));
+    }
+    const msg =
+      serverMsg != null && serverMsg.trim()
+        ? serverMsg.trim()
         : "회의록 요청에 실패했습니다.";
     throw new Error(msg);
   }

@@ -67,6 +67,7 @@ describe("PipelineToastNotifier", () => {
     expect(toast.success).toHaveBeenCalledWith(
       "회의록이 완성되었습니다",
       expect.objectContaining({
+        id: "pipeline-meeting-done",
         duration: 8000,
         action: expect.objectContaining({ label: "바로 보기" }),
       }),

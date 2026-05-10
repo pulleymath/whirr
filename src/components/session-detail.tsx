@@ -27,6 +27,7 @@ import {
   DEFAULT_MEETING_MINUTES_MODEL,
   isAllowedMeetingMinutesModelId,
 } from "@/lib/settings/types";
+import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { Check, Copy, Download, Loader2, Save } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -47,6 +48,25 @@ function sessionContextForApi(value: SessionContext): SessionContext | null {
     return null;
   }
   return value;
+}
+
+/** 라우트 `id` 세그먼트를 세션 id로 안전히 해석한다. 잘못된 퍼센트 인코딩이면 `null`. */
+function parseRouteSessionId(rawId: unknown): string | null {
+  const rawStr =
+    typeof rawId === "string"
+      ? rawId
+      : Array.isArray(rawId)
+        ? (rawId[0] ?? "")
+        : "";
+  if (!rawStr) {
+    return null;
+  }
+  try {
+    const decoded = decodeURIComponent(rawStr);
+    return decoded.trim() === "" ? null : decoded;
+  } catch {
+    return null;
+  }
 }
 
 type DetailState =
@@ -197,6 +217,7 @@ function SessionDetailReadyContent({
   const [scriptSaveError, setScriptSaveError] = useState<string | null>(null);
   const [mmLoading, setMmLoading] = useState(false);
   const [mmError, setMmError] = useState<string | null>(null);
+  useBeforeUnload(mmLoading);
   const [contextDraft, setContextDraft] = useState<SessionContext>(
     session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT
   );
@@ -515,13 +536,11 @@ function SessionDetailReadyContent({
 
 export function SessionDetail() {
   const params = useParams();
-  const rawId = params?.id;
-  const id =
-    typeof rawId === "string" ? rawId : Array.isArray(rawId) ? rawId[0] : "";
+  const id = parseRouteSessionId(params?.id);
 
   const [retryToken, setRetryToken] = useState(0);
 
-  if (!id) {
+  if (id == null) {
     return (
       <div className="flex w-full max-w-2xl flex-col gap-4">
         <p className="text-zinc-800 dark:text-zinc-200">

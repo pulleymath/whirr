@@ -92,12 +92,20 @@ async function defaultFetchToken(): Promise<string> {
   const res = await fetch("/api/stt/token", { method: "POST" });
   const body = (await res.json().catch(() => ({}))) as unknown;
   if (!res.ok) {
-    const msg =
+    if (res.status === 429) {
+      throw new Error("Too many STT token requests");
+    }
+    const serverMsg =
       body &&
       typeof body === "object" &&
+      body !== null &&
       "error" in body &&
       typeof (body as { error: unknown }).error === "string"
         ? (body as { error: string }).error
+        : null;
+    const msg =
+      serverMsg != null && serverMsg.trim()
+        ? serverMsg.trim()
         : "Failed to get STT token";
     throw new Error(msg);
   }

@@ -115,7 +115,7 @@ export function userFacingSttError(raw: string): string {
     case "Invalid token response":
       return "음성 인식을 시작할 수 없습니다. 잠시 후 다시 시도해 주세요.";
     case "Too many STT token requests":
-      return "요청이 너무 많습니다. 잠시 후 다시 시도해 주세요.";
+      return "요청이 많아 잠시 후 다시 시도해 주세요.";
     case "STT transcription service unavailable":
       return "일괄 스크립트 서비스가 설정되지 않았습니다. 관리자에게 문의하세요.";
     case "Failed to transcribe audio":

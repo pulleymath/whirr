@@ -8,6 +8,8 @@
 | -------------------- | --------------------------------- |
 | `npm run test`       | 한 번 실행 후 종료 (`vitest run`) |
 | `npm run test:watch` | 파일 변경 시 재실행 (`vitest`)    |
+| `npm run lint`       | ESLint                            |
+| `npm run typecheck`  | TypeScript 검사 (`tsc --noEmit`)  |
 
 관련 의존성: `vitest`, `@testing-library/react`, `happy-dom`, `fake-indexeddb`.
 
@@ -33,4 +35,4 @@
 
 ## 완료 판단 전에 할 일
 
-기능이나 수정이 “끝났다”고 말하기 전에 **최소한 `npm run test`를 통과**시키는 것을 원칙으로 한다. 로컬에서 반복 작업할 때는 `npm run test:watch`를 쓰면 된다.
+기능이나 수정이 “끝났다”고 말하기 전에 **`npm run test`**, **`npm run lint`**, **`npm run typecheck`**를 통과시키는 것을 원칙으로 한다. 로컬에서 반복 작업할 때는 `npm run test:watch`를 쓰면 된다.

@@ -96,6 +96,8 @@ export function PostRecordingPipelineProvider({
   );
   const abortRef = useRef<AbortController | null>(null);
   const inFlightRef = useRef(false);
+  /** 현재 `runPipeline`에서 처리 중인 세션 id(중복 enqueue 판별용) */
+  const currentSessionIdRef = useRef<string | null>(null);
   const pendingRef = useRef<PostRecordingPipelineEnqueueInput[]>([]);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -120,6 +122,7 @@ export function PostRecordingPipelineProvider({
   useLayoutEffect(() => {
     runPipelineRef.current = (input: PostRecordingPipelineEnqueueInput) => {
       inFlightRef.current = true;
+      currentSessionIdRef.current = input.sessionId;
       clearIdleTimer();
       abortRef.current?.abort();
       const ac = new AbortController();
@@ -138,6 +141,7 @@ export function PostRecordingPipelineProvider({
           runPipelineRef.current(next);
         } else {
           inFlightRef.current = false;
+          currentSessionIdRef.current = null;
         }
       };
 
@@ -250,6 +254,15 @@ export function PostRecordingPipelineProvider({
   }, [clearIdleTimer]);
 
   const enqueue = useCallback((input: PostRecordingPipelineEnqueueInput) => {
+    if (
+      inFlightRef.current &&
+      currentSessionIdRef.current === input.sessionId
+    ) {
+      return;
+    }
+    if (pendingRef.current.some((p) => p.sessionId === input.sessionId)) {
+      return;
+    }
     if (inFlightRef.current) {
       pendingRef.current.push(input);
       return;
