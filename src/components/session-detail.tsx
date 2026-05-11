@@ -1,9 +1,7 @@
 "use client";
 
-import { MainTranscriptTabs } from "@/components/main-transcript-tabs";
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
-import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
-import { SessionContextInput } from "@/components/session-context-input";
+import { RecorderNoteWorkspace } from "@/components/recorder-note-workspace";
 import { SessionGlossaryEditor } from "@/components/session-glossary-editor";
 import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
 import { SessionScriptMetaDisplay } from "@/components/session-script-meta-display";
@@ -354,12 +352,8 @@ function SessionDetailReadyContent({
     templateDraft,
   ]);
 
-  const summaryPanel = (
-    <div
-      className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-      role="region"
-      aria-label="요약"
-    >
+  const summaryPanelContent = (
+    <div className="flex min-h-0 flex-1 flex-col gap-4" role="region" aria-label="요약">
       {session.summary ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <IconButton
@@ -372,23 +366,23 @@ function SessionDetailReadyContent({
         </div>
       ) : null}
       {session.summary ? (
-        <div className="mt-4 text-sm leading-relaxed">
+        <div className="min-h-0 flex-1 overflow-y-auto text-sm leading-relaxed">
           <MeetingMinutesMarkdown markdown={session.summary} />
         </div>
       ) : hasText ? (
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
           아직 요약이 없습니다. 스크립트 탭 하단에서 요약을 생성하세요.
         </p>
       ) : (
-        <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
+        <p className="text-sm text-zinc-500 dark:text-zinc-400">
           스크립트가 비어 있으면 요약을 만들 수 없습니다.
         </p>
       )}
     </div>
   );
 
-  const transcriptPanel = (
-    <div className="flex flex-col" role="region" aria-label="스크립트">
+  const scriptTabBody = (
+    <div className="flex min-h-0 flex-1 flex-col gap-4" role="region" aria-label="스크립트">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <IconButton
           icon={copiedScript ? Check : Copy}
@@ -416,11 +410,11 @@ function SessionDetailReadyContent({
         rows={14}
         spellCheck={false}
         aria-label="스크립트 편집"
-        className="mt-4 min-h-[12rem] w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        className="min-h-[min(40vh,16rem)] w-full flex-1 resize-y rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700/90 dark:bg-zinc-900/60 dark:text-zinc-200"
       />
       {scriptDirty ? (
         <p
-          className="mt-2 text-xs text-amber-800 dark:text-amber-200/90"
+          className="text-xs text-amber-800 dark:text-amber-200/90"
           role="status"
         >
           저장하지 않은 내용은 요약 생성·재생성에 반영됩니다. 세션 목록 등에
@@ -428,32 +422,20 @@ function SessionDetailReadyContent({
         </p>
       ) : null}
       {scriptSaveError ? (
-        <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+        <p className="text-sm text-red-600 dark:text-red-400" role="alert">
           {scriptSaveError}
         </p>
       ) : null}
 
       <section
-        className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700"
+        className="border-t border-zinc-200 pt-5 dark:border-zinc-700"
         aria-label="요약 생성 설정"
       >
-        <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
+        <h2 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
           요약 생성
         </h2>
         <div className="flex flex-col gap-4">
           <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
-          <SessionContextInput
-            value={contextDraft}
-            onChange={setContextDraft}
-            disabled={mmLoading}
-            topContent={
-              <MeetingTemplateSelector
-                value={templateDraft}
-                onChange={setTemplateDraft}
-                disabled={mmLoading}
-              />
-            }
-          />
           <SessionGlossaryEditor
             value={glossaryDraft}
             onChange={setGlossaryDraft}
@@ -492,7 +474,7 @@ function SessionDetailReadyContent({
   );
 
   return (
-    <div className="flex w-full flex-col gap-6">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
       {audioSegments.length > 0 ? (
         <div className="flex flex-wrap items-center justify-end gap-3">
           <IconButton
@@ -519,13 +501,20 @@ function SessionDetailReadyContent({
         </div>
       ) : null}
 
-      <MainTranscriptTabs
+      <RecorderNoteWorkspace
         key={session.id}
-        defaultActive="summary"
-        tabOrder="summary-first"
-        summaryPanel={summaryPanel}
-        transcriptPanel={transcriptPanel}
-      />
+        noteTitle={session.title?.trim() ?? ""}
+        onNoteTitleChange={() => {}}
+        titleReadOnly
+        sessionContext={contextDraft}
+        onSessionContextChange={setContextDraft}
+        meetingTemplate={templateDraft}
+        onMeetingTemplateChange={setTemplateDraft}
+        pipelineBusy={mmLoading}
+        summaryPanelContent={summaryPanelContent}
+      >
+        {scriptTabBody}
+      </RecorderNoteWorkspace>
     </div>
   );
 }

@@ -57,7 +57,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -104,7 +104,7 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -126,7 +126,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: "뒤로" })).toBeNull();
@@ -146,10 +146,87 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     expect(screen.queryByLabelText("오디오 재생")).toBeNull();
+  });
+
+  it("세션 상세에 RecordingCard 도킹이 없다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "t",
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
+    });
+
+    expect(screen.queryByTestId("recording-card-dock")).toBeNull();
+  });
+
+  it("세션 제목을 읽기전용 h2로 표시한다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "본문",
+      title: "내 회의 노트",
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("recorder-note-title")).toBeInTheDocument();
+    });
+
+    const titleEl = screen.getByTestId("recorder-note-title");
+    expect(titleEl.tagName).toBe("H2");
+    expect(titleEl).toHaveTextContent("내 회의 노트");
+    expect(
+      screen.queryByRole("textbox", { name: "노트 제목" }),
+    ).toBeNull();
+  });
+
+  it("오디오 세그먼트가 있으면 ZIP 다운로드 버튼을 보여준다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "t",
+    });
+    vi.mocked(getSessionAudio).mockResolvedValue({
+      sessionId: "sess-1",
+      segments: [new Blob(["x"], { type: "audio/webm" })],
+    });
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "오디오 다운로드" }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("오디오 세그먼트가 없으면 ZIP 다운로드 버튼을 보이지 않는다", async () => {
+    vi.mocked(getSessionById).mockResolvedValue({
+      id: "sess-1",
+      createdAt: 1,
+      text: "t",
+    });
+    vi.mocked(getSessionAudio).mockResolvedValue(undefined);
+
+    renderSessionDetail();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
+    });
+
+    expect(
+      screen.queryByRole("button", { name: "오디오 다운로드" }),
+    ).toBeNull();
   });
 
   it("스크립트 패널에 h2 '스크립트' 제목이 없다", async () => {
@@ -162,7 +239,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -189,7 +266,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
     expect(
@@ -213,7 +290,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -254,7 +331,7 @@ describe("SessionDetail", () => {
       ).toBeTruthy();
     });
 
-    expect(screen.getByRole("tab", { name: "요약" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "AI 요약" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -281,7 +358,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -322,7 +399,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -330,7 +407,7 @@ describe("SessionDetail", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
-    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI 요약" }));
     expect(
       screen.getByText(/아직 요약이 없습니다\. 스크립트 탭 하단에서/),
     ).toBeTruthy();
@@ -377,7 +454,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -446,7 +523,7 @@ describe("SessionDetail", () => {
       expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
+    fireEvent.click(screen.getByRole("tab", { name: "AI 요약" }));
 
     await waitFor(() => {
       expect(screen.getByText("생성된 요약")).toBeTruthy();

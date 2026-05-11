@@ -71,7 +71,7 @@ describe("SessionDetail: 요약 생성 중 beforeunload", () => {
     render(<SessionDetail />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
