@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MEETING_MINUTES_TEMPLATE,
   MEETING_MINUTES_TEMPLATE_OPTIONS,
+  previewMeetingMinutesTemplate,
   renderMeetingMinutesTemplateInstruction,
 } from "../templates";
 
@@ -66,5 +67,38 @@ describe("meeting minutes templates", () => {
     ).toBe(
       renderMeetingMinutesTemplateInstruction(DEFAULT_MEETING_MINUTES_TEMPLATE),
     );
+  });
+
+  it("preview for business includes business structure sections", () => {
+    const preview = previewMeetingMinutesTemplate({ id: "business" });
+    expect(preview).toContain("목적 / 상대 니즈");
+    expect(preview).toContain("제안 / 조건");
+    expect(preview).toContain("리스크");
+  });
+
+  it("preview for default matches instruction structure lines", () => {
+    const preview = previewMeetingMinutesTemplate({ id: "default" });
+    const instruction = renderMeetingMinutesTemplateInstruction({
+      id: "default",
+    });
+    expect(instruction).toContain(preview);
+  });
+
+  it("custom preview returns prompt when non-empty", () => {
+    expect(
+      previewMeetingMinutesTemplate({
+        id: "custom",
+        prompt: "  ## 나만의\n- 섹션  ",
+      }),
+    ).toBe("## 나만의\n- 섹션");
+  });
+
+  it("custom preview with empty prompt returns guidance placeholder", () => {
+    const preview = previewMeetingMinutesTemplate({
+      id: "custom",
+      prompt: "  \t  ",
+    });
+    expect(preview).toContain("기본회의 형식");
+    expect(preview).toContain("Markdown");
   });
 });

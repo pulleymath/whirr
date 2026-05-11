@@ -1,10 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
+import { RecorderNoteWorkspace } from "@/components/recorder-note-workspace";
 import { RecordingCard } from "@/components/recording-card";
 import { RevealSection } from "@/components/recorder-reveal-section";
-import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
 import type { SessionContext } from "@/lib/glossary/types";
 import {
@@ -27,6 +26,7 @@ type PreviewPhase = "idle" | "recording" | "script";
  */
 export function RecorderUiPreview() {
   const [phase, setPhase] = useState<PreviewPhase>("idle");
+  const [noteTitle, setNoteTitle] = useState("");
   const [sessionContext, setSessionContext] =
     useState<SessionContext>(EMPTY_CONTEXT);
   const [meetingTemplate, setMeetingTemplate] =
@@ -34,7 +34,6 @@ export function RecorderUiPreview() {
 
   const recordingActive = phase !== "idle";
   const hasScript = phase === "script";
-  const showTranscript = recordingActive && hasScript;
 
   const displayElapsedMs = recordingActive ? 125_000 : 0;
   const displayLevel = recordingActive ? 0.35 : 0;
@@ -62,7 +61,7 @@ export function RecorderUiPreview() {
       >
         {(
           [
-            ["idle", "녹음 전 (카드+컨텍스트)"],
+            ["idle", "녹음 전"],
             ["recording", "녹음 중"],
             ["script", "스크립트 수신 후"],
           ] as const
@@ -88,70 +87,74 @@ export function RecorderUiPreview() {
         data-transcription-mode="batch"
         data-preview="true"
       >
-        <RecordingCard
-          elapsedMs={displayElapsedMs}
-          level={displayLevel}
-          showStart={!recordingActive}
-          showStop={recordingActive}
-          recordingActive={recordingActive}
-          onStart={() => {}}
-          onStop={() => {}}
-          isBatchMode
-          batchRecording={batchRecording}
-          segmentProgress={batchRecording ? 0.42 : 0}
-          completedCount={batchRecording ? 2 : 0}
-          totalCount={batchRecording ? 5 : 0}
-          failedCount={0}
-          stoppedRetry={null}
-          messages={
-            batchRecording && !hasScript
-              ? [
-                  {
-                    text: "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다.",
-                    tone: "warning" as const,
-                  },
-                ]
-              : []
-          }
-        />
-
-        {/* 회의 정보 영역은 idle부터 항상 노출 — Recorder 본체와 동일 정책. */}
-        <RevealSection visible testId="reveal-session-context">
-          <SessionContextInput
-            value={sessionContext}
-            onChange={setSessionContext}
-            disabled={false}
-            topContent={
-              <MeetingTemplateSelector
-                value={meetingTemplate}
-                onChange={setMeetingTemplate}
-                disabled={false}
+        <div className="flex flex-col pb-[calc(12rem+env(safe-area-inset-bottom,0px))]">
+          <RevealSection visible testId="reveal-session-context">
+            <RecorderNoteWorkspace
+              noteTitle={noteTitle}
+              onNoteTitleChange={setNoteTitle}
+              sessionContext={sessionContext}
+              onSessionContextChange={setSessionContext}
+              meetingTemplate={meetingTemplate}
+              onMeetingTemplateChange={setMeetingTemplate}
+              pipelineBusy={false}
+            >
+              <TranscriptView
+                variant="plain"
+                partial=""
+                finals={
+                  hasScript
+                    ? [
+                        "첫 번째 세그먼트에서 나온 스크립트입니다.\n두 번째 줄 예시입니다.",
+                      ]
+                    : []
+                }
+                errorMessage={null}
+                showHeading={false}
+                emptyStateHint={
+                  batchRecording && !hasScript
+                    ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
+                    : null
+                }
+                loadingMessage={null}
+                isSegmentInFlight={false}
               />
-            }
-          />
-        </RevealSection>
+            </RecorderNoteWorkspace>
+          </RevealSection>
+        </div>
 
-        <RevealSection visible={showTranscript} testId="reveal-transcript">
-          <TranscriptView
-            partial=""
-            finals={
-              hasScript
-                ? [
-                    "첫 번째 세그먼트에서 나온 스크립트입니다.\n두 번째 줄 예시입니다.",
-                  ]
-                : []
-            }
-            errorMessage={null}
-            showHeading={false}
-            emptyStateHint={
-              batchRecording && !hasScript
-                ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
-                : null
-            }
-            loadingMessage={null}
-            isSegmentInFlight={false}
-          />
-        </RevealSection>
+        <div
+          className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-200/90 bg-white/95 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm dark:border-zinc-800/90 dark:bg-zinc-950/95"
+          data-testid="recording-card-dock"
+        >
+          <div className="flex justify-center px-2">
+            <RecordingCard
+              elapsedMs={displayElapsedMs}
+              level={displayLevel}
+              showStart={!recordingActive}
+              showStop={recordingActive}
+              recordingActive={recordingActive}
+              onStart={() => {}}
+              onStop={() => {}}
+              isBatchMode
+              batchRecording={batchRecording}
+              segmentProgress={batchRecording ? 0.42 : 0}
+              completedCount={batchRecording ? 2 : 0}
+              totalCount={batchRecording ? 5 : 0}
+              failedCount={0}
+              stoppedRetry={null}
+              messages={
+                batchRecording && !hasScript
+                  ? [
+                      {
+                        text: "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다.",
+                        tone: "warning" as const,
+                      },
+                    ]
+                  : []
+              }
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

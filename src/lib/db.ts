@@ -8,19 +8,23 @@ export type Session = {
   id: string;
   createdAt: number;
   text: string;
-  /** 회의록(저장 필드명 `summary`) 완료 후 채워짐 */
+  /** 사용자가 입력한 노트 제목(선택, 레거시 세션은 생략 가능) */
+  title?: string;
+  /** 요약(저장 필드명 `summary`) 완료 후 채워짐 */
   summary?: string | null;
   /** 파이프라인·저장 상태 (구 레코드는 생략 가능 → ready로 간주) */
   status?: SessionStatus;
-  /** 회의록 생성 시 사용한 용어·세션 컨텍스트(선택) */
+  /** 요약 생성 시 사용한 용어·세션 컨텍스트(선택) */
   context?: MeetingContext;
-  /** 녹음·파이프라인 생성 시점 스크립트·회의록 모델 메타(레거시 생략 가능) */
+  /** 녹음·파이프라인 생성 시점 스크립트·요약 모델 메타(레거시 생략 가능) */
   scriptMeta?: SessionScriptMeta;
 };
 
 export type SaveSessionOptions = {
   status?: SessionStatus;
   scriptMeta?: SessionScriptMeta;
+  /** 비어 있지 않을 때만 trim 후 저장한다 */
+  title?: string;
 };
 
 export type SessionAudio = {
@@ -87,12 +91,14 @@ export async function saveSession(
   const id = crypto.randomUUID();
   const createdAt = Date.now();
   const status: SessionStatus = options?.status ?? "ready";
+  const trimmedTitle = options?.title?.trim();
   const db = await getDb();
   const row: Session = {
     id,
     createdAt,
     text,
     status,
+    ...(trimmedTitle ? { title: trimmedTitle } : {}),
     ...(options?.scriptMeta ? { scriptMeta: options.scriptMeta } : {}),
   };
   await db.put(STORE, row);
@@ -100,7 +106,10 @@ export async function saveSession(
 }
 
 export type SessionUpdate = Partial<
-  Pick<Session, "text" | "summary" | "status" | "context" | "scriptMeta">
+  Pick<
+    Session,
+    "text" | "summary" | "status" | "context" | "scriptMeta" | "title"
+  >
 >;
 
 export async function updateSession(

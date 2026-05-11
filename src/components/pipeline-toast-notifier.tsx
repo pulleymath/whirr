@@ -15,7 +15,7 @@ export function PipelineToastNotifier() {
       completedSessionId
     ) {
       const id = completedSessionId;
-      toast.success("회의록이 완성되었습니다", {
+      toast.success("요약이 완성되었습니다", {
         id: "pipeline-meeting-done",
         action: {
           label: "바로 보기",

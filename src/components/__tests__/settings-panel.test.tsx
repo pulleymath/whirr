@@ -28,7 +28,7 @@ describe("SettingsPanel", () => {
     localStorage.clear();
   });
 
-  it("설정 패널에 용어 사전·스크립트 설정·회의록 모델이 보인다", async () => {
+  it("설정 패널에 용어 사전·스크립트 설정·요약 모델이 보인다", async () => {
     renderPanel();
 
     await vi.waitFor(() => {

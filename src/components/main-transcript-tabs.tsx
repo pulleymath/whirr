@@ -8,12 +8,12 @@ export type MainTranscriptTabsProps = {
   summaryPanel: ReactNode;
   /** 기본 선택 탭. 생략 시 `transcript` */
   defaultActive?: "transcript" | "summary";
-  /** 탭 버튼 순서. `summary-first`이면 회의록이 왼쪽 */
+  /** 탭 버튼 순서. `summary-first`이면 요약이 왼쪽 */
   tabOrder?: "transcript-first" | "summary-first";
 };
 
 const TAB_TRANSCRIPT = "스크립트";
-const TAB_SUMMARY = "회의록";
+const TAB_SUMMARY = "요약";
 
 export function MainTranscriptTabs({
   transcriptPanel,
@@ -69,7 +69,7 @@ export function MainTranscriptTabs({
     <div className="flex w-full flex-col gap-3">
       <div
         role="tablist"
-        aria-label="스크립트 및 회의록"
+        aria-label="스크립트 및 요약"
         className="flex w-full gap-1 rounded-lg border border-zinc-200 bg-zinc-100/80 p-1 dark:border-zinc-800 dark:bg-zinc-900/60"
       >
         {tabOrder === "summary-first" ? (

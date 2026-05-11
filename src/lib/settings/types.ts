@@ -4,10 +4,10 @@ export type TranscriptionMode = "realtime" | "batch" | "webSpeechApi";
 /** 실시간 스크립트에서 사용할 엔진 */
 export type RealtimeEngine = "openai" | "assemblyai";
 
-/** 녹음 완료 후 회의록 생성 기본 모델 (OpenAI Chat Completions `model`) */
+/** 녹음 완료 후 요약 생성 기본 모델 (OpenAI Chat Completions `model`) */
 export const DEFAULT_MEETING_MINUTES_MODEL = "gpt-5.4-nano" as const;
 
-/** 설정·서버 API에서 허용하는 회의록 Chat 모델 id (화이트리스트). */
+/** 설정·서버 API에서 허용하는 요약 Chat 모델 id (화이트리스트). */
 export const MEETING_MINUTES_MODEL_IDS = [
   DEFAULT_MEETING_MINUTES_MODEL,
   "gpt-4o",
@@ -25,7 +25,7 @@ export type TranscriptionSettings = {
   realtimeEngine: RealtimeEngine;
   /** 녹음 후 일괄 스크립트 시 사용할 모델 (mode='batch'일 때만 적용) */
   batchModel: string;
-  /** 녹음 완료 후 회의록 작성에 사용할 모델 */
+  /** 녹음 완료 후 요약 작성에 사용할 모델 */
   meetingMinutesModel: string;
   /** 스크립트 언어 코드 (ISO 639-1 또는 auto) */
   language: string;

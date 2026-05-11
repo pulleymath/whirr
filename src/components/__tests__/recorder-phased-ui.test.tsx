@@ -123,10 +123,10 @@ describe("Recorder 단계별 UI", () => {
     );
   });
 
-  it("idle 상태에서 reveal-transcript는 숨김(aria-hidden)이다", () => {
+  it("idle 상태에서 AI 요약 탭이 선택되어 있다", () => {
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
-      "aria-hidden",
+    expect(screen.getByTestId("note-tab-summary")).toHaveAttribute(
+      "aria-selected",
       "true",
     );
   });
@@ -144,48 +144,40 @@ describe("Recorder 단계별 UI", () => {
     );
   });
 
-  it("스트리밍 녹음 중 스크립트가 없으면 transcript reveal은 숨김이다", () => {
+  it("스트리밍 녹음 중 스크립트가 없으면 partial 라이브 행이 없다", () => {
     mocks.recorder.status = "recording";
     mocks.transcription.partial = "";
     mocks.transcription.finals = [];
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
+    expect(screen.queryByTestId("transcript-partial")).toBeNull();
   });
 
-  it("스트리밍 녹음 중 partial이 있으면 transcript reveal이 보인다", () => {
+  it("스트리밍 녹음 중 partial이 있으면 transcript partial 행이 렌더된다", () => {
     mocks.recorder.status = "recording";
     mocks.transcription.partial = "안녕";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).not.toHaveAttribute(
-      "aria-hidden",
-    );
+    expect(screen.getByTestId("transcript-partial")).toHaveTextContent("안녕");
   });
 
-  it("스트리밍 녹음 중 finals만 있으면 transcript reveal이 보인다", () => {
+  it("스트리밍 녹음 중 finals만 있으면 transcript textarea에 반영된다", () => {
     mocks.recorder.status = "recording";
     mocks.transcription.partial = "";
     mocks.transcription.finals = ["확정 문장"];
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).not.toHaveAttribute(
-      "aria-hidden",
-    );
+    expect(screen.getByTestId("transcript-textarea")).toHaveValue("확정 문장");
   });
 
-  it("스트리밍 녹음 중 스크립트 없이 오류만 있으면 transcript는 숨기고 카드에 오류를 표시한다", () => {
+  it("스트리밍 녹음 중 스크립트 없이 오류만 있으면 transcript 영역에 오류를 넣지 않고 카드에 표시한다", () => {
     mocks.recorder.status = "recording";
     mocks.transcription.errorMessage = "연결 실패";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
+    expect(
+      screen.getByTestId("transcript-view-card").querySelector('[role="alert"]'),
+    ).toBeNull();
     expect(screen.getByText("연결 실패")).toBeInTheDocument();
   });
 
-  it("Web Speech 모드에서도 녹음 중 partial이 있으면 transcript reveal이 보인다", () => {
+  it("Web Speech 모드에서도 녹음 중 partial이 있으면 transcript partial 행이 렌더된다", () => {
     localStorage.setItem(
       SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -197,9 +189,7 @@ describe("Recorder 단계별 UI", () => {
     mocks.recorder.status = "recording";
     mocks.transcription.partial = "음성";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).not.toHaveAttribute(
-      "aria-hidden",
-    );
+    expect(screen.getByTestId("transcript-partial")).toHaveTextContent("음성");
   });
 
   it("배치 녹음 중이면 session-context reveal이 보인다", () => {
@@ -218,7 +208,7 @@ describe("Recorder 단계별 UI", () => {
     );
   });
 
-  it("배치 녹음 중 transcript가 비어 있으면 transcript reveal은 숨김이다", () => {
+  it("배치 녹음 중 transcript가 비어 있으면 partial 라이브 행이 없다", () => {
     localStorage.setItem(
       SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -230,13 +220,10 @@ describe("Recorder 단계별 UI", () => {
     mocks.batch.status = "recording";
     mocks.batch.transcript = "";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
-      "aria-hidden",
-      "true",
-    );
+    expect(screen.queryByTestId("transcript-partial")).toBeNull();
   });
 
-  it("배치 녹음 중 transcript가 있으면 transcript reveal이 보인다", () => {
+  it("배치 녹음 중 transcript가 있으면 textarea에 반영된다", () => {
     localStorage.setItem(
       SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -248,12 +235,10 @@ describe("Recorder 단계별 UI", () => {
     mocks.batch.status = "recording";
     mocks.batch.transcript = "첫 세그먼트";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).not.toHaveAttribute(
-      "aria-hidden",
-    );
+    expect(screen.getByTestId("transcript-textarea")).toHaveValue("첫 세그먼트");
   });
 
-  it("배치 녹음 중 pipeline.displayTranscript만 있으면 transcript reveal이 보인다", () => {
+  it("배치 녹음 중 pipeline.displayTranscript만 있으면 textarea에 반영된다", () => {
     localStorage.setItem(
       SETTINGS_STORAGE_KEY,
       JSON.stringify({
@@ -266,8 +251,8 @@ describe("Recorder 단계별 UI", () => {
     mocks.batch.transcript = "";
     mocks.pipeline.displayTranscript = "파이프라인 표시";
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).not.toHaveAttribute(
-      "aria-hidden",
+    expect(screen.getByTestId("transcript-textarea")).toHaveValue(
+      "파이프라인 표시",
     );
   });
 

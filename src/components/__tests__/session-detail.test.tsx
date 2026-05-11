@@ -44,7 +44,7 @@ describe("SessionDetail", () => {
     vi.mocked(updateSession).mockReset();
     vi.mocked(updateSession).mockResolvedValue(undefined);
     vi.mocked(fetchMeetingMinutesSummary).mockReset();
-    vi.mocked(fetchMeetingMinutesSummary).mockResolvedValue("생성된 회의록");
+    vi.mocked(fetchMeetingMinutesSummary).mockResolvedValue("생성된 요약");
   });
 
   it("세션이 있으면 스크립트 탭에서 본문을 편집할 수 있다", async () => {
@@ -57,7 +57,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "요약" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -104,7 +104,7 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("button", { name: "다시 시도" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -126,7 +126,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     expect(screen.queryByRole("button", { name: "뒤로" })).toBeNull();
@@ -146,7 +146,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     expect(screen.queryByLabelText("오디오 재생")).toBeNull();
@@ -162,7 +162,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -178,7 +178,7 @@ describe("SessionDetail", () => {
     ).toBeNull();
   });
 
-  it("회의록 패널에 h2 '회의록' 제목이 없다", async () => {
+  it("요약 패널에 h2 '요약' 제목이 없다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -189,11 +189,11 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
     });
 
     expect(
-      screen.queryByRole("heading", { level: 2, name: "회의록" }),
+      screen.queryByRole("heading", { level: 2, name: "요약" }),
     ).toBeNull();
   });
 
@@ -213,7 +213,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -232,7 +232,7 @@ describe("SessionDetail", () => {
     vi.unstubAllGlobals();
   });
 
-  it("기본 탭은 회의록이며 회의록 전체 복사가 마크다운 원문을 넣는다", async () => {
+  it("기본 탭은 요약이며 요약 전체 복사가 마크다운 원문을 넣는다", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", {
       ...navigator,
@@ -254,12 +254,12 @@ describe("SessionDetail", () => {
       ).toBeTruthy();
     });
 
-    expect(screen.getByRole("tab", { name: "회의록" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "요약" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "회의록 전체 복사" }));
+    fireEvent.click(screen.getByRole("button", { name: "요약 전체 복사" }));
     expect(writeText).toHaveBeenCalledWith("## 제목\n내용");
 
     vi.unstubAllGlobals();
@@ -281,7 +281,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -312,7 +312,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("회의록이 없고 스크립트가 있으면 회의록 생성 버튼을 보여준다", async () => {
+  it("요약이 없고 스크립트가 있으면 요약 생성 버튼을 보여준다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -322,21 +322,21 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
-    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
+    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
     expect(
-      screen.getByText(/아직 회의록이 없습니다\. 스크립트 탭 하단에서/),
+      screen.getByText(/아직 요약이 없습니다\. 스크립트 탭 하단에서/),
     ).toBeTruthy();
   });
 
-  it("스크립트가 비어 있으면 회의록 생성 버튼이 비활성화된다", async () => {
+  it("스크립트가 비어 있으면 요약 생성 버튼이 비활성화된다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -347,7 +347,7 @@ describe("SessionDetail", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("스크립트가 비어 있으면 회의록을 만들 수 없습니다."),
+        screen.getByText("스크립트가 비어 있으면 요약을 만들 수 없습니다."),
       ).toBeTruthy();
     });
 
@@ -355,12 +355,12 @@ describe("SessionDetail", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "회의록 생성" }),
+        screen.getByRole("button", { name: "요약 생성" }),
       ).toBeDisabled();
     });
   });
 
-  it("저장하지 않은 스크립트 편집이 회의록 생성 API 본문에 반영된다", async () => {
+  it("저장하지 않은 스크립트 편집이 요약 생성 API 본문에 반영된다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -377,7 +377,7 @@ describe("SessionDetail", () => {
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
@@ -393,14 +393,14 @@ describe("SessionDetail", () => {
     });
 
     expect(screen.getByRole("status")).toHaveTextContent(
-      "저장하지 않은 내용은 회의록 생성",
+      "저장하지 않은 내용은 요약 생성",
     );
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "회의록 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
 
     await waitFor(() => {
       expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalledWith(
@@ -414,7 +414,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("회의록 생성 클릭 시 API·저장 후 화면에 회의록을 반영한다", async () => {
+  it("요약 생성 클릭 시 API·저장 후 화면에 요약을 반영한다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -425,7 +425,7 @@ describe("SessionDetail", () => {
         id: "sess-1",
         createdAt: 1,
         text: "hello",
-        summary: "생성된 회의록",
+        summary: "생성된 요약",
       });
 
     renderSessionDetail();
@@ -437,27 +437,27 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "회의록 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
 
     await waitFor(() => {
       expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
+    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
 
     await waitFor(() => {
-      expect(screen.getByText("생성된 회의록")).toBeTruthy();
+      expect(screen.getByText("생성된 요약")).toBeTruthy();
     });
     expect(vi.mocked(updateSession)).toHaveBeenLastCalledWith("sess-1", {
-      summary: "생성된 회의록",
+      summary: "생성된 요약",
       status: "ready",
     });
   });
 
-  it("생성 후 세션 재조회가 실패하면 회의록 영역에 안내를 표시한다", async () => {
+  it("생성 후 세션 재조회가 실패하면 요약 영역에 안내를 표시한다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -475,10 +475,10 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "회의록 생성" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "회의록 생성" }));
+    fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
 
     await waitFor(() => {
       expect(screen.getByRole("alert").textContent).toContain(
@@ -487,25 +487,25 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("회의록이 있으면 재생성 버튼 라벨을 보여준다", async () => {
+  it("요약이 있으면 재생성 버튼 라벨을 보여준다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
       text: "본문",
-      summary: "기존 회의록",
+      summary: "기존 요약",
     });
 
     renderSessionDetail();
 
     await waitFor(() => {
-      expect(screen.getByText("기존 회의록")).toBeTruthy();
+      expect(screen.getByText("기존 요약")).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "회의록 재생성" }),
+        screen.getByRole("button", { name: "요약 재생성" }),
       ).toBeTruthy();
     });
   });

@@ -1,8 +1,8 @@
 "use client";
 
-import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
+import { RecorderNoteWorkspace } from "@/components/recorder-note-workspace";
+import { RevealSection } from "@/components/recorder-reveal-section";
 import { RecordingCard } from "@/components/recording-card";
-import { SessionContextInput } from "@/components/session-context-input";
 import { TranscriptView } from "@/components/transcript-view";
 import {
   useBatchTranscription,
@@ -30,7 +30,6 @@ import {
   isWebSpeechApiSupported,
 } from "@/lib/stt";
 import { OPENAI_PROACTIVE_RENEWAL_AFTER_MS } from "@/lib/stt/openai-realtime";
-import { RevealSection } from "@/components/recorder-reveal-section";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 export type RecorderProps = {
@@ -47,8 +46,16 @@ const EMPTY_SESSION_CONTEXT: SessionContext = {
   keywords: "",
 };
 
+/** 제목 입력이 비어 있을 때 세션 `title`로 저장한다(노트 제목 placeholder와 동일). */
+const DEFAULT_SAVE_SESSION_TITLE = "새로운 노트";
+
+function sessionTitleForSave(noteTitle: string): string {
+  const t = noteTitle.trim();
+  return t.length > 0 ? t : DEFAULT_SAVE_SESSION_TITLE;
+}
+
 function sessionContextForEnqueue(
-  value: SessionContext,
+  value: SessionContext
 ): SessionContext | null {
   if (
     !value.participants.trim() &&
@@ -123,10 +130,11 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   >(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const [sessionContext, setSessionContext] = useState<SessionContext>(
-    EMPTY_SESSION_CONTEXT,
+    EMPTY_SESSION_CONTEXT
   );
   const [meetingTemplate, setMeetingTemplate] =
     useState<MeetingMinutesTemplate>(DEFAULT_MEETING_MINUTES_TEMPLATE);
+  const [noteTitle, setNoteTitle] = useState("");
 
   useEffect(() => {
     const recording = isBatchMode
@@ -144,7 +152,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   useBeforeUnload(
     recordingActive ||
       pipeline.isBusy ||
-      (isBatchMode && batch.status === "transcribing"),
+      (isBatchMode && batch.status === "transcribing")
   );
 
   const finalsRef = useRef(finals);
@@ -156,6 +164,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   }, [finals, partial]);
 
   const resetSessionInputs = useCallback(() => {
+    setNoteTitle("");
     setSessionContext(EMPTY_SESSION_CONTEXT);
     setMeetingTemplate(DEFAULT_MEETING_MINUTES_TEMPLATE);
   }, []);
@@ -176,6 +185,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       const id = await saveSession(partialText, {
         status: "transcribing",
         scriptMeta,
+        title: sessionTitleForSave(noteTitle),
       });
       if (segments.length > 0) {
         await saveSessionAudio(id, segments);
@@ -201,6 +211,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       enqueuePipeline,
       glossary.terms,
       meetingTemplate,
+      noteTitle,
       onSessionSaved,
       resetSessionInputs,
       sessionContext,
@@ -209,7 +220,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       settings.meetingMinutesModel,
       settings.realtimeEngine,
       effectiveMode,
-    ],
+    ]
   );
 
   const handleBatchRetry = useCallback(async () => {
@@ -242,7 +253,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     if (effectiveMode === "webSpeechApi") {
       if (!isWebSpeechApiSupported()) {
         setUnsupportedModeMessage(
-          "이 브라우저에서는 Web Speech API를 사용할 수 없습니다.",
+          "이 브라우저에서는 Web Speech API를 사용할 수 없습니다."
         );
         return;
       }
@@ -307,6 +318,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
         const id = await saveSession(trimmed, {
           status: "summarizing",
           scriptMeta,
+          title: sessionTitleForSave(noteTitle),
         });
         onSessionSaved?.(id);
         enqueuePipeline({
@@ -336,6 +348,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     enqueuePipeline,
     glossary.terms,
     meetingTemplate,
+    noteTitle,
     resetSessionInputs,
     sessionContext,
     settings.batchModel,
@@ -402,94 +415,100 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       data-testid="recorder-root"
       data-transcription-mode={effectiveMode}
     >
-      <RecordingCard
-        elapsedMs={displayElapsedMs}
-        level={displayLevel}
-        showStart={showStart}
-        showStop={showStop}
-        recordingActive={recordingActive}
-        onStart={() => void start()}
-        onStop={() => void stop()}
-        isBatchMode={isBatchMode}
-        batchRecording={batchRecording}
-        segmentProgress={batch.segmentProgress}
-        completedCount={batch.completedCount}
-        totalCount={batch.totalCount}
-        failedCount={batch.failedSegments.length}
-        stoppedRetry={
-          isBatchMode &&
-          ((batch.status === "error" && batch.errorMessage) ||
-            (batch.status === "transcribing" && batch.retryTotalCount > 0))
-            ? {
-                failedCount: batch.failedSegments.length,
-                isRetrying:
-                  batch.status === "transcribing" && batch.retryTotalCount > 0,
-                retryProcessed: batch.retryProcessedCount,
-                retryTotal: batch.retryTotalCount,
-                onRetry: () => void handleBatchRetry(),
-                disabled: pipeline.isBusy,
-              }
-            : null
-        }
-        messages={[
-          ...(isBatchMode && batch.softLimitMessage
-            ? [{ text: batch.softLimitMessage, tone: "warning" as const }]
-            : []),
-          ...(streamingSessionHint
-            ? [{ text: streamingSessionHint, tone: "warning" as const }]
-            : []),
-          ...(reconnectToast
-            ? [{ text: reconnectToast, tone: "muted" as const }]
-            : []),
-          ...(unsupportedModeMessage
-            ? [{ text: unsupportedModeMessage, tone: "warning" as const }]
-            : []),
-          ...(recorderError
-            ? [{ text: recorderError, tone: "error" as const }]
-            : []),
-          ...(showTranscriptErrorOnCard && transcriptError
-            ? [{ text: transcriptError.trim(), tone: "error" as const }]
-            : []),
-        ]}
-      />
-
-      {/* 회의 정보·회의록 형식은 idle부터 항상 노출한다. pipeline.isBusy일 때만 입력이 비활성된다. */}
-      <RevealSection visible testId="reveal-session-context">
-        <SessionContextInput
-          value={sessionContext}
-          onChange={setSessionContext}
-          disabled={pipeline.isBusy}
-          topContent={
-            <MeetingTemplateSelector
-              value={meetingTemplate}
-              onChange={setMeetingTemplate}
-              disabled={pipeline.isBusy}
+      <div className="flex flex-col pb-[calc(12rem+env(safe-area-inset-bottom,0px))]">
+        {/* 회의 정보·요약 형식은 idle부터 항상 노출한다. pipeline.isBusy일 때만 입력이 비활성된다. */}
+        <RevealSection visible testId="reveal-session-context">
+          <RecorderNoteWorkspace
+            noteTitle={noteTitle}
+            onNoteTitleChange={setNoteTitle}
+            sessionContext={sessionContext}
+            onSessionContextChange={setSessionContext}
+            meetingTemplate={meetingTemplate}
+            onMeetingTemplateChange={setMeetingTemplate}
+            pipelineBusy={pipeline.isBusy}
+          >
+            <TranscriptView
+              variant="plain"
+              partial={transcriptPartial}
+              finals={transcriptFinals}
+              errorMessage={showTranscript ? transcriptError : null}
+              showHeading={false}
+              emptyStateHint={batchRecordingHint}
+              loadingMessage={batchLoadingMessage}
+              isSegmentInFlight={segmentInFlight}
             />
-          }
-        />
-      </RevealSection>
+          </RecorderNoteWorkspace>
+        </RevealSection>
 
-      <RevealSection visible={showTranscript} testId="reveal-transcript">
-        <TranscriptView
-          partial={transcriptPartial}
-          finals={transcriptFinals}
-          errorMessage={showTranscript ? transcriptError : null}
-          showHeading={false}
-          emptyStateHint={batchRecordingHint}
-          loadingMessage={batchLoadingMessage}
-          isSegmentInFlight={segmentInFlight}
-        />
-      </RevealSection>
+        {persistError || pipeline.errorMessage ? (
+          <p
+            className="shrink-0 px-1 pb-2 pt-2 text-sm text-red-600 dark:text-red-400"
+            role="alert"
+            data-testid="recorder-pipeline-user-error"
+          >
+            {persistError ?? pipeline.errorMessage}
+          </p>
+        ) : null}
+      </div>
 
-      {persistError || pipeline.errorMessage ? (
-        <p
-          className="mt-6 text-sm text-red-600 dark:text-red-400"
-          role="alert"
-          data-testid="recorder-pipeline-user-error"
-        >
-          {persistError ?? pipeline.errorMessage}
-        </p>
-      ) : null}
+      <div
+        className="fixed inset-x-0 bottom-0 z-30 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:left-64 md:right-0"
+        data-testid="recording-card-dock"
+      >
+        <div className="flex justify-center px-2">
+          <RecordingCard
+            elapsedMs={displayElapsedMs}
+            level={displayLevel}
+            showStart={showStart}
+            showStop={showStop}
+            recordingActive={recordingActive}
+            onStart={() => void start()}
+            onStop={() => void stop()}
+            isBatchMode={isBatchMode}
+            batchRecording={batchRecording}
+            segmentProgress={batch.segmentProgress}
+            completedCount={batch.completedCount}
+            totalCount={batch.totalCount}
+            failedCount={batch.failedSegments.length}
+            stoppedRetry={
+              isBatchMode &&
+              ((batch.status === "error" && batch.errorMessage) ||
+                (batch.status === "transcribing" && batch.retryTotalCount > 0))
+                ? {
+                    failedCount: batch.failedSegments.length,
+                    isRetrying:
+                      batch.status === "transcribing" &&
+                      batch.retryTotalCount > 0,
+                    retryProcessed: batch.retryProcessedCount,
+                    retryTotal: batch.retryTotalCount,
+                    onRetry: () => void handleBatchRetry(),
+                    disabled: pipeline.isBusy,
+                  }
+                : null
+            }
+            messages={[
+              ...(isBatchMode && batch.softLimitMessage
+                ? [{ text: batch.softLimitMessage, tone: "warning" as const }]
+                : []),
+              ...(streamingSessionHint
+                ? [{ text: streamingSessionHint, tone: "warning" as const }]
+                : []),
+              ...(reconnectToast
+                ? [{ text: reconnectToast, tone: "muted" as const }]
+                : []),
+              ...(unsupportedModeMessage
+                ? [{ text: unsupportedModeMessage, tone: "warning" as const }]
+                : []),
+              ...(recorderError
+                ? [{ text: recorderError, tone: "error" as const }]
+                : []),
+              ...(showTranscriptErrorOnCard && transcriptError
+                ? [{ text: transcriptError.trim(), tone: "error" as const }]
+                : []),
+            ]}
+          />
+        </div>
+      </div>
     </div>
   );
 }

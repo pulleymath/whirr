@@ -20,7 +20,7 @@ export function SessionGlossaryEditor({
         용어 사전 (세션)
       </label>
       <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-        회의록 생성 시 참고할 용어입니다. 한 줄에 하나씩 입력하세요.
+        요약 생성 시 참고할 용어입니다. 한 줄에 하나씩 입력하세요.
       </p>
       <textarea
         id="session-glossary-textarea"

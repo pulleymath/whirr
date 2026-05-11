@@ -33,16 +33,16 @@ afterEach(() => {
   cleanup();
 });
 
-describe("SessionDetail: IndexedDB 저장 실패(회의록 생성)", () => {
+describe("SessionDetail: IndexedDB 저장 실패(요약 생성)", () => {
   beforeEach(() => {
     vi.mocked(getSessionById).mockReset();
     vi.mocked(getSessionAudio).mockResolvedValue(undefined);
     vi.mocked(updateSession).mockReset();
     vi.mocked(fetchMeetingMinutesSummary).mockReset();
-    vi.mocked(fetchMeetingMinutesSummary).mockResolvedValue("생성된 회의록");
+    vi.mocked(fetchMeetingMinutesSummary).mockResolvedValue("생성된 요약");
   });
 
-  it("회의록 저장용 updateSession이 거부되면 오류 문구를 보이고 다시 생성할 수 있다", async () => {
+  it("요약 저장용 updateSession이 거부되면 오류 문구를 보이고 다시 생성할 수 있다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -60,26 +60,26 @@ describe("SessionDetail: IndexedDB 저장 실패(회의록 생성)", () => {
     render(<SessionDetail />);
 
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "회의록" })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: "요약" })).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /회의록 생성/ })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /요약 생성/ })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /회의록 생성/ }));
+    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
 
     await waitFor(() => {
-      expect(screen.getByText("회의록을 만들지 못했습니다.")).toBeInTheDocument();
+      expect(screen.getByText("요약을 만들지 못했습니다.")).toBeInTheDocument();
     });
 
     vi.mocked(updateSession).mockResolvedValue(undefined);
-    fireEvent.click(screen.getByRole("button", { name: /회의록 생성/ }));
+    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
 
     await waitFor(() => {
-      expect(screen.queryByText("회의록을 만들지 못했습니다.")).not.toBeInTheDocument();
+      expect(screen.queryByText("요약을 만들지 못했습니다.")).not.toBeInTheDocument();
     });
   });
 });

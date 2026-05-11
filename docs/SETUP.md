@@ -10,7 +10,7 @@
 ## 환경 변수
 
 1. `.env.example`을 복사해 **`.env.local`**을 만듭니다.
-2. **필수**: `OPENAI_API_KEY` — STT(음성) **토큰 API**와 녹음 후 **회의록 생성**(Chat Completions) 서버 라우트에 필요합니다. 값은 여기에 붙이지 않습니다.
+2. **필수**: `OPENAI_API_KEY` — STT(음성)와 녹음 후 **요약 생성**에 필요합니다. 값은 여기에 붙이지 않습니다.
 3. **선택**: `ASSEMBLYAI_*`, `STT_TOKEN_RATE_LIMIT_*` 등은 `.env.example` 주석을 따릅니다.
 
 비밀 값·실제 키는 문서나 채팅에 붙여 넣지 않습니다.

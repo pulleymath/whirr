@@ -31,11 +31,11 @@ export type PostRecordingPipelineEnqueueInput = {
   finalBlob: Blob | null;
   model: string;
   language: string;
-  /** 회의록 생성에 사용할 Chat 모델 id */
+  /** 요약 생성에 사용할 Chat 모델 id */
   meetingMinutesModel: string;
   glossary?: string[];
   sessionContext?: SessionContext | null;
-  /** 회의록 출력 형식. 생략 시 기본회의 */
+  /** 요약 출력 형식. 생략 시 기본회의 */
   meetingTemplate?: MeetingMinutesTemplate;
   /** 녹음 시점 스크립트 모드 */
   mode: TranscriptionMode;
@@ -57,7 +57,7 @@ export type PostRecordingPipelineContextValue = {
   summaryText: string | null;
   /** 홈 스크립트 영역에 보여 줄 문자열(파이프라인 진행 중·완료 직후) */
   displayTranscript: string | null;
-  /** 회의록이 완료된 세션 id (idle 리셋 전까지 유지, 토스트 네비게이션용) */
+  /** 요약이 완료된 세션 id (idle 리셋 전까지 유지, 토스트 네비게이션용) */
   completedSessionId: string | null;
   enqueue: (input: PostRecordingPipelineEnqueueInput) => void;
 };
@@ -195,7 +195,7 @@ export function PostRecordingPipelineProvider({
           }
           if (!res.ok) {
             await updateSession(input.sessionId, { status: "error" });
-            setErrorMessage("회의록을 생성하지 못했습니다.");
+            setErrorMessage("요약을 생성하지 못했습니다.");
             setPhase("error");
             setCompletedSessionId(null);
             continueOrIdle();

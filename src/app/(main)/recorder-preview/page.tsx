@@ -7,7 +7,7 @@ export default function RecorderPreviewPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-5xl px-4 py-6">
+    <div className="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col px-4 py-6">
       <RecorderUiPreview />
     </div>
   );

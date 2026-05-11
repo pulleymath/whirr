@@ -38,7 +38,7 @@ describe("MainTranscriptTabs", () => {
 
     expect(screen.getByRole("tablist")).toBeTruthy();
     expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
-    expect(screen.getByRole("tab", { name: "회의록" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "요약" })).toBeTruthy();
   });
 
   it("탭 버튼에 cursor-pointer 클래스가 있다", () => {
@@ -51,12 +51,12 @@ describe("MainTranscriptTabs", () => {
     expect(screen.getByRole("tab", { name: "스크립트" }).className).toMatch(
       /cursor-pointer/,
     );
-    expect(screen.getByRole("tab", { name: "회의록" }).className).toMatch(
+    expect(screen.getByRole("tab", { name: "요약" }).className).toMatch(
       /cursor-pointer/,
     );
   });
 
-  it("defaultActive가 summary이면 회의록 탭이 선택된다", () => {
+  it("defaultActive가 summary이면 요약 탭이 선택된다", () => {
     render(
       <MainTranscriptTabs
         defaultActive="summary"
@@ -66,7 +66,7 @@ describe("MainTranscriptTabs", () => {
       />,
     );
 
-    const summaryTab = screen.getByRole("tab", { name: "회의록" });
+    const summaryTab = screen.getByRole("tab", { name: "요약" });
     expect(summaryTab.getAttribute("aria-selected")).toBe("true");
     const summaryPanel = screen
       .getByTestId("summary-slot")
@@ -74,7 +74,7 @@ describe("MainTranscriptTabs", () => {
     expect(summaryPanel!.hasAttribute("hidden")).toBe(false);
   });
 
-  it("tabOrder summary-first이면 회의록 탭이 tablist에서 먼저 온다", () => {
+  it("tabOrder summary-first이면 요약 탭이 tablist에서 먼저 온다", () => {
     render(
       <MainTranscriptTabs
         transcriptPanel={<div>T</div>}
@@ -83,7 +83,7 @@ describe("MainTranscriptTabs", () => {
       />,
     );
     const tabs = screen.getAllByRole("tab");
-    expect(tabs[0]).toHaveTextContent("회의록");
+    expect(tabs[0]).toHaveTextContent("요약");
     expect(tabs[1]).toHaveTextContent("스크립트");
   });
 
@@ -106,7 +106,7 @@ describe("MainTranscriptTabs", () => {
     expect(transcriptPanel!.hasAttribute("hidden")).toBe(false);
   });
 
-  it("회의록 탭을 누르면 회의록 패널만 보인다", () => {
+  it("요약 탭을 누르면 요약 패널만 보인다", () => {
     render(
       <MainTranscriptTabs
         transcriptPanel={<div data-testid="transcript-slot">T</div>}
@@ -114,7 +114,7 @@ describe("MainTranscriptTabs", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("tab", { name: "회의록" }));
+    fireEvent.click(screen.getByRole("tab", { name: "요약" }));
 
     const summaryPanel = screen
       .getByTestId("summary-slot")

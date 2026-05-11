@@ -176,7 +176,7 @@ export type MeetingMinutesMarkdownProps = {
 };
 
 /**
- * 회의록 API가 반환하는 마크다운 본문을 안전하게 HTML 요소로 렌더한다(raw HTML 삽입 없음).
+ * 요약 API가 반환하는 마크다운 본문을 안전하게 HTML 요소로 렌더한다(raw HTML 삽입 없음).
  */
 export function MeetingMinutesMarkdown({
   markdown,

@@ -131,7 +131,7 @@ export function MainShell({
         {sidebarContent}
       </aside>
 
-      <main className="overflow-y-auto bg-white dark:bg-zinc-900/50">
+      <main className="flex min-h-0 flex-col overflow-y-auto bg-white dark:bg-zinc-900/50">
         <div className="mx-auto flex w-full max-w-6xl flex-col px-4 py-8 md:px-8">
           {children}
         </div>

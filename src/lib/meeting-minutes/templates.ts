@@ -1,5 +1,5 @@
 /**
- * 회의록 출력 형식 템플릿. 회의 사실 정보(SessionContext)와 분리한다.
+ * 요약 출력 형식 템플릿. 회의 사실 정보(SessionContext)와 분리한다.
  */
 
 export type BuiltInMeetingMinutesTemplateId =
@@ -36,17 +36,19 @@ export const MEETING_MINUTES_TEMPLATE_OPTIONS = [
   {
     value: "custom" as const,
     label: "직접입력",
-    hint: "내가 적은 형식 지침을 회의록 프롬프트에 반영",
+    hint: "내가 적은 형식 지침을 요약 프롬프트에 반영",
   },
 ] as const;
 
 const TEMPLATE_SECTION_HEADER = "## 회의록 템플릿 지침";
 
-function builtInInstructionBody(id: BuiltInMeetingMinutesTemplateId): string {
+/** built-in 템플릿의 Markdown 섹션 목록(지침·미리보기 공통). */
+function builtInMarkdownStructureLines(
+  id: BuiltInMeetingMinutesTemplateId,
+): string {
   switch (id) {
     case "default":
       return (
-        `아래 Markdown 구조로 한국어 회의록을 작성하세요. 스크립트에 없는 내용은 추측하지 마세요.\n` +
         `- 요약\n` +
         `- 주요 논의\n` +
         `- 결정 사항\n` +
@@ -55,9 +57,6 @@ function builtInInstructionBody(id: BuiltInMeetingMinutesTemplateId): string {
       );
     case "informationSharing":
       return (
-        `이 스크립트는 **정보 전달**(강연, 세션, 교육, 발표 등)에 가깝다고 가정하고, 한국어로 정리하세요. ` +
-        `스크립트에 없는 내용은 추측하지 마세요.\n` +
-        `아래 Markdown 구조를 따르세요.\n` +
         `- 핵심 메시지\n` +
         `- 세션 흐름 (섹션 순서·전환)\n` +
         `- 주요 개념 (용어·정의)\n` +
@@ -68,9 +67,6 @@ function builtInInstructionBody(id: BuiltInMeetingMinutesTemplateId): string {
       );
     case "business":
       return (
-        `이 스크립트는 **비즈니스 미팅**에 가깝다고 가정하고, 한국어로 정리하세요. ` +
-        `스크립트에 없는 내용은 추측하지 마세요.\n` +
-        `아래 Markdown 구조를 따르세요.\n` +
         `- 목적 / 상대 니즈\n` +
         `- 제안 / 조건\n` +
         `- 쟁점\n` +
@@ -83,6 +79,55 @@ function builtInInstructionBody(id: BuiltInMeetingMinutesTemplateId): string {
       return _exhaustive;
     }
   }
+}
+
+function builtInInstructionBody(id: BuiltInMeetingMinutesTemplateId): string {
+  const structure = builtInMarkdownStructureLines(id);
+  switch (id) {
+    case "default":
+      return (
+        `아래 Markdown 구조로 한국어 회의록을 작성하세요. 스크립트에 없는 내용은 추측하지 마세요.\n` +
+        structure
+      );
+    case "informationSharing":
+      return (
+        `이 스크립트는 **정보 전달**(강연, 세션, 교육, 발표 등)에 가깝다고 가정하고, 한국어로 정리하세요. ` +
+        `스크립트에 없는 내용은 추측하지 마세요.\n` +
+        `아래 Markdown 구조를 따르세요.\n` +
+        structure
+      );
+    case "business":
+      return (
+        `이 스크립트는 **비즈니스 미팅**에 가깝다고 가정하고, 한국어로 정리하세요. ` +
+        `스크립트에 없는 내용은 추측하지 마세요.\n` +
+        `아래 Markdown 구조를 따르세요.\n` +
+        structure
+      );
+    default: {
+      const _exhaustive: never = id;
+      return _exhaustive;
+    }
+  }
+}
+
+/**
+ * AI 요약 탭 등에 보여 줄 출력 구조 미리보기(실제 요약 본문이 아님).
+ * `custom`이고 prompt가 비어 있으면 직접입력 안내 문구를 반환한다.
+ */
+export function previewMeetingMinutesTemplate(
+  template: MeetingMinutesTemplate,
+): string {
+  if (template.id === "custom") {
+    const trimmed = template.prompt.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+    return (
+      "비워 두면 기본회의 형식으로 생성됩니다.\n\n" +
+      "아래에 출력 형식·섹션 구성 지침을 Markdown으로 입력하세요."
+    );
+  }
+  return builtInMarkdownStructureLines(template.id);
 }
 
 /**

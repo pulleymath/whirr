@@ -4,11 +4,23 @@ import type { ReactNode } from "react";
 import type { SessionContext } from "@/lib/glossary/types";
 import { useId, useState } from "react";
 
+export type SessionContextInputVariant = "card" | "embedded";
+
 export type SessionContextInputProps = {
   value: SessionContext;
   onChange: (next: SessionContext) => void;
   disabled?: boolean;
   topContent?: ReactNode;
+  /** `embedded`는 노트 작업면 안에서 카드 느낌을 줄인다. */
+  variant?: SessionContextInputVariant;
+  /** 루트 `section`에 추가 클래스(레이아웃·여백 조정용). */
+  className?: string;
+};
+
+const VARIANT_SECTION_CLASS: Record<SessionContextInputVariant, string> = {
+  card: "rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950",
+  embedded:
+    "rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-4 dark:border-zinc-800/80 dark:bg-zinc-900/40",
 };
 
 export function SessionContextInput({
@@ -16,6 +28,8 @@ export function SessionContextInput({
   onChange,
   disabled = false,
   topContent = null,
+  variant = "card",
+  className = "",
 }: SessionContextInputProps) {
   const baseId = useId();
   const [open, setOpen] = useState(true);
@@ -24,11 +38,10 @@ export function SessionContextInput({
     onChange({ ...value, ...partial });
   };
 
+  const sectionClass = `${VARIANT_SECTION_CLASS[variant]} ${className}`.trim();
+
   return (
-    <section
-      className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-      data-testid="session-context-input"
-    >
+    <section className={sectionClass} data-testid="session-context-input">
       <button
         type="button"
         className="flex w-full cursor-pointer items-center justify-between gap-2 text-left"
@@ -49,7 +62,7 @@ export function SessionContextInput({
               className="text-xs text-zinc-600 dark:text-zinc-400"
               role="status"
             >
-              회의록 생성 중에는 수정할 수 없습니다.
+              요약 생성 중에는 수정할 수 없습니다.
             </p>
           ) : null}
 
@@ -60,14 +73,16 @@ export function SessionContextInput({
             >
               참석자
             </label>
-            <textarea
+            <input
               id={`${baseId}-participants`}
-              className="min-h-[72px] w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+              type="text"
+              className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
               value={value.participants}
               onChange={(e) => patch({ participants: e.target.value })}
               disabled={disabled}
               data-testid="session-context-participants"
-              placeholder={"고풀리 PM\n이풀리 엔지니어"}
+              placeholder="고풀리 PM, 이풀리 엔지니어"
+              autoComplete="off"
             />
           </div>
 

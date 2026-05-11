@@ -19,27 +19,27 @@ describe("SummaryTabPanel", () => {
     expect(screen.getByText(/녹음 중입니다/)).toBeTruthy();
   });
 
-  it("summarizing이면 회의록 생성 중 문구를 보여준다", () => {
+  it("summarizing이면 요약 생성 중 문구를 보여준다", () => {
     render(<SummaryTabPanel state="summarizing" />);
-    expect(screen.getByText(/회의록을 생성하는 중/)).toBeTruthy();
+    expect(screen.getByText(/요약을 생성하는 중/)).toBeTruthy();
   });
 
-  it("complete이면 회의록 본문 영역이 있다", () => {
+  it("complete이면 요약 본문 영역이 있다", () => {
     render(
-      <SummaryTabPanel state="complete" summaryText="회의록 결과 텍스트" />,
+      <SummaryTabPanel state="complete" summaryText="요약 결과 텍스트" />,
     );
     expect(screen.getByTestId("summary-body").textContent).toContain(
-      "회의록 결과 텍스트",
+      "요약 결과 텍스트",
     );
   });
 
-  it("complete에서 패널 상단의 중복 '회의록' 제목 문단이 없다", () => {
+  it("complete에서 패널 상단의 중복 '요약' 제목 문단이 없다", () => {
     render(<SummaryTabPanel state="complete" summaryText="본문만 있는 경우" />);
-    const region = screen.getByRole("region", { name: "회의록 결과" });
+    const region = screen.getByRole("region", { name: "요약 결과" });
     const paras = Array.from(region.querySelectorAll("p")).map((p) =>
       p.textContent?.trim(),
     );
-    expect(paras).not.toContain("회의록");
+    expect(paras).not.toContain("요약");
   });
 
   it("error이면 오류 메시지를 보여준다", () => {

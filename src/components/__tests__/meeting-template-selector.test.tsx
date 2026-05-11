@@ -99,4 +99,45 @@ describe("MeetingTemplateSelector", () => {
       ).disabled,
     ).toBe(true);
   });
+
+  it("select variant는 라디오 대신 드롭다운을 렌더한다", () => {
+    const onChange = vi.fn();
+    render(
+      <MeetingTemplateSelector
+        value={DEFAULT_MEETING_MINUTES_TEMPLATE}
+        onChange={onChange}
+        variant="select"
+      />,
+    );
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.getByTestId("meeting-template-selector").tagName).toBe(
+      "SELECT",
+    );
+  });
+
+  it("select variant에서 business 선택 시 onChange가 호출된다", () => {
+    const onChange = vi.fn();
+    render(
+      <MeetingTemplateSelector
+        value={DEFAULT_MEETING_MINUTES_TEMPLATE}
+        onChange={onChange}
+        variant="select"
+      />,
+    );
+    fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+      target: { value: "business" },
+    });
+    expect(onChange).toHaveBeenCalledWith({ id: "business" });
+  });
+
+  it("select variant에서는 custom 프롬프트 textarea를 렌더하지 않는다", () => {
+    render(
+      <MeetingTemplateSelector
+        value={{ id: "custom", prompt: "hi" }}
+        onChange={vi.fn()}
+        variant="select"
+      />,
+    );
+    expect(screen.queryByTestId("meeting-template-custom-prompt")).toBeNull();
+  });
 });

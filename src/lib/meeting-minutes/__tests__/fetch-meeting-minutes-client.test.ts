@@ -91,7 +91,7 @@ describe("fetchMeetingMinutesSummary", () => {
       ) as unknown as typeof fetch;
 
     await expect(fetchMeetingMinutesSummary("x", "m")).rejects.toThrow(
-      "회의록 요청에 실패했습니다.",
+      "요약 요청에 실패했습니다.",
     );
   });
 

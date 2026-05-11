@@ -13,7 +13,7 @@ export function HomePageShell() {
 
   return (
     <MainShell sessionRefreshTrigger={sessionRefresh}>
-      <div className="mx-auto w-full max-w-5xl px-0">
+      <div className="flex w-full flex-col px-0">
         <Recorder onSessionSaved={onSessionSaved} fixedMode="batch" />
       </div>
     </MainShell>

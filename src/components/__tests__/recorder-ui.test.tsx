@@ -97,20 +97,23 @@ afterEach(() => {
 });
 
 describe("Recorder 홈 UI", () => {
-  it("tablist가 렌더링되지 않는다", () => {
+  it("노트 본문 tablist가 렌더링된다", () => {
     renderRecorder();
-    expect(screen.queryByRole("tablist")).toBeNull();
+    expect(
+      screen.getByRole("tablist", { name: "노트 본문" }),
+    ).toBeInTheDocument();
   });
 
-  it("회의록 탭 버튼이 존재하지 않는다", () => {
+  it("AI 요약·스크립트 탭이 있다", () => {
     renderRecorder();
-    expect(screen.queryByRole("tab", { name: "회의록" })).toBeNull();
+    expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "스크립트" })).toBeInTheDocument();
   });
 
-  it("idle에서는 스크립트 reveal이 숨겨지고 빈 partial 라이브 행은 렌더하지 않는다", () => {
+  it("idle에서는 AI 요약 탭이 선택되고 빈 partial 라이브 행은 렌더하지 않는다", () => {
     renderRecorder();
-    expect(screen.getByTestId("reveal-transcript")).toHaveAttribute(
-      "aria-hidden",
+    expect(screen.getByTestId("note-tab-summary")).toHaveAttribute(
+      "aria-selected",
       "true",
     );
     expect(screen.queryByTestId("transcript-partial")).toBeNull();
@@ -130,10 +133,10 @@ describe("Recorder 홈 UI", () => {
       ...basePipeline,
       phase: "error",
       isBusy: false,
-      errorMessage: "회의록을 생성하지 못했습니다.",
+      errorMessage: "요약을 생성하지 못했습니다.",
     });
     expect(
       screen.getByTestId("recorder-pipeline-user-error"),
-    ).toHaveTextContent("회의록을 생성하지 못했습니다.");
+    ).toHaveTextContent("요약을 생성하지 못했습니다.");
   });
 });

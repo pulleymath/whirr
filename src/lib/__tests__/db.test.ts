@@ -72,6 +72,18 @@ describe("db (IndexedDB)", () => {
     expect(row?.status).toBe("ready");
   });
 
+  it("saveSession에 title을 넘기면 trim한 값이 저장된다", async () => {
+    const id = await saveSession("hello", { title: "  주간 회의  " });
+    const row = await getSessionById(id);
+    expect(row?.title).toBe("주간 회의");
+  });
+
+  it("saveSession에 공백만 있는 title은 저장하지 않는다", async () => {
+    const id = await saveSession("hello", { title: "   \t  " });
+    const row = await getSessionById(id);
+    expect(row?.title).toBeUndefined();
+  });
+
   it("updateSession으로 text·summary·status를 갱신할 수 있다", async () => {
     const id = await saveSession("a", { status: "transcribing" });
     await updateSession(id, { text: "b", status: "summarizing" });

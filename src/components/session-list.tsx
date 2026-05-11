@@ -99,6 +99,9 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                 s.text,
                 SESSION_LIST_PREVIEW_MAX,
               );
+              const trimmedTitle = s.title?.trim();
+              const displayLine = trimmedTitle || preview || "—";
+              const ariaSecondary = trimmedTitle || preview || "빈 스크립트";
               const timeLabel = formatSessionListTime(s.createdAt);
               const href = sessionHref(s.id);
               const isActive = pathnameDecoded === s.id;
@@ -116,7 +119,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                     <span
                       className={`${rowClass} ${disabledClass}`}
                       aria-disabled="true"
-                      aria-label={`${timeLabel}, ${preview || "빈 스크립트"} (녹음 중에는 이동할 수 없습니다)`}
+                      aria-label={`${timeLabel}, ${ariaSecondary} (녹음 중에는 이동할 수 없습니다)`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
@@ -124,7 +127,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                         </span>
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
-                        {preview || "—"}
+                        {displayLine}
                       </p>
                     </span>
                   ) : (
@@ -132,7 +135,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                       href={href}
                       aria-current={isActive ? "page" : undefined}
                       className={rowClass}
-                      aria-label={`${timeLabel}, ${preview || "빈 스크립트"}`}
+                      aria-label={`${timeLabel}, ${ariaSecondary}`}
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs tabular-nums text-zinc-500 dark:text-zinc-400">
@@ -140,7 +143,7 @@ export function SessionList({ refreshTrigger = 0 }: SessionListProps) {
                         </span>
                       </div>
                       <p className="mt-0.5 line-clamp-2 text-sm leading-snug text-zinc-800 dark:text-zinc-200">
-                        {preview || "—"}
+                        {displayLine}
                       </p>
                     </Link>
                   )}

@@ -15,6 +15,6 @@ export type SessionContext = {
 export type MeetingContext = {
   glossary: GlossaryEntry[];
   sessionContext: SessionContext | null;
-  /** 회의록 출력 형식. 생략 시 기본회의로 해석 */
+  /** 요약 출력 형식. 생략 시 기본회의로 해석 */
   template?: MeetingMinutesTemplate;
 };

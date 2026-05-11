@@ -216,7 +216,9 @@ describe("Recorder 배치 모드", () => {
       expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByTestId("meeting-template-informationSharing"));
+    fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+      target: { value: "informationSharing" },
+    });
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
 

@@ -93,7 +93,7 @@ export function SettingsPanel({
               className="mb-4 text-sm text-amber-700 dark:text-amber-300"
               role="status"
             >
-              이전 녹음 처리 중에는 스크립트·회의록 모델을 바꿀 수 없습니다.
+              이전 녹음 처리 중에는 스크립트·요약 모델을 바꿀 수 없습니다.
             </p>
           ) : null}
 
@@ -105,7 +105,7 @@ export function SettingsPanel({
               전역 용어 사전
             </label>
             <p className="mb-2 text-xs text-zinc-500 dark:text-zinc-400">
-              회의록 작성 시 STT 오인식 교정에 참고할 용어입니다. 한 줄에 하나씩
+              요약 작성 시 STT 오인식 교정에 참고할 용어입니다. 한 줄에 하나씩
               입력하세요.
             </p>
             <textarea

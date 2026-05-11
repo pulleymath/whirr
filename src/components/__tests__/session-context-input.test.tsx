@@ -26,11 +26,8 @@ describe("SessionContextInput", () => {
       <SessionContextInput value={base} onChange={onChange} disabled={false} />,
     );
     expect(
-      (
-        screen.getByTestId(
-          "session-context-participants",
-        ) as HTMLTextAreaElement
-      ).placeholder,
+      (screen.getByTestId("session-context-participants") as HTMLInputElement)
+        .placeholder,
     ).toContain("고풀리 PM");
     expect(
       (screen.getByTestId("session-context-topic") as HTMLInputElement)
@@ -60,11 +57,8 @@ describe("SessionContextInput", () => {
     const onChange = vi.fn();
     render(<SessionContextInput value={base} onChange={onChange} disabled />);
     expect(
-      (
-        screen.getByTestId(
-          "session-context-participants",
-        ) as HTMLTextAreaElement
-      ).disabled,
+      (screen.getByTestId("session-context-participants") as HTMLInputElement)
+        .disabled,
     ).toBe(true);
     expect(
       (screen.getByTestId("session-context-topic") as HTMLInputElement)
@@ -76,11 +70,11 @@ describe("SessionContextInput", () => {
     ).toBe(true);
   });
 
-  it("disabled=true이면 회의록 생성 중 안내가 표시된다", () => {
+  it("disabled=true이면 요약 생성 중 안내가 표시된다", () => {
     const onChange = vi.fn();
     render(<SessionContextInput value={base} onChange={onChange} disabled />);
     expect(
-      screen.getByText("회의록 생성 중에는 수정할 수 없습니다."),
+      screen.getByText("요약 생성 중에는 수정할 수 없습니다."),
     ).toBeTruthy();
   });
 

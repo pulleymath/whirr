@@ -197,7 +197,7 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       const { rerender } = renderRecorder();
 
       fireEvent.change(screen.getByTestId("session-context-participants"), {
-        target: { value: "고풀리 PM\n이풀리 엔지니어" },
+        target: { value: "고풀리 PM, 이풀리 엔지니어" },
       });
       fireEvent.change(screen.getByTestId("session-context-topic"), {
         target: { value: "2분기 로드맵" },
@@ -224,7 +224,7 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
         expect(mockEnqueue).toHaveBeenCalledWith(
           expect.objectContaining({
             sessionContext: {
-              participants: "고풀리 PM\n이풀리 엔지니어",
+              participants: "고풀리 PM, 이풀리 엔지니어",
               topic: "2분기 로드맵",
               keywords: "우선순위, 리스크",
             },
@@ -237,9 +237,9 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       setBatchMode();
       const { rerender } = renderRecorder();
 
-      fireEvent.click(
-        screen.getByTestId("meeting-template-informationSharing"),
-      );
+      fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+        target: { value: "informationSharing" },
+      });
 
       fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
       await vi.waitFor(() => {
@@ -263,6 +263,68 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
         );
       });
     });
+
+    it("배치 모드 — saveSession 옵션에 노트 제목이 포함된다", async () => {
+      setBatchMode();
+      const { rerender } = renderRecorder();
+
+      fireEvent.change(screen.getByTestId("recorder-note-title"), {
+        target: { value: "주간 제품 회의" },
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+      await vi.waitFor(() => {
+        expect(mocks.batch.startRecording).toHaveBeenCalled();
+      });
+
+      mocks.batch.status = "recording";
+      rerender(
+        <MainAppProviders>
+          <Recorder />
+        </MainAppProviders>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+
+      await vi.waitFor(() => {
+        expect(vi.mocked(saveSession)).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            title: "주간 제품 회의",
+            status: "transcribing",
+          }),
+        );
+      });
+    });
+
+    it("배치 모드 — 노트 제목을 비워 두면 saveSession에 '새로운 노트'가 넘어간다", async () => {
+      setBatchMode();
+      const { rerender } = renderRecorder();
+
+      fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+      await vi.waitFor(() => {
+        expect(mocks.batch.startRecording).toHaveBeenCalled();
+      });
+
+      mocks.batch.status = "recording";
+      rerender(
+        <MainAppProviders>
+          <Recorder />
+        </MainAppProviders>,
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+
+      await vi.waitFor(() => {
+        expect(vi.mocked(saveSession)).toHaveBeenCalledWith(
+          expect.any(String),
+          expect.objectContaining({
+            title: "새로운 노트",
+            status: "transcribing",
+          }),
+        );
+      });
+    });
   });
 
   describe("Step 5: 배치 모드 — enqueue 성공 후 입력 초기화", () => {
@@ -272,7 +334,7 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
 
       const participants = screen.getByTestId(
         "session-context-participants",
-      ) as HTMLTextAreaElement;
+      ) as HTMLInputElement;
       const topic = screen.getByTestId(
         "session-context-topic",
       ) as HTMLInputElement;
@@ -306,7 +368,7 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
           (
             screen.getByTestId(
               "session-context-participants",
-            ) as HTMLTextAreaElement
+            ) as HTMLInputElement
           ).value,
         ).toBe("");
       });
@@ -323,16 +385,13 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       setBatchMode();
       const { rerender } = renderRecorder();
 
-      fireEvent.click(
-        screen.getByTestId("meeting-template-informationSharing"),
-      );
+      fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+        target: { value: "informationSharing" },
+      });
       expect(
-        (
-          screen.getByTestId(
-            "meeting-template-informationSharing",
-          ) as HTMLInputElement
-        ).checked,
-      ).toBe(true);
+        (screen.getByTestId("meeting-template-selector") as HTMLSelectElement)
+          .value,
+      ).toBe("informationSharing");
 
       fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
       await vi.waitFor(() => {
@@ -353,9 +412,9 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       });
       await vi.waitFor(() => {
         expect(
-          (screen.getByTestId("meeting-template-default") as HTMLInputElement)
-            .checked,
-        ).toBe(true);
+          (screen.getByTestId("meeting-template-selector") as HTMLSelectElement)
+            .value,
+        ).toBe("default");
       });
     });
   });
@@ -395,7 +454,7 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
           (
             screen.getByTestId(
               "session-context-participants",
-            ) as HTMLTextAreaElement
+            ) as HTMLInputElement
           ).value,
         ).toBe("");
       });
@@ -408,7 +467,9 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       setRealtimeMode();
       const { rerender } = renderRecorder();
 
-      fireEvent.click(screen.getByTestId("meeting-template-business"));
+      fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+        target: { value: "business" },
+      });
 
       fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
       await vi.waitFor(() => {
@@ -430,15 +491,15 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       });
       await vi.waitFor(() => {
         expect(
-          (screen.getByTestId("meeting-template-default") as HTMLInputElement)
-            .checked,
-        ).toBe(true);
+          (screen.getByTestId("meeting-template-selector") as HTMLSelectElement)
+            .value,
+        ).toBe("default");
       });
     });
   });
 
   describe("Phase 5 보강: pipeline.isBusy=true 분기에서 회의 정보 입력 비활성·안내 노출", () => {
-    it("배치 모드 — pipeline.isBusy일 때 참석자·주제·키워드와 회의록 형식 라디오가 disabled가 되고 안내 문구가 노출된다", () => {
+    it("배치 모드 — pipeline.isBusy일 때 참석자·주제·키워드와 회의록 형식 선택이 disabled가 되고 안내 문구가 노출된다", () => {
       setBatchMode();
       mocks.pipeline.isBusy = true;
       renderRecorder();
@@ -446,9 +507,9 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       expect(screen.getByTestId("session-context-participants")).toBeDisabled();
       expect(screen.getByTestId("session-context-topic")).toBeDisabled();
       expect(screen.getByTestId("session-context-keywords")).toBeDisabled();
-      expect(screen.getByTestId("meeting-template-default")).toBeDisabled();
+      expect(screen.getByTestId("meeting-template-selector")).toBeDisabled();
       expect(
-        screen.getByText("회의록 생성 중에는 수정할 수 없습니다."),
+        screen.getByText("요약 생성 중에는 수정할 수 없습니다."),
       ).toBeInTheDocument();
     });
 
@@ -462,9 +523,11 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       ).not.toBeDisabled();
       expect(screen.getByTestId("session-context-topic")).not.toBeDisabled();
       expect(screen.getByTestId("session-context-keywords")).not.toBeDisabled();
-      expect(screen.getByTestId("meeting-template-default")).not.toBeDisabled();
       expect(
-        screen.queryByText("회의록 생성 중에는 수정할 수 없습니다."),
+        screen.getByTestId("meeting-template-selector"),
+      ).not.toBeDisabled();
+      expect(
+        screen.queryByText("요약 생성 중에는 수정할 수 없습니다."),
       ).not.toBeInTheDocument();
     });
   });
@@ -482,7 +545,12 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
       fireEvent.change(screen.getByTestId("session-context-topic"), {
         target: { value: "긴급 이슈 점검" },
       });
-      fireEvent.click(screen.getByTestId("meeting-template-business"));
+      fireEvent.change(screen.getByTestId("recorder-note-title"), {
+        target: { value: "실패 후 유지 제목" },
+      });
+      fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+        target: { value: "business" },
+      });
 
       fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
       await vi.waitFor(() => {
@@ -505,19 +573,19 @@ describe("Recorder 녹음 전 회의 컨텍스트 입력", () => {
 
       expect(mockEnqueue).not.toHaveBeenCalled();
       expect(
-        (
-          screen.getByTestId(
-            "session-context-participants",
-          ) as HTMLTextAreaElement
-        ).value,
+        (screen.getByTestId("session-context-participants") as HTMLInputElement)
+          .value,
       ).toBe("고풀리 PM");
       expect(
         (screen.getByTestId("session-context-topic") as HTMLInputElement).value,
       ).toBe("긴급 이슈 점검");
       expect(
-        (screen.getByTestId("meeting-template-business") as HTMLInputElement)
-          .checked,
-      ).toBe(true);
+        (screen.getByTestId("recorder-note-title") as HTMLInputElement).value,
+      ).toBe("실패 후 유지 제목");
+      expect(
+        (screen.getByTestId("meeting-template-selector") as HTMLSelectElement)
+          .value,
+      ).toBe("business");
     });
   });
 });

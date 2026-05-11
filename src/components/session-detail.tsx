@@ -85,7 +85,7 @@ function SessionDetailBody({
   const [state, setState] = useState<DetailState>({ status: "loading" });
   const [isDownloading, setIsDownloading] = useState(false);
 
-  /** 저장 후 화면 갱신용. 실패 시 전역 오류 화면 대신 false를 반환한다(호출부에서 회의록 영역 오류 처리). */
+  /** 저장 후 화면 갱신용. 실패 시 전역 오류 화면 대신 false를 반환한다(호출부에서 요약 영역 오류 처리). */
   const refreshSession = useCallback(async (): Promise<boolean> => {
     try {
       const [row, audioRow] = await Promise.all([
@@ -339,7 +339,7 @@ function SessionDetailReadyContent({
       }
     } catch (e) {
       console.error(e);
-      setMmError("회의록을 만들지 못했습니다.");
+      setMmError("요약을 만들지 못했습니다.");
     } finally {
       setMmLoading(false);
     }
@@ -358,13 +358,13 @@ function SessionDetailReadyContent({
     <div
       className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
       role="region"
-      aria-label="회의록"
+      aria-label="요약"
     >
       {session.summary ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <IconButton
             icon={copiedSummary ? Check : Copy}
-            ariaLabel="회의록 전체 복사"
+            ariaLabel="요약 전체 복사"
             label={copiedSummary ? "복사됨" : undefined}
             variant="outline"
             onClick={() => void copySummaryMarkdown()}
@@ -377,22 +377,18 @@ function SessionDetailReadyContent({
         </div>
       ) : hasText ? (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-          아직 회의록이 없습니다. 스크립트 탭 하단에서 회의록을 생성하세요.
+          아직 요약이 없습니다. 스크립트 탭 하단에서 요약을 생성하세요.
         </p>
       ) : (
         <p className="mt-4 text-sm text-zinc-500 dark:text-zinc-400">
-          스크립트가 비어 있으면 회의록을 만들 수 없습니다.
+          스크립트가 비어 있으면 요약을 만들 수 없습니다.
         </p>
       )}
     </div>
   );
 
   const transcriptPanel = (
-    <div
-      className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
-      role="region"
-      aria-label="스크립트"
-    >
+    <div className="flex flex-col" role="region" aria-label="스크립트">
       <div className="flex flex-wrap items-center justify-end gap-2">
         <IconButton
           icon={copiedScript ? Check : Copy}
@@ -427,7 +423,7 @@ function SessionDetailReadyContent({
           className="mt-2 text-xs text-amber-800 dark:text-amber-200/90"
           role="status"
         >
-          저장하지 않은 내용은 회의록 생성·재생성에 반영됩니다. 세션 목록 등에
+          저장하지 않은 내용은 요약 생성·재생성에 반영됩니다. 세션 목록 등에
           맞추려면 스크립트 저장을 눌러 주세요.
         </p>
       ) : null}
@@ -439,10 +435,10 @@ function SessionDetailReadyContent({
 
       <section
         className="mt-6 border-t border-zinc-200 pt-6 dark:border-zinc-700"
-        aria-label="회의록 생성 설정"
+        aria-label="요약 생성 설정"
       >
         <h2 className="mb-4 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-          회의록 생성
+          요약 생성
         </h2>
         <div className="flex flex-col gap-4">
           <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
@@ -480,9 +476,9 @@ function SessionDetailReadyContent({
                 생성 중…
               </span>
             ) : session.summary ? (
-              "회의록 재생성"
+              "요약 재생성"
             ) : (
-              "회의록 생성"
+              "요약 생성"
             )}
           </Button>
           {mmError ? (

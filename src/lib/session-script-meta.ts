@@ -1,6 +1,6 @@
 import type { RealtimeEngine, TranscriptionMode } from "@/lib/settings/types";
 
-/** 세션 생성 시점의 스크립트·회의록 모델 메타(레거시 세션은 생략 가능). */
+/** 세션 생성 시점의 스크립트·요약 모델 메타(레거시 세션은 생략 가능). */
 export type SessionScriptMeta = {
   mode: TranscriptionMode;
   engine?: RealtimeEngine;

@@ -19,7 +19,7 @@ export function SessionMinutesModelSelect({
         htmlFor="session-minutes-model"
         className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
       >
-        회의록 작성 모델
+        요약 작성 모델
       </label>
       <select
         id="session-minutes-model"

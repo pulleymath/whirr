@@ -68,6 +68,47 @@ describe("SessionList", () => {
     });
   });
 
+  it("title이 있으면 스크립트 미리보기 대신 제목을 표시한다", async () => {
+    vi.mocked(getAllSessions).mockResolvedValue([
+      {
+        id: "x",
+        createdAt: new Date(2024, 5, 15, 9, 0, 0).getTime(),
+        text: "스크립트 본문 일부",
+        title: "주간 제품 회의",
+      },
+    ]);
+
+    render(wrapSessionList(<SessionList />));
+
+    await waitFor(() => {
+      expect(screen.getByText("주간 제품 회의")).toBeTruthy();
+    });
+    expect(screen.queryByText("스크립트 본문 일부")).toBeNull();
+  });
+
+  it("title이 없거나 공백이면 text 미리보기를 표시한다", async () => {
+    vi.mocked(getAllSessions).mockResolvedValue([
+      {
+        id: "a",
+        createdAt: new Date(2024, 5, 15, 9, 0, 0).getTime(),
+        text: "본문만",
+      },
+      {
+        id: "b",
+        createdAt: new Date(2024, 5, 15, 10, 0, 0).getTime(),
+        text: "둘째",
+        title: "   ",
+      },
+    ]);
+
+    render(wrapSessionList(<SessionList />));
+
+    await waitFor(() => {
+      expect(screen.getByText("본문만")).toBeTruthy();
+    });
+    expect(screen.getByText("둘째")).toBeTruthy();
+  });
+
   it("현재 경로와 id가 같으면 해당 링크에 aria-current=page가 있다", async () => {
     vi.mocked(getAllSessions).mockResolvedValue([
       {

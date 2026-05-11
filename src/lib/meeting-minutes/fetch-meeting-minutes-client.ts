@@ -9,7 +9,7 @@ export type FetchMeetingMinutesOptions = {
 };
 
 /**
- * 브라우저에서 회의록 API를 호출해 요약 본문(`summary`) 문자열만 반환한다.
+ * 브라우저에서 요약 API를 호출해 본문(`summary`) 문자열만 반환한다.
  */
 export async function fetchMeetingMinutesSummary(
   text: string,
@@ -49,7 +49,7 @@ export async function fetchMeetingMinutesSummary(
     const msg =
       serverMsg != null && serverMsg.trim()
         ? serverMsg.trim()
-        : "회의록 요청에 실패했습니다.";
+        : "요약 요청에 실패했습니다.";
     throw new Error(msg);
   }
   if (
@@ -61,5 +61,5 @@ export async function fetchMeetingMinutesSummary(
   ) {
     return (data as { summary: string }).summary;
   }
-  throw new Error("회의록 응답 형식이 올바르지 않습니다.");
+  throw new Error("요약 응답 형식이 올바르지 않습니다.");
 }

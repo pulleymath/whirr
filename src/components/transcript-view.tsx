@@ -1,3 +1,5 @@
+export type TranscriptViewVariant = "card" | "embedded" | "plain";
+
 type TranscriptViewProps = {
   partial: string;
   finals: string[];
@@ -10,6 +12,25 @@ type TranscriptViewProps = {
   loadingMessage?: string | null;
   /** 배치 녹음 중 세그먼트 스크립트 변환이 진행 중일 때 finals 끝에 로딩 점 표시 */
   isSegmentInFlight?: boolean;
+  /** `embedded`는 노트 작업면용 경량 카드. `plain`은 탭·문서 캔버스 안에서 쓰는 넓은 본문형. */
+  variant?: TranscriptViewVariant;
+  /** 루트 `section`에 추가 클래스. */
+  className?: string;
+};
+
+const SECTION_VARIANT_CLASS: Record<TranscriptViewVariant, string> = {
+  card: "rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950",
+  embedded:
+    "rounded-xl border border-zinc-200/80 bg-zinc-50/60 p-4 dark:border-zinc-800/80 dark:bg-zinc-900/40",
+  plain:
+    "flex min-h-0 flex-1 flex-col gap-3 border-0 bg-transparent p-0 shadow-none dark:bg-transparent",
+};
+
+const TEXTAREA_VARIANT_CLASS: Record<TranscriptViewVariant, string> = {
+  card: "min-h-48",
+  embedded: "min-h-36",
+  plain:
+    "min-h-[min(44vh,17rem)] flex-1 resize-none border-0 bg-transparent px-0 py-0 text-[15px] leading-[1.7] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder:text-zinc-500",
 };
 
 export function TranscriptView({
@@ -20,6 +41,8 @@ export function TranscriptView({
   emptyStateHint = null,
   loadingMessage = null,
   isSegmentInFlight = false,
+  variant = "card",
+  className = "",
 }: TranscriptViewProps) {
   const hasContent = finals.length > 0 || partial.length > 0;
   const joinedFinals = finals.join("\n");
@@ -31,9 +54,11 @@ export function TranscriptView({
   const showLivePartialRow =
     Boolean(loadingMessage?.trim()) || partial.trim().length > 0;
 
+  const sectionClass = `${SECTION_VARIANT_CLASS[variant]} ${className}`.trim();
+
   return (
     <section
-      className="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-950"
+      className={sectionClass}
       aria-label="실시간 스크립트"
       data-testid="transcript-view-card"
     >
@@ -44,17 +69,18 @@ export function TranscriptView({
       ) : null}
 
       {errorMessage ? (
-        <p
-          className="mb-3 text-sm text-red-600 dark:text-red-400"
-          role="alert"
-        >
+        <p className="mb-3 text-sm text-red-600 dark:text-red-400" role="alert">
           {errorMessage}
         </p>
       ) : null}
 
       {showLivePartialRow ? (
         <div
-          className="min-h-6 text-sm text-zinc-700 dark:text-zinc-300"
+          className={
+            variant === "plain"
+              ? "min-h-6 shrink-0 border-b border-zinc-200/60 pb-3 text-[15px] leading-relaxed text-zinc-600 dark:border-zinc-700/60 dark:text-zinc-300"
+              : "min-h-6 text-sm text-zinc-700 dark:text-zinc-300"
+          }
           aria-live="polite"
           aria-atomic="true"
           data-testid="transcript-partial"
@@ -83,12 +109,16 @@ export function TranscriptView({
         placeholder={showEmptyHint ? emptyHint : ""}
         data-testid="transcript-textarea"
         aria-label="실시간 스크립트 텍스트"
-        className="mt-3 min-h-48 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+        className={
+          variant === "plain"
+            ? `w-full cursor-default font-sans ${TEXTAREA_VARIANT_CLASS.plain}`
+            : `mt-3 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${TEXTAREA_VARIANT_CLASS[variant]}`.trim()
+        }
       />
 
       {isSegmentInFlight ? (
         <p
-          className="mt-2 text-xs text-zinc-500 dark:text-zinc-400"
+          className={`text-xs text-zinc-500 dark:text-zinc-400 ${variant === "plain" ? "shrink-0" : "mt-2"}`}
           data-testid="transcript-segment-loading"
         >
           최신 세그먼트 스크립트를 반영하는 중…
