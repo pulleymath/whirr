@@ -78,7 +78,9 @@ vi.mock("@/hooks/use-batch-transcription", () => ({
 
 vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/post-recording-pipeline/context")>();
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
   return {
     ...actual,
     usePostRecordingPipeline: () => ({

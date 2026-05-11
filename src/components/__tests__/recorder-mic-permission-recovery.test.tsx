@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { SETTINGS_STORAGE_KEY } from "@/lib/settings/context";
@@ -10,7 +16,9 @@ const pcmAttempt = vi.hoisted(() => ({ n: 0 }));
 
 vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/post-recording-pipeline/context")>();
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
   return {
     ...actual,
     usePostRecordingPipeline: () => ({
@@ -113,20 +121,26 @@ describe("Recorder: 마이크 권한 거부 후 재시도", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("recorder-root").getAttribute("data-transcription-mode"),
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
       ).toBe("realtime");
     });
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
     await waitFor(() => {
-      expect(screen.getByText(/마이크 권한이 거부되었습니다/)).toBeInTheDocument();
+      expect(
+        screen.getByText(/마이크 권한이 거부되었습니다/),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "녹음 중지" }),
+      ).toBeInTheDocument();
     });
   });
 });

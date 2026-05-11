@@ -185,9 +185,7 @@ describe("SessionDetail", () => {
     const titleEl = screen.getByTestId("recorder-note-title");
     expect(titleEl.tagName).toBe("H2");
     expect(titleEl).toHaveTextContent("내 회의 노트");
-    expect(
-      screen.queryByRole("textbox", { name: "노트 제목" }),
-    ).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "노트 제목" })).toBeNull();
   });
 
   it("오디오 세그먼트가 있으면 ZIP 다운로드 버튼을 보여준다", async () => {
@@ -431,9 +429,7 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "요약 생성" }),
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "요약 생성" })).toBeDisabled();
     });
   });
 
@@ -581,9 +577,7 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "요약 재생성" }),
-      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "요약 재생성" })).toBeTruthy();
     });
   });
 });

@@ -5,6 +5,7 @@
 ## 수정 항목
 
 ### 1. `showSessionContext`가 사실상 상수가 된 후 네이밍·표현 정리
+
 - 심각도: MEDIUM
 - 출처: `04_review_architecture.md` (architecture, naming/readability) → 종합 권장 #1
 - 선택한 옵션: synthesis가 제시한 (a) — `RevealSection visible={true}`로 인라인 + 한 줄 의도 주석.
@@ -18,6 +19,7 @@
 - 효과: "조건부 플래그처럼 보이는 상수 변수"라는 가독성 가짜 신호를 제거하고, 의도(`idle부터 항상 노출`)를 한 줄 주석으로 코드 옆에 남겼다. `showTranscript`만 조건부로 남아 분기 신호가 명확해졌다.
 
 ### 2. `pipeline.isBusy=true` 분기에서 회의 정보·회의록 형식 입력 비활성·안내 회귀 테스트 보강
+
 - 심각도: MEDIUM
 - 출처: `02_review_implementation.md` (impl, coverage) → 종합 권장 #2
 - 변경 내용:
@@ -33,12 +35,15 @@
 ## 미수정 항목 (사유 포함)
 
 ### 종합 권장 #3 — `Recorder` 컴포넌트 책임 집중 (MEDIUM, architecture)
+
 - synthesis 자체가 "본 PR에서는 변경하지 않는다. 별도 후속 이슈로 등록해 두면 좋다"고 명시. 본 이슈 스코프 밖이며, 무리한 분리는 회귀 위험만 키운다. `useRecorderSessionInputs` 분리 등은 별도 이슈로 메모.
 
 ### 종합 HIGH #1 — 신규 테스트 파일이 Git 미추적
+
 - 본 Phase 5 시점에서도 `?? src/components/__tests__/recorder-pre-recording-context.test.tsx`인 채로 남는다. **Phase 7의 `git add -A` + 커밋 단계에서 자동으로 추적되므로 머지 전에 반드시 해소된다**. Phase 7 산출물에서 `git status`로 재검증한다.
 
 ### 종합 LOW들
+
 - 스트리밍 모드 `saveSession` 실패 회귀 테스트, Step 7 케이스 분리, `console.error` 정적 코드화, LLM 신뢰 경계 보강, lazy mount, 입력 필드 로컬 state, `enqueuePipeline` 비동기 메모, `USER_FLOWS.md §13` 교차 참조, `resetSessionInputs` 주석 보강, 테스트 mock 공통화, `as HTMLTextAreaElement` 점진적 전환 — 모두 이슈 비목표·LOW 범주이며 후속 이슈 또는 별도 PR에서 다룬다. 본 PR에 무리하게 끌고 오면 회귀 검증 부담이 커진다.
 
 ## 수정 후 테스트 결과

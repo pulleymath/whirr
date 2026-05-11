@@ -21,12 +21,12 @@
 
 ## 변경 후보
 
-| 영역 | 후보 |
-|------|------|
-| 레이아웃 | `src/components/session-detail.tsx` — `MainTranscriptTabs` 대신 `RecorderNoteWorkspace` 패턴(또는 공통 래퍼)으로 상단 메타 + 탭 본문 정렬 |
-| 재사용 | `src/components/recorder-note-workspace.tsx` — 상세 전용 props(예: `pipelineBusy` ↔ 요약 생성 중, `children`에 스크립트 에디터) 확장 여부 검토 |
-| 헤더/제목 | 세션 `title`을 홈과 동일한 큰 타이포로 **읽기 전용** 표시(입력 필드·저장 없음) |
-| 테스트 | `src/components/__tests__/session-detail*.test.tsx` — 탭 라벨·역할, 요약 재생성, 다운로드, 스크립트 저장 회귀 |
+| 영역      | 후보                                                                                                                                           |
+| --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 레이아웃  | `src/components/session-detail.tsx` — `MainTranscriptTabs` 대신 `RecorderNoteWorkspace` 패턴(또는 공통 래퍼)으로 상단 메타 + 탭 본문 정렬      |
+| 재사용    | `src/components/recorder-note-workspace.tsx` — 상세 전용 props(예: `pipelineBusy` ↔ 요약 생성 중, `children`에 스크립트 에디터) 확장 여부 검토 |
+| 헤더/제목 | 세션 `title`을 홈과 동일한 큰 타이포로 **읽기 전용** 표시(입력 필드·저장 없음)                                                                 |
+| 테스트    | `src/components/__tests__/session-detail*.test.tsx` — 탭 라벨·역할, 요약 재생성, 다운로드, 스크립트 저장 회귀                                  |
 
 ## 테스트·완료 조건
 

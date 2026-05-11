@@ -4,10 +4,7 @@ import { MEETING_MINUTES_TEMPLATE_OPTIONS } from "@/lib/meeting-minutes/template
 import type { MeetingMinutesTemplate } from "@/lib/meeting-minutes/templates";
 import { useId } from "react";
 
-export type MeetingTemplateSelectorVariant =
-  | "fieldset"
-  | "plain"
-  | "select";
+export type MeetingTemplateSelectorVariant = "fieldset" | "plain" | "select";
 
 export type MeetingTemplateSelectorProps = {
   value: MeetingMinutesTemplate;
@@ -50,7 +47,8 @@ export function MeetingTemplateSelector({
           aria-label="요약 형식"
           value={selectValue}
           onChange={(e) => {
-            const next = e.target.value as (typeof MEETING_MINUTES_TEMPLATE_OPTIONS)[number]["value"];
+            const next = e.target
+              .value as (typeof MEETING_MINUTES_TEMPLATE_OPTIONS)[number]["value"];
             if (next === "custom") {
               onChange({
                 id: "custom",

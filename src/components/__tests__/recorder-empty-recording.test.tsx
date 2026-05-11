@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { saveSession, saveSessionAudio } from "@/lib/db";
@@ -10,7 +16,9 @@ const mockEnqueue = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/post-recording-pipeline/context")>();
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
   return {
     ...actual,
     usePostRecordingPipeline: () => ({
@@ -98,7 +106,9 @@ describe("Recorder: 빈 녹음(배치)", () => {
     );
     prepareStreaming.mockImplementation(async () => true);
     globalThis.fetch = vi.fn(async () => {
-      return new Response(JSON.stringify({ text: "스크립트" }), { status: 200 });
+      return new Response(JSON.stringify({ text: "스크립트" }), {
+        status: 200,
+      });
     }) as unknown as typeof fetch;
   });
 
@@ -114,7 +124,9 @@ describe("Recorder: 빈 녹음(배치)", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("recorder-root").getAttribute("data-transcription-mode"),
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
       ).toBe("batch");
     });
 

@@ -12,10 +12,10 @@ issue_driven_dev:
 
 세션 상세(`SessionDetail`)를 홈 녹음 화면(`RecorderNoteWorkspace`)과 동일한 노트형 UI로 재구성한다.
 
-| 범위 | 설명 |
-|------|------|
+| 범위     | 설명                                                                                                                                                                                                                                                             |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **포함** | `RecorderNoteWorkspace` 재사용(탭 라벨 "AI 요약"/"스크립트", 속성 행, 제목), 제목 읽기전용 표시, `MainTranscriptTabs`·`SessionContextInput` 중복 제거, `RecordingCard` 미노출 보장, 기존 기능(ZIP 다운로드·스크립트 저장·요약 생성/재생성·용어집·모델·메타) 유지 |
-| **제외** | 세션 상세에서 새 녹음 시작, 인앱 오디오 플레이어 추가, IndexedDB·API 계약 변경 |
+| **제외** | 세션 상세에서 새 녹음 시작, 인앱 오디오 플레이어 추가, IndexedDB·API 계약 변경                                                                                                                                                                                   |
 
 ### 현재 구현 상태
 
@@ -106,13 +106,13 @@ Working tree에 구현이 **이미 존재**한다.
 
 ## 파일 변경 계획
 
-| 파일 | 변경 유형 | 설명 |
-|------|-----------|------|
-| `src/components/session-detail.tsx` | 수정 | `RecorderNoteWorkspace`, ZIP, 스크립트·요약 본문 |
-| `src/components/recorder-note-workspace.tsx` | 수정 | `summaryPanelContent`, `titleReadOnly` |
-| `src/components/__tests__/session-detail.test.tsx` | 수정 | 탭 라벨 + 회귀 테스트 보강 |
-| `src/components/__tests__/session-detail-idb-failure.test.tsx` | 수정 | 탭 라벨 |
-| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | 수정 | 탭 라벨 |
+| 파일                                                                | 변경 유형 | 설명                                             |
+| ------------------------------------------------------------------- | --------- | ------------------------------------------------ |
+| `src/components/session-detail.tsx`                                 | 수정      | `RecorderNoteWorkspace`, ZIP, 스크립트·요약 본문 |
+| `src/components/recorder-note-workspace.tsx`                        | 수정      | `summaryPanelContent`, `titleReadOnly`           |
+| `src/components/__tests__/session-detail.test.tsx`                  | 수정      | 탭 라벨 + 회귀 테스트 보강                       |
+| `src/components/__tests__/session-detail-idb-failure.test.tsx`      | 수정      | 탭 라벨                                          |
+| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | 수정      | 탭 라벨                                          |
 
 ## 완료 조건
 

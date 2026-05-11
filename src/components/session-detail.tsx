@@ -217,16 +217,16 @@ function SessionDetailReadyContent({
   const [mmError, setMmError] = useState<string | null>(null);
   useBeforeUnload(mmLoading);
   const [contextDraft, setContextDraft] = useState<SessionContext>(
-    session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT
+    session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT,
   );
   const [glossaryDraft, setGlossaryDraft] = useState<string[]>(
-    session.context?.glossary ?? []
+    session.context?.glossary ?? [],
   );
   const [minutesModelDraft, setMinutesModelDraft] = useState(
-    session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL
+    session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
   );
   const [templateDraft, setTemplateDraft] = useState<MeetingMinutesTemplate>(
-    session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE
+    session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
   );
 
   useEffect(() => {
@@ -237,10 +237,10 @@ function SessionDetailReadyContent({
     setContextDraft(session.context?.sessionContext ?? EMPTY_SESSION_CONTEXT);
     setGlossaryDraft(session.context?.glossary ?? []);
     setMinutesModelDraft(
-      session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL
+      session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
     );
     setTemplateDraft(
-      session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE
+      session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
     );
   }, [session.id, session.context, session.scriptMeta]);
 
@@ -280,7 +280,7 @@ function SessionDetailReadyContent({
       const refreshed = await onSessionRefresh();
       if (!refreshed) {
         setScriptSaveError(
-          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
         );
       }
     } catch (e) {
@@ -326,13 +326,13 @@ function SessionDetailReadyContent({
           glossary: glossaryDraft,
           sessionContext: sc ?? undefined,
           template: templateResolved,
-        }
+        },
       );
       await updateSession(session.id, { summary, status: "ready" });
       const refreshed = await onSessionRefresh();
       if (!refreshed) {
         setMmError(
-          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도하거나 세션 목록에서 다시 열어 주세요."
+          "저장 후 화면을 불러오지 못했습니다. 잠시 후 다시 시도하거나 세션 목록에서 다시 열어 주세요.",
         );
       }
     } catch (e) {
@@ -353,7 +353,11 @@ function SessionDetailReadyContent({
   ]);
 
   const summaryPanelContent = (
-    <div className="flex min-h-0 flex-1 flex-col gap-4" role="region" aria-label="요약">
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-4"
+      role="region"
+      aria-label="요약"
+    >
       {session.summary ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <IconButton
@@ -382,7 +386,11 @@ function SessionDetailReadyContent({
   );
 
   const scriptTabBody = (
-    <div className="flex min-h-0 flex-1 flex-col gap-4" role="region" aria-label="스크립트">
+    <div
+      className="flex min-h-0 flex-1 flex-col gap-4"
+      role="region"
+      aria-label="스크립트"
+    >
       <div className="flex flex-wrap items-center justify-end gap-2">
         <IconButton
           icon={copiedScript ? Check : Copy}
@@ -489,7 +497,7 @@ function SessionDetailReadyContent({
               try {
                 await downloadRecordingZip(
                   audioSegments,
-                  `session-${session.id}`
+                  `session-${session.id}`,
                 );
               } catch {
                 /* ZIP 생성·다운로드 실패는 UI만 복구(로딩 해제). 별도 토스트 없음. */

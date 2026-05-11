@@ -77,7 +77,9 @@ describe("SessionDetail: 요약 생성 중 beforeunload", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: /요약 생성/ })).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /요약 생성/ }),
+      ).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));

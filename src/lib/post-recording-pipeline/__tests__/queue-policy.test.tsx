@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useEffect, useRef } from "react";
 import {
@@ -91,79 +97,67 @@ describe("PostRecordingPipeline enqueue 정책", () => {
     vi.useRealTimers();
   });
 
-  it(
-    "FIFO: 먼저 넣은 세션이 먼저 ready 상태로 저장된다",
-    async () => {
-      const readyOrder: string[] = [];
-      vi.mocked(updateSession).mockImplementation(async (id, patch) => {
-        if (patch.status === "ready") {
-          readyOrder.push(id);
-        }
-      });
+  it("FIFO: 먼저 넣은 세션이 먼저 ready 상태로 저장된다", async () => {
+    const readyOrder: string[] = [];
+    vi.mocked(updateSession).mockImplementation(async (id, patch) => {
+      if (patch.status === "ready") {
+        readyOrder.push(id);
+      }
+    });
 
-      render(
-        <PostRecordingPipelineProvider>
-          <FifoHarness />
-        </PostRecordingPipelineProvider>,
-      );
+    render(
+      <PostRecordingPipelineProvider>
+        <FifoHarness />
+      </PostRecordingPipelineProvider>,
+    );
 
-      await waitFor(
-        () => {
-          expect(readyOrder).toEqual(["sess-fifo-a", "sess-fifo-b"]);
-        },
-        { timeout: 15_000 },
-      );
-    },
-    20_000,
-  );
+    await waitFor(
+      () => {
+        expect(readyOrder).toEqual(["sess-fifo-a", "sess-fifo-b"]);
+      },
+      { timeout: 15_000 },
+    );
+  }, 20_000);
 
-  it(
-    "동일 sessionId를 처리 중에 다시 enqueue하면 무시한다",
-    async () => {
-      let readyCount = 0;
-      vi.mocked(updateSession).mockImplementation(async (id, patch) => {
-        if (id === "sess-dup" && patch.status === "ready") {
-          readyCount += 1;
-        }
-      });
+  it("동일 sessionId를 처리 중에 다시 enqueue하면 무시한다", async () => {
+    let readyCount = 0;
+    vi.mocked(updateSession).mockImplementation(async (id, patch) => {
+      if (id === "sess-dup" && patch.status === "ready") {
+        readyCount += 1;
+      }
+    });
 
-      render(
-        <PostRecordingPipelineProvider>
-          <DupInFlightHarness />
-        </PostRecordingPipelineProvider>,
-      );
+    render(
+      <PostRecordingPipelineProvider>
+        <DupInFlightHarness />
+      </PostRecordingPipelineProvider>,
+    );
 
-      await waitFor(() => expect(readyCount).toBe(1), { timeout: 15_000 });
-      expect(fetchMock.mock.calls.length).toBe(1);
-    },
-    20_000,
-  );
+    await waitFor(() => expect(readyCount).toBe(1), { timeout: 15_000 });
+    expect(fetchMock.mock.calls.length).toBe(1);
+  }, 20_000);
 
-  it(
-    "대기열에 이미 있는 sessionId는 다시 넣지 않는다",
-    async () => {
-      const readyOrder: string[] = [];
-      vi.mocked(updateSession).mockImplementation(async (id, patch) => {
-        if (patch.status === "ready") {
-          readyOrder.push(id);
-        }
-      });
+  it("대기열에 이미 있는 sessionId는 다시 넣지 않는다", async () => {
+    const readyOrder: string[] = [];
+    vi.mocked(updateSession).mockImplementation(async (id, patch) => {
+      if (patch.status === "ready") {
+        readyOrder.push(id);
+      }
+    });
 
-      render(
-        <PostRecordingPipelineProvider>
-          <DupPendingHarness />
-        </PostRecordingPipelineProvider>,
-      );
+    render(
+      <PostRecordingPipelineProvider>
+        <DupPendingHarness />
+      </PostRecordingPipelineProvider>,
+    );
 
-      fireEvent.click(screen.getByRole("button", { name: "연속 enqueue" }));
+    fireEvent.click(screen.getByRole("button", { name: "연속 enqueue" }));
 
-      await waitFor(
-        () => {
-          expect(readyOrder).toEqual(["sess-pend-a", "sess-pend-b"]);
-        },
-        { timeout: 15_000 },
-      );
-    },
-    20_000,
-  );
+    await waitFor(
+      () => {
+        expect(readyOrder).toEqual(["sess-pend-a", "sess-pend-b"]);
+      },
+      { timeout: 15_000 },
+    );
+  }, 20_000);
 });

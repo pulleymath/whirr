@@ -64,9 +64,7 @@ describe("SessionDetail 오디오 다운로드", () => {
       ).toBeTruthy();
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "오디오 다운로드" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "오디오 다운로드" }));
 
     await waitFor(() => {
       expect(downloadRecordingZip).toHaveBeenCalledWith(
@@ -126,9 +124,7 @@ describe("SessionDetail 오디오 다운로드", () => {
       ).toBeTruthy();
     });
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "오디오 다운로드" }),
-    );
+    fireEvent.click(screen.getByRole("button", { name: "오디오 다운로드" }));
 
     await waitFor(() => {
       expect(

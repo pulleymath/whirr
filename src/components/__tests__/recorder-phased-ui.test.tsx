@@ -172,7 +172,9 @@ describe("Recorder 단계별 UI", () => {
     mocks.transcription.errorMessage = "연결 실패";
     renderRecorder();
     expect(
-      screen.getByTestId("transcript-view-card").querySelector('[role="alert"]'),
+      screen
+        .getByTestId("transcript-view-card")
+        .querySelector('[role="alert"]'),
     ).toBeNull();
     expect(screen.getByText("연결 실패")).toBeInTheDocument();
   });
@@ -235,7 +237,9 @@ describe("Recorder 단계별 UI", () => {
     mocks.batch.status = "recording";
     mocks.batch.transcript = "첫 세그먼트";
     renderRecorder();
-    expect(screen.getByTestId("transcript-textarea")).toHaveValue("첫 세그먼트");
+    expect(screen.getByTestId("transcript-textarea")).toHaveValue(
+      "첫 세그먼트",
+    );
   });
 
   it("배치 녹음 중 pipeline.displayTranscript만 있으면 textarea에 반영된다", () => {

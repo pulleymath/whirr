@@ -55,7 +55,7 @@ function sessionTitleForSave(noteTitle: string): string {
 }
 
 function sessionContextForEnqueue(
-  value: SessionContext
+  value: SessionContext,
 ): SessionContext | null {
   if (
     !value.participants.trim() &&
@@ -130,7 +130,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   >(null);
   const [persistError, setPersistError] = useState<string | null>(null);
   const [sessionContext, setSessionContext] = useState<SessionContext>(
-    EMPTY_SESSION_CONTEXT
+    EMPTY_SESSION_CONTEXT,
   );
   const [meetingTemplate, setMeetingTemplate] =
     useState<MeetingMinutesTemplate>(DEFAULT_MEETING_MINUTES_TEMPLATE);
@@ -152,7 +152,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   useBeforeUnload(
     recordingActive ||
       pipeline.isBusy ||
-      (isBatchMode && batch.status === "transcribing")
+      (isBatchMode && batch.status === "transcribing"),
   );
 
   const finalsRef = useRef(finals);
@@ -220,7 +220,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       settings.meetingMinutesModel,
       settings.realtimeEngine,
       effectiveMode,
-    ]
+    ],
   );
 
   const handleBatchRetry = useCallback(async () => {
@@ -253,7 +253,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
     if (effectiveMode === "webSpeechApi") {
       if (!isWebSpeechApiSupported()) {
         setUnsupportedModeMessage(
-          "이 브라우저에서는 Web Speech API를 사용할 수 없습니다."
+          "이 브라우저에서는 Web Speech API를 사용할 수 없습니다.",
         );
         return;
       }

@@ -34,16 +34,16 @@
 
 ## 파일 변경 목록
 
-| 파일 | 변경 종류 | 요약 |
-|------|----------|------|
-| `src/components/recorder.tsx` | 수정 | `showSessionContext` 변수 제거 + `RevealSection visible` 인라인, `resetSessionInputs` 헬퍼 추가, `persistBatchResult`·`stop` 성공 경로에서 호출 |
-| `src/components/recorder-ui-preview.tsx` | 수정 | `showSessionContext` 변수 제거 + `RevealSection visible` 인라인, idle 라벨을 `녹음 전 (카드+컨텍스트)`로, recording 라벨을 `녹음 중`으로 변경 |
-| `src/components/__tests__/recorder-pre-recording-context.test.tsx` | 신규 | 12개 회귀 테스트 |
-| `src/components/__tests__/recorder-phased-ui.test.tsx` | 수정 | idle 숨김 단언을 idle 노출 단언으로 변경 |
-| `docs/USER_FLOWS.md` | 수정 | §2 happy path와 edge case에 녹음 전 입력·초기화·저장 실패·pipeline busy 안내 반영, 베이스라인의 prettier 위반을 함께 정리 |
-| `Issues/recorder-pre-recording-context/00..07.md` | 신규 | 이슈·계획·3개 리뷰·종합·수정 기록·요약 산출물 |
-| `Issues/STATUS.md` | 수정 | 본 이슈를 `진행 중` → `완료`로 변경 |
-| `Issues/audio-zip-download.md`, `Issues/recorder-recording-phased-ui.md`, `src/components/.gitkeep` | 삭제 | 이전 사이클에서 정리된 산출물 마무리(본 PR 부산물) |
+| 파일                                                                                                | 변경 종류 | 요약                                                                                                                                            |
+| --------------------------------------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/recorder.tsx`                                                                       | 수정      | `showSessionContext` 변수 제거 + `RevealSection visible` 인라인, `resetSessionInputs` 헬퍼 추가, `persistBatchResult`·`stop` 성공 경로에서 호출 |
+| `src/components/recorder-ui-preview.tsx`                                                            | 수정      | `showSessionContext` 변수 제거 + `RevealSection visible` 인라인, idle 라벨을 `녹음 전 (카드+컨텍스트)`로, recording 라벨을 `녹음 중`으로 변경   |
+| `src/components/__tests__/recorder-pre-recording-context.test.tsx`                                  | 신규      | 12개 회귀 테스트                                                                                                                                |
+| `src/components/__tests__/recorder-phased-ui.test.tsx`                                              | 수정      | idle 숨김 단언을 idle 노출 단언으로 변경                                                                                                        |
+| `docs/USER_FLOWS.md`                                                                                | 수정      | §2 happy path와 edge case에 녹음 전 입력·초기화·저장 실패·pipeline busy 안내 반영, 베이스라인의 prettier 위반을 함께 정리                       |
+| `Issues/recorder-pre-recording-context/00..07.md`                                                   | 신규      | 이슈·계획·3개 리뷰·종합·수정 기록·요약 산출물                                                                                                   |
+| `Issues/STATUS.md`                                                                                  | 수정      | 본 이슈를 `진행 중` → `완료`로 변경                                                                                                             |
+| `Issues/audio-zip-download.md`, `Issues/recorder-recording-phased-ui.md`, `src/components/.gitkeep` | 삭제      | 이전 사이클에서 정리된 산출물 마무리(본 PR 부산물)                                                                                              |
 
 ## 알려진 제한 사항
 

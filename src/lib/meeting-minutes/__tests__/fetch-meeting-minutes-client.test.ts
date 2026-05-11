@@ -97,9 +97,12 @@ describe("fetchMeetingMinutesSummary", () => {
 
   it("429면 서버 error 문자열과 무관하게 한국어 레이트 리밋 안내를 던진다", async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ error: "Too many meeting minutes requests" }), {
-        status: 429,
-      }),
+      new Response(
+        JSON.stringify({ error: "Too many meeting minutes requests" }),
+        {
+          status: 429,
+        },
+      ),
     ) as unknown as typeof fetch;
 
     await expect(fetchMeetingMinutesSummary("x", "m")).rejects.toThrow(

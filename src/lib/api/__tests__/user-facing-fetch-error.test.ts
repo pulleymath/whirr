@@ -9,7 +9,9 @@ describe("userFacingHttpErrorMessage", () => {
   });
 
   it("그 외 status는 서버 메시지가 있으면 그대로", () => {
-    expect(userFacingHttpErrorMessage(413, "text too long")).toBe("text too long");
+    expect(userFacingHttpErrorMessage(413, "text too long")).toBe(
+      "text too long",
+    );
   });
 
   it("서버 메시지가 없으면 기본 한국어", () => {

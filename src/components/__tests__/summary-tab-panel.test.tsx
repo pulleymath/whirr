@@ -25,9 +25,7 @@ describe("SummaryTabPanel", () => {
   });
 
   it("complete이면 요약 본문 영역이 있다", () => {
-    render(
-      <SummaryTabPanel state="complete" summaryText="요약 결과 텍스트" />,
-    );
+    render(<SummaryTabPanel state="complete" summaryText="요약 결과 텍스트" />);
     expect(screen.getByTestId("summary-body").textContent).toContain(
       "요약 결과 텍스트",
     );

@@ -224,7 +224,9 @@ export function RecorderNoteWorkspace({
           className={NOTE_TAB_SURFACE_CLASS}
         >
           {summaryPanelContent != null ? (
-            <div className="flex min-h-0 flex-1 flex-col">{summaryPanelContent}</div>
+            <div className="flex min-h-0 flex-1 flex-col">
+              {summaryPanelContent}
+            </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col gap-2.5">
               <div className="space-y-1">

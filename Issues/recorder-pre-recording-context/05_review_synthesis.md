@@ -9,20 +9,23 @@ issue_driven_dev:
 # Review Synthesis
 
 ## 종합 품질 점수
+
 B — 구현·테스트·문서·보안·아키텍처 모두 계획서 의도에 부합하나, 신규 회귀 테스트 파일이 Git에 미추적이라 머지 전 절차적 수정이 필요하다.
 
 ## 종합 요약
+
 세 리뷰어 모두 PASS_WITH_NOTES로 판정했으며, `showSessionContext` 상수화·`resetSessionInputs` 추출·배치/스트리밍 양쪽 성공 경로 초기화·`USER_FLOWS.md` §2 갱신은 계획·이슈와 일관되게 반영되었다. 신규 비밀 노출이나 XSS는 없고 변경으로 인한 공격 면 확대도 없다. 가장 시급한 항목은 새 테스트 파일이 워크트리에서 untracked 상태(`??`)인 점이며, 그 외에는 `showSessionContext` 네이밍 정리, `pipeline.isBusy` 비활성화 회귀 테스트 보강 정도가 권장된다.
 
 ## 통합 발견 사항
 
 ### 즉시 수정 필요 (CRITICAL/HIGH)
 
-| # | 발견 | 출처 | 심각도 | 분류 |
-|---|------|------|--------|------|
-| 1 | 신규 회귀 테스트 파일 `recorder-pre-recording-context.test.tsx`가 Git에 추적되지 않음 | impl | HIGH | process / coverage |
+| #   | 발견                                                                                  | 출처 | 심각도 | 분류               |
+| --- | ------------------------------------------------------------------------------------- | ---- | ------ | ------------------ |
+| 1   | 신규 회귀 테스트 파일 `recorder-pre-recording-context.test.tsx`가 Git에 추적되지 않음 | impl | HIGH   | process / coverage |
 
 #### 1. 신규 회귀 테스트 파일이 Git에 포함되지 않음
+
 - 원본 심각도: implementation=HIGH, security=언급 없음, architecture=언급 없음
 - 조정 후 심각도: HIGH (단일 출처지만 머지 시 회귀 보호가 사라지는 결과를 낳으므로 격하 없이 유지)
 - 위치: 워크트리 `git status` — `?? src/components/__tests__/recorder-pre-recording-context.test.tsx`
@@ -35,25 +38,28 @@ B — 구현·테스트·문서·보안·아키텍처 모두 계획서 의도에
 
 ### 권장 개선 사항 (MEDIUM)
 
-| # | 발견 | 출처 | 분류 |
-|---|------|------|------|
-| 1 | `showSessionContext`가 항상 `true`인데 조건부 노출 이름을 유지함 | arch | naming / readability |
-| 2 | `pipeline.isBusy=true` 분기에서 회의 정보 입력 비활성·안내 회귀가 본 피쳐 테스트에 없음 | impl | coverage |
-| 3 | `Recorder` 단일 컴포넌트에 오케스트레이션·UI 가시성·영속화가 계속 집중됨 | arch | solid / structure |
+| #   | 발견                                                                                    | 출처 | 분류                 |
+| --- | --------------------------------------------------------------------------------------- | ---- | -------------------- |
+| 1   | `showSessionContext`가 항상 `true`인데 조건부 노출 이름을 유지함                        | arch | naming / readability |
+| 2   | `pipeline.isBusy=true` 분기에서 회의 정보 입력 비활성·안내 회귀가 본 피쳐 테스트에 없음 | impl | coverage             |
+| 3   | `Recorder` 단일 컴포넌트에 오케스트레이션·UI 가시성·영속화가 계속 집중됨                | arch | solid / structure    |
 
 #### 1. `showSessionContext`가 사실상 상수가 된 후 네이밍·표현 정리
+
 - 원본 심각도: architecture=MEDIUM
 - 조정 후 심각도: MEDIUM (스타일 단독 이슈, 상한 유지)
 - 위치: `src/components/recorder.tsx` 375–376행, 457–458행 / `src/components/recorder-ui-preview.tsx` 37–38행, 119–120행
 - 액션: 셋 중 하나를 선택해 일관 적용한다. (a) `RevealSection visible={true}`로 인라인하고 위에 한 줄 주석 "idle부터 항상 노출"; (b) 변수명을 `alwaysShowSessionContext`로 변경; (c) 향후 다시 조건부로 돌아갈 가능성이 있다면 현 이름을 유지하되 결정 근거를 짧게 주석으로 남긴다. 본 컴포넌트와 프리뷰 컴포넌트에서 동일한 형태를 사용해 두 파일 간 표현이 어긋나지 않게 한다.
 
 #### 2. `pipeline.isBusy=true` 분기의 입력 비활성·안내 회귀 테스트 보강
+
 - 원본 심각도: implementation=MEDIUM
 - 조정 후 심각도: MEDIUM (정확성/회귀 사안이라 구현 리뷰어 의견 우선)
 - 위치: `src/components/recorder.tsx` `SessionContextInput`·`MeetingTemplateSelector`의 `disabled={pipeline.isBusy}` (대략 461–469행 인근), 신규 테스트 `src/components/__tests__/recorder-pre-recording-context.test.tsx`
 - 액션: 본 피쳐 테스트 파일에 `mocks.pipeline.isBusy = true`로 바꾼 단발 케이스를 추가해 `session-context-input` 또는 회의록 형식 선택기가 `disabled`인지(또는 안내 문구가 노출되는지)를 단언한다. idle에서 입력 노출이 항상 켜진 만큼 "바쁠 때 비활성" 정책이 회귀 보호 없이는 깨질 위험이 커졌다.
 
 #### 3. `Recorder` 컴포넌트 책임 집중 (후속 작업 후보)
+
 - 원본 심각도: architecture=MEDIUM
 - 조정 후 심각도: MEDIUM (이번 스코프 밖 권고로 유지)
 - 위치: `src/components/recorder.tsx` 컴포넌트 전반

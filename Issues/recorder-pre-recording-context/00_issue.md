@@ -26,13 +26,13 @@
 
 ## 변경 파일 후보
 
-| 파일 | 변경 |
-|------|------|
-| `src/components/recorder.tsx` | `showSessionContext` 조건을 idle에서도 true가 되도록 변경. 성공 enqueue 후 컨텍스트 초기화 |
-| `src/components/recorder-ui-preview.tsx` | 프리뷰 단계와 표시 조건을 새 흐름에 맞게 조정 |
-| `src/components/session-context-input.tsx` | 필요 시 안내 문구 보강. 큰 구조 변경은 피함 |
-| `docs/USER_FLOWS.md` | §2 happy path와 edge case 갱신 |
-| `src/components/__tests__/recorder-pre-recording-context.test.tsx` | 신규 회귀 테스트 추가 |
+| 파일                                                               | 변경                                                                                       |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `src/components/recorder.tsx`                                      | `showSessionContext` 조건을 idle에서도 true가 되도록 변경. 성공 enqueue 후 컨텍스트 초기화 |
+| `src/components/recorder-ui-preview.tsx`                           | 프리뷰 단계와 표시 조건을 새 흐름에 맞게 조정                                              |
+| `src/components/session-context-input.tsx`                         | 필요 시 안내 문구 보강. 큰 구조 변경은 피함                                                |
+| `docs/USER_FLOWS.md`                                               | §2 happy path와 edge case 갱신                                                             |
+| `src/components/__tests__/recorder-pre-recording-context.test.tsx` | 신규 회귀 테스트 추가                                                                      |
 
 ## 테스트 계획
 

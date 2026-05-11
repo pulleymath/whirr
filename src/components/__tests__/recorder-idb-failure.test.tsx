@@ -1,5 +1,11 @@
 /** @vitest-environment happy-dom */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
 import { saveSession, saveSessionAudio } from "@/lib/db";
@@ -10,7 +16,9 @@ const mockEnqueue = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("@/lib/post-recording-pipeline/context")>();
+    await importOriginal<
+      typeof import("@/lib/post-recording-pipeline/context")
+    >();
   return {
     ...actual,
     usePostRecordingPipeline: () => ({
@@ -124,7 +132,9 @@ describe("Recorder: IndexedDB 저장 실패(배치 종료)", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByTestId("recorder-root").getAttribute("data-transcription-mode"),
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
       ).toBe("batch");
     });
 
