@@ -35,8 +35,8 @@ issue_driven_dev:
 
 **추출 결과물:**
 
-| 새 파일 | 역할 |
-|---------|------|
+| 새 파일                                    | 역할                                                                                                                      |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
 | `src/components/session-property-rows.tsx` | `NotionPropertyRow` 레이아웃 원자 + `SessionPropertyRowsReadOnly` (값만 표시) + `SessionPropertyRowsEditable` (인풋 활성) |
 
 - `SessionPropertyRowsReadOnly`: `sessionContext` + `meetingTemplate`를 받아 값만 텍스트로 렌더. 빈 값은 `—` 또는 placeholder 톤.
@@ -297,19 +297,19 @@ issue_driven_dev:
 
 ## 파일 변경 계획
 
-| 파일 | 변경 유형 | 설명 |
-|------|-----------|------|
-| `src/components/session-property-rows.tsx` | **신규** | `NotionPropertyRow` 원자 + `SessionPropertyRowsReadOnly` + `SessionPropertyRowsEditable` |
-| `src/components/session-edit-dialog.tsx` | **신규** | 편집 모달 다이얼로그 (SettingsPanel 패턴) |
-| `src/components/recorder-note-workspace.tsx` | **수정** | 내부 `NotionPropertyRow`·인풋 4행을 `SessionPropertyRowsEditable` import로 교체. `NOTE_TAB_SURFACE_CLASS` 등 탭 스타일 상수 export. |
-| `src/components/session-detail.tsx` | **대폭 수정** | 읽기 전용 레이아웃으로 재구성. 인라인 편집 제거. 헤더 액션바. `SessionEditDialog` 연결. 요약 생성 흐름 변경. |
-| `src/components/__tests__/session-property-rows.test.tsx` | **신규** | 속성 행 컴포넌트 단위 테스트 |
-| `src/components/__tests__/session-edit-dialog.test.tsx` | **신규** | 모달 열기/닫기, dirty 확인, 저장, 생성 테스트 |
-| `src/components/__tests__/session-detail.test.tsx` | **대폭 수정** | 읽기 전용 페이지 assertions + 모달 기반 편집 흐름으로 갱신 |
-| `src/components/__tests__/session-detail-idb-failure.test.tsx` | **수정** | 모달 기반 저장 실패 흐름 갱신 |
-| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | **수정** | 모달에서 생성 시작 → 모달 닫힘 → beforeunload 보호 검증 |
-| `src/components/__tests__/session-detail-audio.test.tsx` | **수정** | 다운로드 버튼 위치 변경 반영 (헤더 영역) |
-| `src/components/__tests__/session-detail-badid.test.tsx` | **최소 수정** | 기존 동작 확인 (변경 없을 수 있음) |
+| 파일                                                                | 변경 유형     | 설명                                                                                                                                |
+| ------------------------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `src/components/session-property-rows.tsx`                          | **신규**      | `NotionPropertyRow` 원자 + `SessionPropertyRowsReadOnly` + `SessionPropertyRowsEditable`                                            |
+| `src/components/session-edit-dialog.tsx`                            | **신규**      | 편집 모달 다이얼로그 (SettingsPanel 패턴)                                                                                           |
+| `src/components/recorder-note-workspace.tsx`                        | **수정**      | 내부 `NotionPropertyRow`·인풋 4행을 `SessionPropertyRowsEditable` import로 교체. `NOTE_TAB_SURFACE_CLASS` 등 탭 스타일 상수 export. |
+| `src/components/session-detail.tsx`                                 | **대폭 수정** | 읽기 전용 레이아웃으로 재구성. 인라인 편집 제거. 헤더 액션바. `SessionEditDialog` 연결. 요약 생성 흐름 변경.                        |
+| `src/components/__tests__/session-property-rows.test.tsx`           | **신규**      | 속성 행 컴포넌트 단위 테스트                                                                                                        |
+| `src/components/__tests__/session-edit-dialog.test.tsx`             | **신규**      | 모달 열기/닫기, dirty 확인, 저장, 생성 테스트                                                                                       |
+| `src/components/__tests__/session-detail.test.tsx`                  | **대폭 수정** | 읽기 전용 페이지 assertions + 모달 기반 편집 흐름으로 갱신                                                                          |
+| `src/components/__tests__/session-detail-idb-failure.test.tsx`      | **수정**      | 모달 기반 저장 실패 흐름 갱신                                                                                                       |
+| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | **수정**      | 모달에서 생성 시작 → 모달 닫힘 → beforeunload 보호 검증                                                                             |
+| `src/components/__tests__/session-detail-audio.test.tsx`            | **수정**      | 다운로드 버튼 위치 변경 반영 (헤더 영역)                                                                                            |
+| `src/components/__tests__/session-detail-badid.test.tsx`            | **최소 수정** | 기존 동작 확인 (변경 없을 수 있음)                                                                                                  |
 
 ## 완료 조건
 
@@ -326,15 +326,15 @@ issue_driven_dev:
 
 ### 테스트 파일 목록
 
-| 테스트 파일 | 환경 | 범위 |
-|------------|------|------|
-| `src/components/__tests__/session-property-rows.test.tsx` | happy-dom | 속성 행 읽기/편집 단위 테스트 |
-| `src/components/__tests__/session-edit-dialog.test.tsx` | happy-dom | 모달 렌더·ESC·배경·dirty·저장·생성 |
-| `src/components/__tests__/session-detail.test.tsx` | happy-dom | 읽기 전용 페이지 + 모달 연동 통합 |
-| `src/components/__tests__/session-detail-idb-failure.test.tsx` | happy-dom | IDB 실패 경로 (모달 기반) |
-| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | happy-dom | 모달 생성 → 닫힘 → beforeunload |
-| `src/components/__tests__/session-detail-audio.test.tsx` | happy-dom | 오디오 다운로드 헤더 배치 |
-| `src/components/__tests__/session-detail-badid.test.tsx` | happy-dom | 잘못된 ID 처리 (변경 최소) |
+| 테스트 파일                                                         | 환경      | 범위                               |
+| ------------------------------------------------------------------- | --------- | ---------------------------------- |
+| `src/components/__tests__/session-property-rows.test.tsx`           | happy-dom | 속성 행 읽기/편집 단위 테스트      |
+| `src/components/__tests__/session-edit-dialog.test.tsx`             | happy-dom | 모달 렌더·ESC·배경·dirty·저장·생성 |
+| `src/components/__tests__/session-detail.test.tsx`                  | happy-dom | 읽기 전용 페이지 + 모달 연동 통합  |
+| `src/components/__tests__/session-detail-idb-failure.test.tsx`      | happy-dom | IDB 실패 경로 (모달 기반)          |
+| `src/components/__tests__/session-detail-mm-before-unload.test.tsx` | happy-dom | 모달 생성 → 닫힘 → beforeunload    |
+| `src/components/__tests__/session-detail-audio.test.tsx`            | happy-dom | 오디오 다운로드 헤더 배치          |
+| `src/components/__tests__/session-detail-badid.test.tsx`            | happy-dom | 잘못된 ID 처리 (변경 최소)         |
 
 ### Mock 전략
 

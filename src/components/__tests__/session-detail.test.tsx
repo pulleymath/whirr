@@ -33,6 +33,16 @@ function renderSessionDetail() {
   return render(<SessionDetail />);
 }
 
+async function openEditDialog() {
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: "편집" })).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByRole("button", { name: "편집" }));
+  await waitFor(() => {
+    expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
+  });
+}
+
 afterEach(() => {
   cleanup();
 });
@@ -47,7 +57,7 @@ describe("SessionDetail", () => {
     vi.mocked(fetchMeetingMinutesSummary).mockResolvedValue("생성된 요약");
   });
 
-  it("세션이 있으면 스크립트 탭에서 본문을 편집할 수 있다", async () => {
+  it("세션이 있으면 스크립트 탭에서 읽기 전용 본문을 볼 수 있다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -66,10 +76,11 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "전체 스크립트 본문",
-      );
+      expect(
+        screen.getByTestId("session-detail-script-readonly"),
+      ).toHaveTextContent("전체 스크립트 본문");
     });
+    expect(screen.queryByTestId("session-detail-script-textarea")).toBeNull();
   });
 
   it("세션이 없으면 안내와 홈 링크를 보여준다", async () => {
@@ -110,9 +121,9 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "재시도 후 본문",
-      );
+      expect(
+        screen.getByTestId("session-detail-script-readonly"),
+      ).toHaveTextContent("재시도 후 본문");
     });
   });
 
@@ -243,9 +254,9 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "본문",
-      );
+      expect(
+        screen.getByTestId("session-detail-script-readonly"),
+      ).toHaveTextContent("본문");
     });
 
     expect(
@@ -294,9 +305,9 @@ describe("SessionDetail", () => {
     fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "복사할 내용",
-      );
+      expect(
+        screen.getByTestId("session-detail-script-readonly"),
+      ).toHaveTextContent("복사할 내용");
     });
 
     fireEvent.click(
@@ -340,7 +351,7 @@ describe("SessionDetail", () => {
     vi.unstubAllGlobals();
   });
 
-  it("스크립트를 수정하고 저장하면 updateSession이 호출되고 반영된다", async () => {
+  it("편집 모달에서 스크립트를 수정하고 저장하면 updateSession이 호출되고 반영된다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -359,35 +370,40 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    await openEditDialog();
 
-    await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "원본",
-      );
-    });
-
-    fireEvent.change(screen.getByTestId("session-detail-script-textarea"), {
+    fireEvent.change(screen.getByTestId("session-edit-dialog-script"), {
       target: { value: "수정됨" },
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "스크립트 저장" }));
+    fireEvent.click(screen.getByRole("button", { name: "저장" }));
 
     await waitFor(() => {
-      expect(vi.mocked(updateSession)).toHaveBeenCalledWith("sess-1", {
-        text: "수정됨",
-        status: "ready",
-      });
+      expect(vi.mocked(updateSession)).toHaveBeenCalledWith(
+        "sess-1",
+        expect.objectContaining({
+          text: "수정됨",
+          status: "ready",
+        }),
+      );
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "수정됨",
-      );
+      expect(
+        screen.queryByTestId("session-edit-dialog"),
+      ).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("session-detail-script-readonly"),
+      ).toHaveTextContent("수정됨");
     });
   });
 
-  it("요약이 없고 스크립트가 있으면 요약 생성 버튼을 보여준다", async () => {
+  it("요약이 없고 스크립트가 있으면 편집 모달에서 요약 생성 버튼을 볼 수 있다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -400,18 +416,15 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "AI 요약" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
-    });
     fireEvent.click(screen.getByRole("tab", { name: "AI 요약" }));
-    expect(
-      screen.getByText(/아직 요약이 없습니다\. 스크립트 탭 하단에서/),
-    ).toBeTruthy();
+    expect(screen.getByText(/아직 요약이 없습니다.*편집/)).toBeTruthy();
+
+    await openEditDialog();
+
+    expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
   });
 
-  it("스크립트가 비어 있으면 요약 생성 버튼이 비활성화된다", async () => {
+  it("스크립트가 비어 있으면 편집 모달에서 요약 생성 버튼이 비활성화된다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -426,14 +439,14 @@ describe("SessionDetail", () => {
       ).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    await openEditDialog();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "요약 생성" })).toBeDisabled();
     });
   });
 
-  it("저장하지 않은 스크립트 편집이 요약 생성 API 본문에 반영된다", async () => {
+  it("편집 모달에서 저장 없이 바꾼 스크립트가 요약 생성 API 본문에 반영된다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -453,24 +466,10 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    await openEditDialog();
 
-    await waitFor(() => {
-      expect(screen.getByTestId("session-detail-script-textarea")).toHaveValue(
-        "원본",
-      );
-    });
-
-    fireEvent.change(screen.getByTestId("session-detail-script-textarea"), {
+    fireEvent.change(screen.getByTestId("session-edit-dialog-script"), {
       target: { value: "편집본" },
-    });
-
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "저장하지 않은 내용은 요약 생성",
-    );
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
     });
 
     fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
@@ -487,7 +486,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("요약 생성 클릭 시 API·저장 후 화면에 요약을 반영한다", async () => {
+  it("편집 모달에서 요약 생성 클릭 시 API·저장 후 화면에 요약을 반영한다", async () => {
     vi.mocked(getSessionById)
       .mockResolvedValueOnce({
         id: "sess-1",
@@ -507,16 +506,18 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
-    });
+    await openEditDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
 
     await waitFor(() => {
       expect(vi.mocked(fetchMeetingMinutesSummary)).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("session-edit-dialog"),
+      ).not.toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("tab", { name: "AI 요약" }));
@@ -545,11 +546,7 @@ describe("SessionDetail", () => {
       expect(screen.getByRole("tab", { name: "스크립트" })).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "요약 생성" })).toBeTruthy();
-    });
+    await openEditDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "요약 생성" }));
 
@@ -560,7 +557,7 @@ describe("SessionDetail", () => {
     });
   });
 
-  it("요약이 있으면 재생성 버튼 라벨을 보여준다", async () => {
+  it("요약이 있으면 편집 모달에서 재생성 버튼 라벨을 보여준다", async () => {
     vi.mocked(getSessionById).mockResolvedValue({
       id: "sess-1",
       createdAt: 1,
@@ -574,7 +571,7 @@ describe("SessionDetail", () => {
       expect(screen.getByText("기존 요약")).toBeTruthy();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    await openEditDialog();
 
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "요약 재생성" })).toBeTruthy();

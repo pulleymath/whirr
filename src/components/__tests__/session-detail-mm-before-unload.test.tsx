@@ -74,7 +74,11 @@ describe("SessionDetail: 요약 생성 중 beforeunload", () => {
       expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    fireEvent.click(screen.getByRole("button", { name: "편집" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
+    });
 
     await waitFor(() => {
       expect(
@@ -83,6 +87,12 @@ describe("SessionDetail: 요약 생성 중 beforeunload", () => {
     });
 
     fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("session-edit-dialog"),
+      ).not.toBeInTheDocument();
+    });
 
     await waitFor(() => {
       expect(beforeUnloadSpy).toHaveBeenLastCalledWith(true);

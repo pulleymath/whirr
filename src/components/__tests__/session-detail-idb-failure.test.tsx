@@ -63,7 +63,11 @@ describe("SessionDetail: IndexedDB 저장 실패(요약 생성)", () => {
       expect(screen.getByRole("tab", { name: "AI 요약" })).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("tab", { name: "스크립트" }));
+    fireEvent.click(screen.getByRole("button", { name: "편집" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
+    });
 
     await waitFor(() => {
       expect(
@@ -78,6 +82,10 @@ describe("SessionDetail: IndexedDB 저장 실패(요약 생성)", () => {
     });
 
     vi.mocked(updateSession).mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole("button", { name: "편집" }));
+    await waitFor(() => {
+      expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
 
     await waitFor(() => {
