@@ -71,11 +71,13 @@ describe("SessionDetail: IndexedDB 저장 실패(요약 생성)", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /요약 생성/ }),
+        screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+    );
 
     await waitFor(() => {
       expect(screen.getByText("요약을 만들지 못했습니다.")).toBeInTheDocument();
@@ -86,7 +88,9 @@ describe("SessionDetail: IndexedDB 저장 실패(요약 생성)", () => {
     await waitFor(() => {
       expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
     });
-    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+    );
 
     await waitFor(() => {
       expect(

@@ -2,6 +2,7 @@
 
 import { MeetingTemplateSelector } from "@/components/meeting-template-selector";
 import type { SessionContext } from "@/lib/glossary/types";
+import { MEETING_MINUTES_MODEL_OPTIONS } from "@/lib/settings/options";
 import {
   MEETING_MINUTES_TEMPLATE_OPTIONS,
   type MeetingMinutesTemplate,
@@ -95,6 +96,9 @@ export type SessionPropertyRowsEditableProps = {
   meetingTemplate: MeetingMinutesTemplate;
   onMeetingTemplateChange: (next: MeetingMinutesTemplate) => void;
   disabled: boolean;
+  /** 지정 시 마지막 행에 "작성 모델" 선택을 표시한다(세션 편집 모달 등). */
+  minutesModel?: string;
+  onMinutesModelChange?: (modelId: string) => void;
 };
 
 /** 홈 녹음·편집 모달 등: Notion 스타일 속성 행을 편집 가능하게 렌더한다. */
@@ -104,6 +108,8 @@ export function SessionPropertyRowsEditable({
   meetingTemplate,
   onMeetingTemplateChange,
   disabled,
+  minutesModel,
+  onMinutesModelChange,
 }: SessionPropertyRowsEditableProps) {
   const baseId = useId();
 
@@ -170,6 +176,25 @@ export function SessionPropertyRowsEditable({
           variant="select"
         />
       </NotionPropertyRow>
+
+      {minutesModel != null && onMinutesModelChange != null ? (
+        <NotionPropertyRow label="작성 모델">
+          <select
+            id={`${baseId}-minutes-model`}
+            data-testid="session-minutes-model-select"
+            disabled={disabled}
+            value={minutesModel}
+            onChange={(e) => onMinutesModelChange(e.target.value)}
+            className="w-full rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-sm text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+          >
+            {MEETING_MINUTES_MODEL_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </NotionPropertyRow>
+      ) : null}
     </div>
   );
 }

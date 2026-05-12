@@ -7,6 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ComponentProps } from "react";
 import { SessionEditDialog } from "@/components/session-edit-dialog";
 import { updateSession, type Session } from "@/lib/db";
 
@@ -25,6 +26,22 @@ const baseSession: Session = {
   text: "스크립트",
   status: "ready",
 };
+
+function renderOpenDialog(
+  props: Partial<ComponentProps<typeof SessionEditDialog>> = {},
+) {
+  return render(
+    <SessionEditDialog
+      open
+      session={baseSession}
+      mmLoading={false}
+      onClose={vi.fn()}
+      onAfterPersist={vi.fn().mockResolvedValue(true)}
+      onGenerate={vi.fn()}
+      {...props}
+    />,
+  );
+}
 
 describe("SessionEditDialog", () => {
   beforeEach(() => {
@@ -113,24 +130,28 @@ describe("SessionEditDialog", () => {
     expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
   });
 
-  it("요약 생성 클릭 시 onGenerate에 스냅샷을 넘긴다", () => {
+  it("현재 세션 재생성 클릭 시 onGenerate(snap, current)를 호출한다", () => {
     const onGenerate = vi.fn();
-    render(
-      <SessionEditDialog
-        open
-        session={baseSession}
-        mmLoading={false}
-        onClose={vi.fn()}
-        onAfterPersist={vi.fn().mockResolvedValue(true)}
-        onGenerate={onGenerate}
-      />,
+    renderOpenDialog({ onGenerate });
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
     expect(onGenerate).toHaveBeenCalledTimes(1);
     expect(onGenerate.mock.calls[0][0].scriptText).toBe("스크립트");
+    expect(onGenerate.mock.calls[0][1]).toBe("current");
   });
 
-  it("스크립트가 비어 있으면 요약 생성이 비활성이다", () => {
+  it("새 세션 재생성 클릭 시 onGenerate(snap, new)를 호출한다", () => {
+    const onGenerate = vi.fn();
+    renderOpenDialog({ onGenerate });
+    fireEvent.click(
+      screen.getByRole("button", { name: "새 세션에 요약 재생성" }),
+    );
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+    expect(onGenerate.mock.calls[0][1]).toBe("new");
+  });
+
+  it("스크립트가 비어 있으면 재생성 버튼이 비활성이다", () => {
     render(
       <SessionEditDialog
         open
@@ -141,14 +162,53 @@ describe("SessionEditDialog", () => {
         onGenerate={vi.fn()}
       />,
     );
-    expect(screen.getByRole("button", { name: /요약 생성/ })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "새 세션에 요약 재생성" }),
+    ).toBeDisabled();
   });
 
   it("dirty일 때 닫기는 확인 후 onClose를 호출한다", () => {
     const confirmSpy = vi.fn(() => true);
     window.confirm = confirmSpy;
     const onClose = vi.fn();
-    render(
+    renderOpenDialog({ onClose });
+    fireEvent.change(screen.getByTestId("session-edit-dialog-script"), {
+      target: { value: "변경" },
+    });
+    fireEvent.click(screen.getByLabelText("닫기"));
+    expect(confirmSpy).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("제목 입력과 작성 모델 행을 보여준다", () => {
+    renderOpenDialog();
+    expect(screen.getByTestId("session-edit-dialog-title")).toBeInTheDocument();
+    expect(
+      screen.getByTestId("session-minutes-model-select"),
+    ).toBeInTheDocument();
+  });
+
+  it("용어 사전 UI는 없다", () => {
+    renderOpenDialog();
+    expect(screen.queryByText("용어 사전")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("session-glossary-textarea"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("빌트인 템플릿이면 미리보기 pre를 렌더한다", () => {
+    renderOpenDialog();
+    expect(
+      screen.getByTestId("meeting-minutes-template-preview"),
+    ).toBeInTheDocument();
+  });
+
+  it("닫기 애니메이션 후 phase가 closed가 된다", async () => {
+    const onClose = vi.fn();
+    const { rerender } = render(
       <SessionEditDialog
         open
         session={baseSession}
@@ -158,11 +218,34 @@ describe("SessionEditDialog", () => {
         onGenerate={vi.fn()}
       />,
     );
-    fireEvent.change(screen.getByTestId("session-edit-dialog-script"), {
-      target: { value: "변경" },
+
+    rerender(
+      <SessionEditDialog
+        open={false}
+        session={baseSession}
+        mmLoading={false}
+        onClose={onClose}
+        onAfterPersist={vi.fn().mockResolvedValue(true)}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const root = await waitFor(() =>
+      screen.getByTestId("session-edit-dialog-root"),
+    );
+    expect(root).toHaveAttribute("data-phase", "closing");
+
+    root.dispatchEvent(
+      new TransitionEvent("transitionend", {
+        bubbles: true,
+        propertyName: "opacity",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("session-edit-dialog-root"),
+      ).not.toBeInTheDocument();
     });
-    fireEvent.click(screen.getByLabelText("닫기"));
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
   });
 });

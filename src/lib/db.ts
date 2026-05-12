@@ -25,6 +25,8 @@ export type SaveSessionOptions = {
   scriptMeta?: SessionScriptMeta;
   /** 비어 있지 않을 때만 trim 후 저장한다 */
   title?: string;
+  /** 요약 컨텍스트(용어·세션 정보·템플릿) — 선택 */
+  context?: MeetingContext;
 };
 
 export type SessionAudio = {
@@ -100,9 +102,18 @@ export async function saveSession(
     status,
     ...(trimmedTitle ? { title: trimmedTitle } : {}),
     ...(options?.scriptMeta ? { scriptMeta: options.scriptMeta } : {}),
+    ...(options?.context ? { context: options.context } : {}),
   };
   await db.put(STORE, row);
   return id;
+}
+
+/** 텍스트·컨텍스트·메타를 한 번에 넣은 새 세션을 만든다. 내부적으로 `saveSession`과 동일. */
+export async function createSessionWithContext(
+  text: string,
+  options?: SaveSessionOptions,
+): Promise<string> {
+  return saveSession(text, options);
 }
 
 export type SessionUpdate = Partial<

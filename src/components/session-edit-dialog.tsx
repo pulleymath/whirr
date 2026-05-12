@@ -1,7 +1,7 @@
 "use client";
 
-import { SessionGlossaryEditor } from "@/components/session-glossary-editor";
-import { SessionMinutesModelSelect } from "@/components/session-minutes-model-select";
+import { MeetingTemplatePreview } from "@/components/meeting-template-preview";
+import { NOTE_TAB_SURFACE_CLASS } from "@/components/recorder-note-workspace";
 import { SessionPropertyRowsEditable } from "@/components/session-property-rows";
 import { Button } from "@/components/ui/button";
 import { updateSession, type Session } from "@/lib/db";
@@ -17,9 +17,16 @@ import {
   isAllowedMeetingMinutesModelId,
 } from "@/lib/settings/types";
 import { Loader2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 export type SessionEditSnapshot = {
+  title: string;
   scriptText: string;
   sessionContext: SessionContext;
   glossary: string[];
@@ -28,6 +35,7 @@ export type SessionEditSnapshot = {
 };
 
 function captureSnapshot(
+  title: string,
   scriptText: string,
   sessionContext: SessionContext,
   glossary: string[],
@@ -39,6 +47,7 @@ function captureSnapshot(
       ? { id: "custom" as const, prompt: template.prompt }
       : { id: template.id };
   return {
+    title,
     scriptText,
     sessionContext: { ...sessionContext },
     glossary: [...glossary],
@@ -52,6 +61,7 @@ function snapshotsEqual(
   b: SessionEditSnapshot,
 ): boolean {
   return (
+    a.title === b.title &&
     a.scriptText === b.scriptText &&
     a.sessionContext.participants === b.sessionContext.participants &&
     a.sessionContext.topic === b.sessionContext.topic &&
@@ -82,9 +92,12 @@ export async function persistSessionEditSnapshot(
       ? { ...session.scriptMeta, minutesModel: minutesModelSafe }
       : undefined;
 
+  const titleTrim = snapshot.title.trim();
+
   await updateSession(session.id, {
     text: snapshot.scriptText,
     context: contextPayload,
+    ...(titleTrim ? { title: titleTrim } : {}),
     ...(scriptMetaUpdate ? { scriptMeta: scriptMetaUpdate } : {}),
     status: "ready",
   });
@@ -93,14 +106,16 @@ export async function persistSessionEditSnapshot(
 export type SessionEditDialogProps = {
   open: boolean;
   session: Session;
-  /** 부모에서 요약 생성 중이면 생성 버튼 비활성 */
+  /** 부모에서 요약 생성 중이면 액션 비활성 */
   mmLoading: boolean;
   onClose: () => void;
   /** 저장 성공 후(모달 닫기 전) 세션 재조회 등 */
   onAfterPersist: () => Promise<boolean | void>;
   /** 암묵적 저장 후 부모가 요약 파이프라인을 시작한다. 모달은 호출 전에 닫힌다. */
-  onGenerate: (snapshot: SessionEditSnapshot) => void;
+  onGenerate: (snapshot: SessionEditSnapshot, mode: "current" | "new") => void;
 };
+
+type DialogPhase = "closed" | "open" | "closing";
 
 export function SessionEditDialog({
   open,
@@ -112,7 +127,14 @@ export function SessionEditDialog({
 }: SessionEditDialogProps) {
   const dialogTitleId = "session-edit-dialog-title";
   const initialSnapshotRef = useRef<SessionEditSnapshot | null>(null);
+  const frozenGlossaryRef = useRef<string[]>([]);
 
+  const [phase, setPhase] = useState<DialogPhase>(() =>
+    open ? "open" : "closed",
+  );
+  const [paintEnter, setPaintEnter] = useState(false);
+
+  const [titleDraft, setTitleDraft] = useState(session.title ?? "");
   const [scriptDraft, setScriptDraft] = useState(session.text);
   const [contextDraft, setContextDraft] = useState<SessionContext>(
     session.context?.sessionContext ?? {
@@ -120,9 +142,6 @@ export function SessionEditDialog({
       topic: "",
       keywords: "",
     },
-  );
-  const [glossaryDraft, setGlossaryDraft] = useState<string[]>(
-    session.context?.glossary ?? [],
   );
   const [minutesModelDraft, setMinutesModelDraft] = useState(
     session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
@@ -134,26 +153,36 @@ export function SessionEditDialog({
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const capture = useCallback(
-    () =>
-      captureSnapshot(
-        scriptDraft,
-        contextDraft,
-        glossaryDraft,
-        minutesModelDraft,
-        templateDraft,
-      ),
-    [
+  const capture = useCallback(() => {
+    return captureSnapshot(
+      titleDraft,
       scriptDraft,
       contextDraft,
-      glossaryDraft,
+      frozenGlossaryRef.current,
       minutesModelDraft,
       templateDraft,
-    ],
-  );
+    );
+  }, [titleDraft, scriptDraft, contextDraft, minutesModelDraft, templateDraft]);
+
+  useLayoutEffect(() => {
+    if (open) {
+      setPhase("open");
+      setPaintEnter(false);
+      const id = requestAnimationFrame(() => {
+        requestAnimationFrame(() => setPaintEnter(true));
+      });
+      return () => cancelAnimationFrame(id);
+    }
+    setPaintEnter(false);
+    setPhase((prev) =>
+      prev === "open" || prev === "closing" ? "closing" : "closed",
+    );
+    return undefined;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
+    setTitleDraft(session.title ?? "");
     setScriptDraft(session.text);
     setContextDraft(
       session.context?.sessionContext ?? {
@@ -162,7 +191,7 @@ export function SessionEditDialog({
         keywords: "",
       },
     );
-    setGlossaryDraft(session.context?.glossary ?? []);
+    frozenGlossaryRef.current = [...(session.context?.glossary ?? [])];
     setMinutesModelDraft(
       session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
     );
@@ -172,13 +201,14 @@ export function SessionEditDialog({
     setSaveError(null);
     setSaving(false);
     initialSnapshotRef.current = captureSnapshot(
+      session.title ?? "",
       session.text,
       session.context?.sessionContext ?? {
         participants: "",
         topic: "",
         keywords: "",
       },
-      session.context?.glossary ?? [],
+      frozenGlossaryRef.current,
       session.scriptMeta?.minutesModel ?? DEFAULT_MEETING_MINUTES_MODEL,
       session.context?.template ?? DEFAULT_MEETING_MINUTES_TEMPLATE,
     );
@@ -199,7 +229,7 @@ export function SessionEditDialog({
   }, [computeIsDirty, onClose]);
 
   useEffect(() => {
-    if (!open) return;
+    if (phase === "closed") return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         e.preventDefault();
@@ -208,7 +238,11 @@ export function SessionEditDialog({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, requestClose]);
+  }, [phase, requestClose]);
+
+  const handleShellTransitionEnd = () => {
+    setPhase((p) => (p === "closing" ? "closed" : p));
+  };
 
   const handleSave = useCallback(async () => {
     setSaveError(null);
@@ -232,22 +266,39 @@ export function SessionEditDialog({
     }
   }, [session, capture, onAfterPersist, onClose]);
 
-  const handleGenerate = useCallback(() => {
-    const snap = capture();
-    if (!snap.scriptText.trim()) return;
-    onGenerate(snap);
-  }, [capture, onGenerate]);
+  const handleRegenerate = useCallback(
+    (mode: "current" | "new") => {
+      const snap = capture();
+      if (!snap.scriptText.trim()) return;
+      onGenerate(snap, mode);
+    },
+    [capture, onGenerate],
+  );
 
-  if (!open) {
+  if (phase === "closed" && !open) {
     return null;
   }
 
   const hasScript = scriptDraft.trim().length > 0;
+  const animatingOut =
+    phase === "closing" ||
+    (phase === "open" && !paintEnter) ||
+    (open && phase === "closed");
+
+  const titleTypographyClass =
+    "w-full border-0 bg-transparent px-0 py-2 text-2xl font-semibold tracking-tight text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-50 dark:placeholder:text-zinc-500";
 
   return (
     <div
-      className="fixed inset-0 z-70 flex items-end justify-center sm:items-center sm:p-4"
+      className={`fixed inset-0 z-70 flex items-end justify-center transition-[opacity,transform] duration-200 ease-out sm:items-center sm:p-4 ${
+        animatingOut
+          ? "pointer-events-none opacity-0 max-sm:translate-y-6 sm:scale-95"
+          : "opacity-100 max-sm:translate-y-0 sm:scale-100"
+      }`}
       role="presentation"
+      data-phase={phase}
+      data-testid="session-edit-dialog-root"
+      onTransitionEnd={handleShellTransitionEnd}
     >
       <button
         type="button"
@@ -260,7 +311,8 @@ export function SessionEditDialog({
         aria-modal="true"
         aria-labelledby={dialogTitleId}
         data-testid="session-edit-dialog"
-        className="relative z-10 flex max-h-[min(90vh,48rem)] w-full max-w-3xl flex-col rounded-t-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950 sm:rounded-xl"
+        className="relative z-10 flex max-h-[min(94vh,56rem)] w-full max-w-5xl flex-col rounded-t-xl border border-zinc-200 bg-white shadow-xl dark:border-zinc-800 dark:bg-zinc-950 sm:rounded-xl"
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex shrink-0 items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <h2
@@ -280,13 +332,36 @@ export function SessionEditDialog({
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            disabled={mmLoading}
+            placeholder="새로운 노트"
+            aria-label="노트 제목"
+            data-testid="session-edit-dialog-title"
+            className={titleTypographyClass}
+          />
+
           <SessionPropertyRowsEditable
             sessionContext={contextDraft}
             onSessionContextChange={setContextDraft}
             meetingTemplate={templateDraft}
             onMeetingTemplateChange={setTemplateDraft}
             disabled={mmLoading}
+            minutesModel={minutesModelDraft}
+            onMinutesModelChange={setMinutesModelDraft}
           />
+
+          <div
+            className={`${NOTE_TAB_SURFACE_CLASS} mt-4 min-h-[min(28vh,14rem)]`}
+          >
+            <MeetingTemplatePreview
+              value={templateDraft}
+              onChange={setTemplateDraft}
+              disabled={mmLoading}
+            />
+          </div>
 
           <div className="mt-4">
             <label
@@ -308,32 +383,6 @@ export function SessionEditDialog({
             />
           </div>
 
-          <div className="mt-6 border-t border-zinc-200 pt-4 dark:border-zinc-700">
-            <h3 className="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-50">
-              요약 생성
-            </h3>
-            <div className="flex flex-col gap-4">
-              <SessionGlossaryEditor
-                value={glossaryDraft}
-                onChange={setGlossaryDraft}
-                disabled={mmLoading}
-              />
-              <SessionMinutesModelSelect
-                value={minutesModelDraft}
-                onChange={setMinutesModelDraft}
-                disabled={mmLoading}
-              />
-              <Button
-                type="button"
-                variant="primary"
-                disabled={mmLoading || !hasScript}
-                onClick={handleGenerate}
-              >
-                {session.summary ? "요약 재생성" : "요약 생성"}
-              </Button>
-            </div>
-          </div>
-
           {saveError ? (
             <p
               className="mt-3 text-sm text-red-600 dark:text-red-400"
@@ -344,25 +393,43 @@ export function SessionEditDialog({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
           <Button type="button" variant="ghost" onClick={() => requestClose()}>
             닫기
           </Button>
-          <Button
-            type="button"
-            variant="primary"
-            disabled={saving || !computeIsDirty()}
-            onClick={() => void handleSave()}
-          >
-            {saving ? (
-              <span className="inline-flex items-center gap-2">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
-                저장 중…
-              </span>
-            ) : (
-              "저장"
-            )}
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <Button
+              type="button"
+              variant="primary"
+              disabled={saving || !computeIsDirty()}
+              onClick={() => void handleSave()}
+            >
+              {saving ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  저장 중…
+                </span>
+              ) : (
+                "저장"
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mmLoading || !hasScript}
+              onClick={() => handleRegenerate("current")}
+            >
+              현재 세션에 요약 재생성
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={mmLoading || !hasScript}
+              onClick={() => handleRegenerate("new")}
+            >
+              새 세션에 요약 재생성
+            </Button>
+          </div>
         </div>
       </div>
     </div>

@@ -82,11 +82,23 @@ describe("SessionDetail: 요약 생성 중 beforeunload", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /요약 생성/ }),
+        screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
       ).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /요약 생성/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+    );
+
+    const root = screen.queryByTestId("session-edit-dialog-root");
+    if (root) {
+      root.dispatchEvent(
+        new TransitionEvent("transitionend", {
+          bubbles: true,
+          propertyName: "opacity",
+        }),
+      );
+    }
 
     await waitFor(() => {
       expect(

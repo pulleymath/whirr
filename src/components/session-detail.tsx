@@ -15,6 +15,7 @@ import { SessionScriptMetaDisplay } from "@/components/session-script-meta-displ
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import {
+  createSessionWithContext,
   getSessionAudio,
   getSessionById,
   updateSession,
@@ -212,6 +213,7 @@ function SessionDetailReadyContent({
   const [copiedSummary, setCopiedSummary] = useState(false);
   const [mmLoading, setMmLoading] = useState(false);
   const [mmError, setMmError] = useState<string | null>(null);
+  const [forkedSessionId, setForkedSessionId] = useState<string | null>(null);
   useBeforeUnload(mmLoading);
 
   const summaryPanelId = `${baseId}-tabpanel-summary`;
@@ -251,14 +253,13 @@ function SessionDetailReadyContent({
   const hasText = session.text.trim().length > 0;
 
   const runMeetingMinutesFromSnapshot = useCallback(
-    async (snap: SessionEditSnapshot) => {
+    async (snap: SessionEditSnapshot, mode: "current" | "new") => {
       const t = snap.scriptText.trim();
       if (!t) return;
       setMmLoading(true);
       setMmError(null);
+      setForkedSessionId(null);
       try {
-        await persistSessionEditSnapshot(session, snap);
-
         const minutesModelSafe = isAllowedMeetingMinutesModelId(
           snap.minutesModel,
         )
@@ -267,6 +268,30 @@ function SessionDetailReadyContent({
 
         const sc = sessionContextForApi(snap.sessionContext);
         const templateResolved = resolveMeetingMinutesTemplate(snap.template);
+        const contextPayload = {
+          glossary: snap.glossary,
+          sessionContext: sc,
+          template: templateResolved,
+        };
+
+        let targetSessionId = session.id;
+
+        if (mode === "current") {
+          await persistSessionEditSnapshot(session, snap);
+        } else {
+          const titleTrim = snap.title.trim();
+          const scriptMetaForFork =
+            session.scriptMeta != null
+              ? { ...session.scriptMeta, minutesModel: minutesModelSafe }
+              : undefined;
+          targetSessionId = await createSessionWithContext(snap.scriptText, {
+            ...(titleTrim ? { title: titleTrim } : {}),
+            ...(scriptMetaForFork ? { scriptMeta: scriptMetaForFork } : {}),
+            context: contextPayload,
+            status: "ready",
+          });
+        }
+
         const summary = await fetchMeetingMinutesSummary(
           t,
           minutesModelSafe,
@@ -277,7 +302,12 @@ function SessionDetailReadyContent({
             template: templateResolved,
           },
         );
-        await updateSession(session.id, { summary, status: "ready" });
+        await updateSession(targetSessionId, { summary, status: "ready" });
+
+        if (mode === "new") {
+          setForkedSessionId(targetSessionId);
+        }
+
         const refreshed = await onSessionRefresh();
         if (!refreshed) {
           setMmError(
@@ -359,6 +389,22 @@ function SessionDetailReadyContent({
       {mmError ? (
         <p className="text-sm text-red-600 dark:text-red-400" role="alert">
           {mmError}
+        </p>
+      ) : null}
+
+      {forkedSessionId && !mmLoading ? (
+        <p
+          className="text-sm text-zinc-700 dark:text-zinc-300"
+          role="status"
+          data-testid="session-detail-fork-notice"
+        >
+          새 세션에 요약을 저장했습니다.{" "}
+          <Link
+            href={`/sessions/${encodeURIComponent(forkedSessionId)}`}
+            className="font-medium text-sky-600 underline hover:text-sky-500 dark:text-sky-400"
+          >
+            새 노트 열기
+          </Link>
         </p>
       ) : null}
 
@@ -495,9 +541,9 @@ function SessionDetailReadyContent({
         mmLoading={mmLoading}
         onClose={() => setEditOpen(false)}
         onAfterPersist={onSessionRefresh}
-        onGenerate={(snap) => {
+        onGenerate={(snap, mode) => {
           setEditOpen(false);
-          void runMeetingMinutesFromSnapshot(snap);
+          void runMeetingMinutesFromSnapshot(snap, mode);
         }}
       />
     </div>
