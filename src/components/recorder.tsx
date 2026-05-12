@@ -1,5 +1,6 @@
 "use client";
 
+import { NoteDocumentLayout } from "@/components/note-document-shell";
 import { RecorderNoteWorkspace } from "@/components/recorder-note-workspace";
 import { RevealSection } from "@/components/recorder-reveal-section";
 import { RecordingCard } from "@/components/recording-card";
@@ -410,45 +411,42 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       : null;
 
   return (
-    <div
-      className="mx-auto flex w-full max-w-5xl flex-col"
-      data-testid="recorder-root"
-      data-transcription-mode={effectiveMode}
-    >
-      <div className="flex flex-col pb-[calc(12rem+env(safe-area-inset-bottom,0px))]">
-        {/* 회의 정보·요약 형식은 idle부터 항상 노출한다. pipeline.isBusy일 때만 입력이 비활성된다. */}
-        <RevealSection visible testId="reveal-session-context">
-          <RecorderNoteWorkspace
-            noteTitle={noteTitle}
-            onNoteTitleChange={setNoteTitle}
-            sessionContext={sessionContext}
-            onSessionContextChange={setSessionContext}
-            meetingTemplate={meetingTemplate}
-            onMeetingTemplateChange={setMeetingTemplate}
-            pipelineBusy={pipeline.isBusy}
-          >
-            <TranscriptView
-              variant="plain"
-              partial={transcriptPartial}
-              finals={transcriptFinals}
-              errorMessage={showTranscript ? transcriptError : null}
-              showHeading={false}
-              emptyStateHint={batchRecordingHint}
-              loadingMessage={batchLoadingMessage}
-              isSegmentInFlight={segmentInFlight}
-            />
-          </RecorderNoteWorkspace>
-        </RevealSection>
+    <div data-testid="recorder-root" data-transcription-mode={effectiveMode}>
+      <div className="pb-[calc(12rem+env(safe-area-inset-bottom,0px))]">
+        <NoteDocumentLayout>
+          <RevealSection visible testId="reveal-session-context">
+            <RecorderNoteWorkspace
+              noteTitle={noteTitle}
+              onNoteTitleChange={setNoteTitle}
+              sessionContext={sessionContext}
+              onSessionContextChange={setSessionContext}
+              meetingTemplate={meetingTemplate}
+              onMeetingTemplateChange={setMeetingTemplate}
+              pipelineBusy={pipeline.isBusy}
+            >
+              <TranscriptView
+                variant="plain"
+                partial={transcriptPartial}
+                finals={transcriptFinals}
+                errorMessage={showTranscript ? transcriptError : null}
+                showHeading={false}
+                emptyStateHint={batchRecordingHint}
+                loadingMessage={batchLoadingMessage}
+                isSegmentInFlight={segmentInFlight}
+              />
+            </RecorderNoteWorkspace>
+          </RevealSection>
 
-        {persistError || pipeline.errorMessage ? (
-          <p
-            className="shrink-0 px-1 pb-2 pt-2 text-sm text-red-600 dark:text-red-400"
-            role="alert"
-            data-testid="recorder-pipeline-user-error"
-          >
-            {persistError ?? pipeline.errorMessage}
-          </p>
-        ) : null}
+          {persistError || pipeline.errorMessage ? (
+            <p
+              className="shrink-0 px-1 text-sm text-red-600 dark:text-red-400"
+              role="alert"
+              data-testid="recorder-pipeline-user-error"
+            >
+              {persistError ?? pipeline.errorMessage}
+            </p>
+          ) : null}
+        </NoteDocumentLayout>
       </div>
 
       <div

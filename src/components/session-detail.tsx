@@ -2,6 +2,10 @@
 
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
 import {
+  NoteDocumentHeader,
+  NoteDocumentLayout,
+} from "@/components/note-document-shell";
+import {
   NOTE_TAB_BUTTON_BASE,
   NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS,
 } from "@/components/recorder-note-workspace";
@@ -330,51 +334,55 @@ function SessionDetailReadyContent({
     "border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50";
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <div className="flex min-h-[2.75rem] min-w-0 flex-nowrap items-center gap-3">
-        <h2
-          data-testid="recorder-note-title"
-          aria-label="노트 제목"
-          className={`${titleTypographyClass} min-w-0 flex-1 truncate py-2 ${
-            displayTitle ? "" : "text-zinc-400 dark:text-zinc-500"
-          }`}
-        >
-          {displayTitle || "새로운 노트"}
-        </h2>
-        <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-2">
-          {audioSegments.length > 0 ? (
+    <NoteDocumentLayout>
+      <NoteDocumentHeader
+        title={
+          <h2
+            data-testid="recorder-note-title"
+            aria-label="노트 제목"
+            className={`${titleTypographyClass} truncate py-2 ${
+              displayTitle ? "" : "text-zinc-400 dark:text-zinc-500"
+            }`}
+          >
+            {displayTitle || "새로운 노트"}
+          </h2>
+        }
+        actions={
+          <>
+            {audioSegments.length > 0 ? (
+              <IconButton
+                icon={isDownloading ? Loader2 : Download}
+                ariaLabel="오디오 다운로드"
+                label="오디오 다운로드"
+                variant="primary"
+                disabled={isDownloading}
+                iconClassName={isDownloading ? "animate-spin" : ""}
+                onClick={async () => {
+                  setIsDownloading(true);
+                  try {
+                    await downloadRecordingZip(
+                      audioSegments,
+                      `session-${session.id}`,
+                    );
+                  } catch {
+                    /* ZIP 실패 시 로딩만 해제 */
+                  } finally {
+                    setIsDownloading(false);
+                  }
+                }}
+              />
+            ) : null}
             <IconButton
-              icon={isDownloading ? Loader2 : Download}
-              ariaLabel="오디오 다운로드"
-              label="오디오 다운로드"
-              variant="primary"
-              disabled={isDownloading}
-              iconClassName={isDownloading ? "animate-spin" : ""}
-              onClick={async () => {
-                setIsDownloading(true);
-                try {
-                  await downloadRecordingZip(
-                    audioSegments,
-                    `session-${session.id}`,
-                  );
-                } catch {
-                  /* ZIP 실패 시 로딩만 해제 */
-                } finally {
-                  setIsDownloading(false);
-                }
-              }}
+              icon={Pencil}
+              ariaLabel="편집"
+              label="편집"
+              variant="outline"
+              disabled={mmLoading}
+              onClick={() => setEditOpen(true)}
             />
-          ) : null}
-          <IconButton
-            icon={Pencil}
-            ariaLabel="편집"
-            label="편집"
-            variant="outline"
-            disabled={mmLoading}
-            onClick={() => setEditOpen(true)}
-          />
-        </div>
-      </div>
+          </>
+        }
+      />
 
       {mmLoading ? (
         <p
@@ -414,7 +422,7 @@ function SessionDetailReadyContent({
         meetingTemplate={meetingTemplate}
       />
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <div
           role="tablist"
           aria-label="노트 본문"
@@ -546,7 +554,7 @@ function SessionDetailReadyContent({
           void runMeetingMinutesFromSnapshot(snap, mode);
         }}
       />
-    </div>
+    </NoteDocumentLayout>
   );
 }
 

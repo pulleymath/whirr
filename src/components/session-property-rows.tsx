@@ -62,10 +62,7 @@ export function SessionPropertyRowsReadOnly({
   meetingTemplate,
 }: SessionPropertyRowsReadOnlyProps) {
   return (
-    <div
-      className="mt-2 flex flex-col"
-      data-testid="session-property-rows-readonly"
-    >
+    <div className="flex flex-col" data-testid="session-property-rows-readonly">
       <NotionPropertyRow label="참석자">
         <p className="px-0 py-1 text-sm text-zinc-900 dark:text-zinc-50">
           {displayOrDash(sessionContext.participants)}
@@ -118,7 +115,7 @@ export function SessionPropertyRowsEditable({
   };
 
   return (
-    <div className="mt-2 flex flex-col" data-testid="session-context-input">
+    <div className="flex flex-col" data-testid="session-context-input">
       {disabled ? (
         <p
           className="mb-2 text-xs text-zinc-600 dark:text-zinc-400"

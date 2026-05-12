@@ -1,6 +1,7 @@
 "use client";
 
 import { MeetingTemplatePreview } from "@/components/meeting-template-preview";
+import { NoteDocumentHeader } from "@/components/note-document-shell";
 import { SessionPropertyRowsEditable } from "@/components/session-property-rows";
 import type { SessionContext } from "@/lib/glossary/types";
 import type { MeetingMinutesTemplate } from "@/lib/meeting-minutes/templates";
@@ -62,31 +63,35 @@ export function RecorderNoteWorkspace({
     "w-full border-0 bg-transparent px-0 py-2 text-2xl font-semibold tracking-tight focus:outline-none focus:ring-0 dark:text-zinc-50";
 
   return (
-    <div className="flex flex-col gap-1" data-testid="recorder-note-workspace">
-      {titleReadOnly ? (
-        <h2
-          data-testid="recorder-note-title"
-          aria-label="노트 제목"
-          className={`${titleTypographyClass} ${
-            displayTitle
-              ? "text-zinc-900 dark:text-zinc-50"
-              : "text-zinc-400 dark:text-zinc-500"
-          }`}
-        >
-          {displayTitle || "새로운 노트"}
-        </h2>
-      ) : (
-        <input
-          type="text"
-          value={noteTitle}
-          onChange={(e) => onNoteTitleChange(e.target.value)}
-          disabled={pipelineBusy}
-          placeholder="새로운 노트"
-          aria-label="노트 제목"
-          data-testid="recorder-note-title"
-          className={`${titleTypographyClass} text-zinc-900 placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:placeholder:text-zinc-500`}
-        />
-      )}
+    <div className="flex flex-col gap-4" data-testid="recorder-note-workspace">
+      <NoteDocumentHeader
+        title={
+          titleReadOnly ? (
+            <h2
+              data-testid="recorder-note-title"
+              aria-label="노트 제목"
+              className={`${titleTypographyClass} ${
+                displayTitle
+                  ? "text-zinc-900 dark:text-zinc-50"
+                  : "text-zinc-400 dark:text-zinc-500"
+              }`}
+            >
+              {displayTitle || "새로운 노트"}
+            </h2>
+          ) : (
+            <input
+              type="text"
+              value={noteTitle}
+              onChange={(e) => onNoteTitleChange(e.target.value)}
+              disabled={pipelineBusy}
+              placeholder="새로운 노트"
+              aria-label="노트 제목"
+              data-testid="recorder-note-title"
+              className={`${titleTypographyClass} text-zinc-900 placeholder:text-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 dark:placeholder:text-zinc-500`}
+            />
+          )
+        }
+      />
 
       <SessionPropertyRowsEditable
         sessionContext={sessionContext}
@@ -96,7 +101,7 @@ export function RecorderNoteWorkspace({
         disabled={pipelineBusy}
       />
 
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="flex flex-col gap-2">
         <div
           role="tablist"
           aria-label="노트 본문"
@@ -141,12 +146,10 @@ export function RecorderNoteWorkspace({
           role="tabpanel"
           aria-labelledby={summaryTabId}
           hidden={activeTab !== "summary"}
-          className={NOTE_TAB_SURFACE_CLASS}
+          className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
         >
           {summaryPanelContent != null ? (
-            <div className="flex min-h-0 flex-1 flex-col">
-              {summaryPanelContent}
-            </div>
+            <div className="flex flex-col gap-4">{summaryPanelContent}</div>
           ) : (
             <MeetingTemplatePreview
               value={meetingTemplate}
@@ -161,10 +164,10 @@ export function RecorderNoteWorkspace({
           role="tabpanel"
           aria-labelledby={scriptTabId}
           hidden={activeTab !== "script"}
-          className={NOTE_TAB_SURFACE_CLASS}
+          className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
         >
           {children ? (
-            <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            <div className="flex flex-col gap-4">{children}</div>
           ) : (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-12 text-center">
               <p className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
