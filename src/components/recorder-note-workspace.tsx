@@ -28,6 +28,10 @@ type NoteWorkspaceTab = "summary" | "script";
 export const NOTE_TAB_SURFACE_CLASS =
   "mt-1 flex min-h-[min(56vh,28rem)] w-full flex-col rounded-2xl border border-zinc-200/80 bg-white px-4 py-5 shadow-sm ring-1 ring-zinc-950/[0.04] dark:border-zinc-800/80 dark:bg-zinc-950/55 dark:ring-white/[0.06] sm:px-6 sm:py-6";
 
+/** 최소 높이 없음 — 본문 높이만큼만 차지하고 페이지·모달 스크롤에 맡긴다 */
+export const NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS =
+  "mt-1 flex w-full flex-col rounded-2xl border border-zinc-200/80 bg-white px-4 py-5 shadow-sm ring-1 ring-zinc-950/[0.04] dark:border-zinc-800/80 dark:bg-zinc-950/55 dark:ring-white/[0.06] sm:px-6 sm:py-6";
+
 export const NOTE_TAB_BUTTON_BASE =
   "cursor-pointer border-b-2 px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500/50 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-zinc-950";
 

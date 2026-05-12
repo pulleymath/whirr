@@ -1,8 +1,14 @@
 "use client";
 
+import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
 import { MeetingTemplatePreview } from "@/components/meeting-template-preview";
-import { NOTE_TAB_SURFACE_CLASS } from "@/components/recorder-note-workspace";
+import {
+  NOTE_TAB_BUTTON_BASE,
+  NOTE_TAB_SURFACE_CLASS,
+  NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS,
+} from "@/components/recorder-note-workspace";
 import { SessionPropertyRowsEditable } from "@/components/session-property-rows";
+import { TranscriptView } from "@/components/transcript-view";
 import { Button } from "@/components/ui/button";
 import { updateSession, type Session } from "@/lib/db";
 import type { MeetingContext, SessionContext } from "@/lib/glossary/types";
@@ -20,6 +26,7 @@ import { Loader2 } from "lucide-react";
 import {
   useCallback,
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -72,6 +79,12 @@ function snapshotsEqual(
   );
 }
 
+function userConfirm(message: string): boolean {
+  if (typeof window === "undefined") return true;
+  const { confirm } = window;
+  return typeof confirm === "function" ? confirm(message) : true;
+}
+
 export async function persistSessionEditSnapshot(
   session: Session,
   snapshot: SessionEditSnapshot,
@@ -117,6 +130,8 @@ export type SessionEditDialogProps = {
 
 type DialogPhase = "closed" | "open" | "closing";
 
+type EditModalTab = "summary" | "templatePreview" | "script";
+
 export function SessionEditDialog({
   open,
   session,
@@ -152,6 +167,8 @@ export function SessionEditDialog({
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const baseId = useId();
+  const [activeEditTab, setActiveEditTab] = useState<EditModalTab>("summary");
 
   const capture = useCallback(() => {
     return captureSnapshot(
@@ -163,6 +180,19 @@ export function SessionEditDialog({
       templateDraft,
     );
   }, [titleDraft, scriptDraft, contextDraft, minutesModelDraft, templateDraft]);
+
+  const handleMeetingTemplateChange = useCallback(
+    (next: MeetingMinutesTemplate) => {
+      setTemplateDraft((prev) => {
+        const changed = JSON.stringify(prev) !== JSON.stringify(next);
+        if (changed) {
+          queueMicrotask(() => setActiveEditTab("templatePreview"));
+        }
+        return next;
+      });
+    },
+    [],
+  );
 
   useLayoutEffect(() => {
     if (open) {
@@ -200,6 +230,7 @@ export function SessionEditDialog({
     );
     setSaveError(null);
     setSaving(false);
+    setActiveEditTab("summary");
     initialSnapshotRef.current = captureSnapshot(
       session.title ?? "",
       session.text,
@@ -222,7 +253,7 @@ export function SessionEditDialog({
 
   const requestClose = useCallback(() => {
     if (computeIsDirty()) {
-      const ok = window.confirm("저장하지 않은 변경이 있습니다. 닫으시겠어요?");
+      const ok = userConfirm("저장하지 않은 변경이 있습니다. 닫으시겠어요?");
       if (!ok) return;
     }
     onClose();
@@ -270,6 +301,12 @@ export function SessionEditDialog({
     (mode: "current" | "new") => {
       const snap = capture();
       if (!snap.scriptText.trim()) return;
+      if (mode === "current") {
+        const ok = userConfirm(
+          "현재 세션에 저장된 AI 요약이 새로 생성된 요약으로 덮어써집니다. 계속하시겠어요?",
+        );
+        if (!ok) return;
+      }
       onGenerate(snap, mode);
     },
     [capture, onGenerate],
@@ -287,6 +324,13 @@ export function SessionEditDialog({
 
   const titleTypographyClass =
     "w-full border-0 bg-transparent px-0 py-2 text-2xl font-semibold tracking-tight text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-0 disabled:cursor-not-allowed disabled:opacity-60 dark:text-zinc-50 dark:placeholder:text-zinc-500";
+
+  const summaryTabId = `${baseId}-tab-summary`;
+  const previewTabId = `${baseId}-tab-template-preview`;
+  const scriptTabId = `${baseId}-tab-script`;
+  const summaryPanelId = `${baseId}-tabpanel-summary`;
+  const previewPanelId = `${baseId}-tabpanel-template-preview`;
+  const scriptPanelId = `${baseId}-tabpanel-script`;
 
   return (
     <div
@@ -319,7 +363,7 @@ export function SessionEditDialog({
             id={dialogTitleId}
             className="text-base font-semibold text-zinc-900 dark:text-zinc-50"
           >
-            노트 편집
+            편집
           </h2>
           <button
             type="button"
@@ -347,40 +391,138 @@ export function SessionEditDialog({
             sessionContext={contextDraft}
             onSessionContextChange={setContextDraft}
             meetingTemplate={templateDraft}
-            onMeetingTemplateChange={setTemplateDraft}
+            onMeetingTemplateChange={handleMeetingTemplateChange}
             disabled={mmLoading}
             minutesModel={minutesModelDraft}
             onMinutesModelChange={setMinutesModelDraft}
           />
 
-          <div
-            className={`${NOTE_TAB_SURFACE_CLASS} mt-4 min-h-[min(28vh,14rem)]`}
-          >
-            <MeetingTemplatePreview
-              value={templateDraft}
-              onChange={setTemplateDraft}
-              disabled={mmLoading}
-            />
-          </div>
-
-          <div className="mt-4">
-            <label
-              htmlFor={`session-edit-script-${session.id}`}
-              className="mb-1 block text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          <div className="mt-4 flex flex-col gap-2">
+            <div
+              role="tablist"
+              aria-label="편집 모달 본문"
+              className="flex gap-1 border-b border-zinc-200 dark:border-zinc-700"
             >
-              스크립트
-            </label>
-            <textarea
-              id={`session-edit-script-${session.id}`}
-              data-testid="session-edit-dialog-script"
-              value={scriptDraft}
-              onChange={(e) => setScriptDraft(e.target.value)}
-              rows={12}
-              spellCheck={false}
-              aria-label="스크립트 편집"
-              disabled={mmLoading}
-              className="min-h-[min(32vh,14rem)] w-full resize-y rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-700/90 dark:bg-zinc-900/60 dark:text-zinc-200"
-            />
+              <button
+                id={summaryTabId}
+                type="button"
+                role="tab"
+                aria-selected={activeEditTab === "summary"}
+                aria-controls={summaryPanelId}
+                data-testid="note-tab-summary"
+                onClick={() => setActiveEditTab("summary")}
+                className={
+                  activeEditTab === "summary"
+                    ? `${NOTE_TAB_BUTTON_BASE} -mb-px border-sky-500 text-sky-600 dark:text-sky-400`
+                    : `${NOTE_TAB_BUTTON_BASE} border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200`
+                }
+              >
+                AI 요약
+              </button>
+              <button
+                id={previewTabId}
+                type="button"
+                role="tab"
+                aria-selected={activeEditTab === "templatePreview"}
+                aria-controls={previewPanelId}
+                data-testid="session-edit-tab-template-preview"
+                onClick={() => setActiveEditTab("templatePreview")}
+                className={
+                  activeEditTab === "templatePreview"
+                    ? `${NOTE_TAB_BUTTON_BASE} -mb-px border-sky-500 text-sky-600 dark:text-sky-400`
+                    : `${NOTE_TAB_BUTTON_BASE} border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200`
+                }
+              >
+                요약 형식 미리보기
+              </button>
+              <button
+                id={scriptTabId}
+                type="button"
+                role="tab"
+                aria-selected={activeEditTab === "script"}
+                aria-controls={scriptPanelId}
+                data-testid="note-tab-script"
+                onClick={() => setActiveEditTab("script")}
+                className={
+                  activeEditTab === "script"
+                    ? `${NOTE_TAB_BUTTON_BASE} -mb-px border-sky-500 text-sky-600 dark:text-sky-400`
+                    : `${NOTE_TAB_BUTTON_BASE} border-transparent text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200`
+                }
+              >
+                스크립트
+              </button>
+            </div>
+
+            <div
+              id={summaryPanelId}
+              role="tabpanel"
+              aria-labelledby={summaryTabId}
+              hidden={activeEditTab !== "summary"}
+              className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
+            >
+              <div
+                className="flex flex-col gap-4"
+                role="region"
+                aria-label="요약"
+              >
+                {session.summary?.trim() ? (
+                  <div className="text-sm leading-relaxed">
+                    <MeetingMinutesMarkdown markdown={session.summary} />
+                  </div>
+                ) : hasScript ? (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    아직 요약이 없습니다. 하단의 요약 재생성 버튼으로 생성할 수
+                    있습니다.
+                  </p>
+                ) : (
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    스크립트가 비어 있으면 요약을 만들 수 없습니다.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div
+              id={previewPanelId}
+              role="tabpanel"
+              aria-labelledby={previewTabId}
+              hidden={activeEditTab !== "templatePreview"}
+              className={`${NOTE_TAB_SURFACE_CLASS} min-h-[min(28vh,14rem)]`}
+            >
+              <MeetingTemplatePreview
+                value={templateDraft}
+                onChange={handleMeetingTemplateChange}
+                disabled={mmLoading}
+              />
+            </div>
+
+            <div
+              id={scriptPanelId}
+              role="tabpanel"
+              aria-labelledby={scriptTabId}
+              hidden={activeEditTab !== "script"}
+              className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
+            >
+              <div
+                className="flex flex-col"
+                role="region"
+                aria-label="스크립트"
+              >
+                <TranscriptView
+                  variant="plain"
+                  showHeading={false}
+                  partial=""
+                  finals={[]}
+                  staticScript={scriptDraft}
+                  onStaticScriptChange={setScriptDraft}
+                  scriptInputDisabled={mmLoading}
+                  emptyStateHint="녹음을 시작하면 스크립트가 표시됩니다."
+                  textareaTestId="session-edit-dialog-script"
+                  textareaAriaLabel="스크립트 편집"
+                  pageScrollBody
+                />
+              </div>
+            </div>
           </div>
 
           {saveError ? (
@@ -393,43 +535,38 @@ export function SessionEditDialog({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
-          <Button type="button" variant="ghost" onClick={() => requestClose()}>
-            닫기
+        <div className="flex w-full shrink-0 flex-wrap items-center justify-end gap-2 border-t border-zinc-200 px-4 py-3 dark:border-zinc-800">
+          <Button
+            type="button"
+            variant="outline"
+            disabled={mmLoading || !hasScript}
+            onClick={() => handleRegenerate("current")}
+          >
+            현재 세션에 요약 재생성
           </Button>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <Button
-              type="button"
-              variant="primary"
-              disabled={saving || !computeIsDirty()}
-              onClick={() => void handleSave()}
-            >
-              {saving ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  저장 중…
-                </span>
-              ) : (
-                "저장"
-              )}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={mmLoading || !hasScript}
-              onClick={() => handleRegenerate("current")}
-            >
-              현재 세션에 요약 재생성
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={mmLoading || !hasScript}
-              onClick={() => handleRegenerate("new")}
-            >
-              새 세션에 요약 재생성
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={mmLoading || !hasScript}
+            onClick={() => handleRegenerate("new")}
+          >
+            새 세션에 요약 재생성
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            disabled={saving || !computeIsDirty()}
+            onClick={() => void handleSave()}
+          >
+            {saving ? (
+              <span className="inline-flex items-center gap-2">
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                저장 중…
+              </span>
+            ) : (
+              "저장"
+            )}
+          </Button>
         </div>
       </div>
     </div>

@@ -1,3 +1,7 @@
+"use client";
+
+import { useLayoutEffect, useRef, type ChangeEvent } from "react";
+
 export type TranscriptViewVariant = "card" | "embedded" | "plain";
 
 type TranscriptViewProps = {
@@ -16,6 +20,21 @@ type TranscriptViewProps = {
   variant?: TranscriptViewVariant;
   /** 루트 `section`에 추가 클래스. */
   className?: string;
+  /**
+   * 저장된 스크립트 한 덩어리 표시·편집. 지정 시 partial/finals·로딩 행은 쓰지 않는다(홈 스크립트 탭 plain UI와 동일).
+   */
+  staticScript?: string;
+  onStaticScriptChange?: (next: string) => void;
+  /** staticScript 편집 모드에서 입력 비활성 */
+  scriptInputDisabled?: boolean;
+  /** textarea `data-testid` (기본 transcript-textarea) */
+  textareaTestId?: string;
+  /** textarea 접근 이름 */
+  textareaAriaLabel?: string;
+  /**
+   * true면 plain+static에서 뷰포트 고정 높이·내부 스크롤 대신 본문 높이만큼만 차지(부모 스크롤).
+   */
+  pageScrollBody?: boolean;
 };
 
 const SECTION_VARIANT_CLASS: Record<TranscriptViewVariant, string> = {
@@ -26,12 +45,23 @@ const SECTION_VARIANT_CLASS: Record<TranscriptViewVariant, string> = {
     "flex min-h-0 flex-1 flex-col gap-3 border-0 bg-transparent p-0 shadow-none dark:bg-transparent",
 };
 
+const SECTION_PLAIN_PAGE_SCROLL_CLASS =
+  "flex flex-col gap-3 border-0 bg-transparent p-0 shadow-none dark:bg-transparent";
+
 const TEXTAREA_VARIANT_CLASS: Record<TranscriptViewVariant, string> = {
   card: "min-h-48",
   embedded: "min-h-36",
   plain:
     "min-h-[min(44vh,17rem)] flex-1 resize-none border-0 bg-transparent px-0 py-0 text-[15px] leading-[1.7] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder:text-zinc-500",
 };
+
+const PLAIN_STATIC_PAGE_SCROLL_TEXT_CLASS =
+  "w-full min-h-[12rem] resize-none overflow-hidden border-0 bg-transparent px-0 py-0 font-sans text-[15px] leading-[1.7] text-zinc-800 shadow-none outline-none ring-0 placeholder:text-zinc-400 focus:border-transparent focus:outline-none focus:ring-0 dark:text-zinc-200 dark:placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-60";
+
+const PLAIN_STATIC_READONLY_PRE_CLASS =
+  "w-full whitespace-pre-wrap break-words font-sans text-[15px] leading-[1.7] text-zinc-800 dark:text-zinc-200";
+
+const STATIC_PAGE_SCROLL_MIN_PX = 272;
 
 export function TranscriptView({
   partial,
@@ -43,18 +73,73 @@ export function TranscriptView({
   isSegmentInFlight = false,
   variant = "card",
   className = "",
+  staticScript,
+  onStaticScriptChange,
+  scriptInputDisabled = false,
+  textareaTestId = "transcript-textarea",
+  textareaAriaLabel = "실시간 스크립트 텍스트",
+  pageScrollBody = false,
 }: TranscriptViewProps) {
-  const hasContent = finals.length > 0 || partial.length > 0;
+  const isStaticScript = staticScript !== undefined;
+  const editableStatic = isStaticScript && onStaticScriptChange != null;
+  const staticPageScroll = isStaticScript && pageScrollBody;
+
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+
+  const hasContent = isStaticScript
+    ? staticScript.trim().length > 0
+    : finals.length > 0 || partial.length > 0;
   const joinedFinals = finals.join("\n");
-  const textareaValue = isSegmentInFlight
-    ? [joinedFinals, "…"].filter(Boolean).join("\n")
-    : joinedFinals;
+  const textareaValue = isStaticScript
+    ? staticScript
+    : isSegmentInFlight
+      ? [joinedFinals, "…"].filter(Boolean).join("\n")
+      : joinedFinals;
   const emptyHint = emptyStateHint ?? "녹음을 시작하면 스크립트가 표시됩니다.";
   const showEmptyHint = !hasContent && !loadingMessage;
   const showLivePartialRow =
-    Boolean(loadingMessage?.trim()) || partial.trim().length > 0;
+    !isStaticScript &&
+    (Boolean(loadingMessage?.trim()) || partial.trim().length > 0);
 
-  const sectionClass = `${SECTION_VARIANT_CLASS[variant]} ${className}`.trim();
+  const textareaReadOnly = isStaticScript ? !editableStatic : true;
+  const textareaDisabled = isStaticScript
+    ? editableStatic && scriptInputDisabled
+    : true;
+
+  useLayoutEffect(() => {
+    if (!editableStatic || !staticPageScroll || !textAreaRef.current) return;
+    const el = textAreaRef.current;
+    el.style.height = "0px";
+    const next = Math.max(STATIC_PAGE_SCROLL_MIN_PX, el.scrollHeight);
+    el.style.height = `${next}px`;
+  }, [editableStatic, staticPageScroll, staticScript, scriptInputDisabled]);
+
+  const plainSectionClass =
+    variant === "plain"
+      ? `${staticPageScroll ? SECTION_PLAIN_PAGE_SCROLL_CLASS : SECTION_VARIANT_CLASS.plain} ${className}`.trim()
+      : "";
+
+  const sectionClass =
+    variant === "plain"
+      ? plainSectionClass
+      : `${SECTION_VARIANT_CLASS[variant]} ${className}`.trim();
+
+  const textareaClass =
+    variant === "plain"
+      ? staticPageScroll && editableStatic
+        ? `${PLAIN_STATIC_PAGE_SCROLL_TEXT_CLASS} cursor-text`
+        : `w-full font-sans ${TEXTAREA_VARIANT_CLASS.plain} ${
+            editableStatic
+              ? "cursor-text resize-y disabled:cursor-not-allowed disabled:opacity-60"
+              : "cursor-default resize-none"
+          }`.trim()
+      : `mt-3 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${TEXTAREA_VARIANT_CLASS[variant]}`.trim();
+
+  const onStaticInput =
+    editableStatic && onStaticScriptChange
+      ? (e: ChangeEvent<HTMLTextAreaElement>) =>
+          onStaticScriptChange(e.target.value)
+      : undefined;
 
   return (
     <section
@@ -101,22 +186,39 @@ export function TranscriptView({
         </div>
       ) : null}
 
-      <textarea
-        readOnly
-        disabled
-        spellCheck={false}
-        value={textareaValue}
-        placeholder={showEmptyHint ? emptyHint : ""}
-        data-testid="transcript-textarea"
-        aria-label="실시간 스크립트 텍스트"
-        className={
-          variant === "plain"
-            ? `w-full cursor-default font-sans ${TEXTAREA_VARIANT_CLASS.plain}`
-            : `mt-3 w-full resize-y rounded-lg border border-zinc-200 bg-zinc-50 p-3 font-mono text-sm leading-relaxed text-zinc-800 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/30 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200 ${TEXTAREA_VARIANT_CLASS[variant]}`.trim()
-        }
-      />
+      {isStaticScript && !editableStatic ? (
+        hasContent ? (
+          <pre
+            data-testid={textareaTestId}
+            className={PLAIN_STATIC_READONLY_PRE_CLASS}
+            aria-label={textareaAriaLabel}
+          >
+            {staticScript}
+          </pre>
+        ) : (
+          <p
+            className="text-sm text-zinc-500 dark:text-zinc-400"
+            data-testid={textareaTestId}
+          >
+            {emptyHint}
+          </p>
+        )
+      ) : (
+        <textarea
+          ref={editableStatic && staticPageScroll ? textAreaRef : undefined}
+          readOnly={textareaReadOnly}
+          disabled={textareaDisabled}
+          spellCheck={false}
+          value={textareaValue}
+          placeholder={showEmptyHint ? emptyHint : ""}
+          data-testid={textareaTestId}
+          aria-label={textareaAriaLabel}
+          onChange={onStaticInput}
+          className={textareaClass}
+        />
+      )}
 
-      {isSegmentInFlight ? (
+      {!isStaticScript && isSegmentInFlight ? (
         <p
           className={`text-xs text-zinc-500 dark:text-zinc-400 ${variant === "plain" ? "shrink-0" : "mt-2"}`}
           data-testid="transcript-segment-loading"
@@ -125,11 +227,13 @@ export function TranscriptView({
         </p>
       ) : null}
 
-      <ul className="sr-only" aria-hidden data-testid="transcript-finals">
-        {finals.map((line, i) => (
-          <li key={`${i}-${line.slice(0, 12)}`}>{line}</li>
-        ))}
-      </ul>
+      {!isStaticScript ? (
+        <ul className="sr-only" aria-hidden data-testid="transcript-finals">
+          {finals.map((line, i) => (
+            <li key={`${i}-${line.slice(0, 12)}`}>{line}</li>
+          ))}
+        </ul>
+      ) : null}
     </section>
   );
 }

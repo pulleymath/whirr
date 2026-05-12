@@ -14,16 +14,13 @@ export function SessionScriptMetaDisplay({
     return null;
   }
   return (
-    <div
-      className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-200"
+    <p
+      className="min-w-0 truncate text-xs leading-snug text-zinc-500 dark:text-zinc-500"
       data-testid="session-script-meta-display"
     >
-      <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-        스크립트 모델{" "}
-      </span>
-      <span className="font-mono text-xs">
+      <span className="font-mono text-zinc-600 dark:text-zinc-400">
         {formatScriptMetaLine(scriptMeta)}
       </span>
-    </div>
+    </p>
   );
 }

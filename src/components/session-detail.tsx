@@ -3,7 +3,7 @@
 import { MeetingMinutesMarkdown } from "@/components/meeting-minutes-markdown";
 import {
   NOTE_TAB_BUTTON_BASE,
-  NOTE_TAB_SURFACE_CLASS,
+  NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS,
 } from "@/components/recorder-note-workspace";
 import {
   SessionEditDialog,
@@ -12,6 +12,7 @@ import {
 } from "@/components/session-edit-dialog";
 import { SessionPropertyRowsReadOnly } from "@/components/session-property-rows";
 import { SessionScriptMetaDisplay } from "@/components/session-script-meta-display";
+import { TranscriptView } from "@/components/transcript-view";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import {
@@ -326,21 +327,21 @@ function SessionDetailReadyContent({
 
   const displayTitle = session.title?.trim() ?? "";
   const titleTypographyClass =
-    "w-full border-0 bg-transparent px-0 py-2 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50";
+    "border-0 bg-transparent px-0 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50";
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex min-h-[2.75rem] min-w-0 flex-nowrap items-center gap-3">
         <h2
           data-testid="recorder-note-title"
           aria-label="노트 제목"
-          className={`${titleTypographyClass} ${
+          className={`${titleTypographyClass} min-w-0 flex-1 truncate py-2 ${
             displayTitle ? "" : "text-zinc-400 dark:text-zinc-500"
           }`}
         >
           {displayTitle || "새로운 노트"}
         </h2>
-        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        <div className="ml-auto flex shrink-0 flex-nowrap items-center gap-2">
           {audioSegments.length > 0 ? (
             <IconButton
               icon={isDownloading ? Loader2 : Download}
@@ -458,13 +459,9 @@ function SessionDetailReadyContent({
           role="tabpanel"
           aria-labelledby={summaryTabId}
           hidden={activeTab !== "summary"}
-          className={NOTE_TAB_SURFACE_CLASS}
+          className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
         >
-          <div
-            className="flex min-h-0 flex-1 flex-col gap-4"
-            role="region"
-            aria-label="요약"
-          >
+          <div className="flex flex-col gap-4" role="region" aria-label="요약">
             {session.summary ? (
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <IconButton
@@ -477,7 +474,7 @@ function SessionDetailReadyContent({
               </div>
             ) : null}
             {session.summary ? (
-              <div className="min-h-0 flex-1 overflow-y-auto text-sm leading-relaxed">
+              <div className="text-sm leading-relaxed">
                 <MeetingMinutesMarkdown markdown={session.summary} />
               </div>
             ) : hasText ? (
@@ -498,38 +495,41 @@ function SessionDetailReadyContent({
           role="tabpanel"
           aria-labelledby={scriptTabId}
           hidden={activeTab !== "script"}
-          className={NOTE_TAB_SURFACE_CLASS}
+          className={NOTE_TAB_SURFACE_PAGE_SCROLL_CLASS}
         >
           <div
-            className="flex min-h-0 flex-1 flex-col gap-4"
+            className="flex flex-col gap-4"
             role="region"
             aria-label="스크립트"
           >
-            {session.scriptMeta ? (
-              <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
-            ) : null}
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              <IconButton
-                icon={copiedScript ? Check : Copy}
-                ariaLabel="스크립트 텍스트 복사"
-                label={copiedScript ? "복사됨" : undefined}
-                variant="outline"
-                disabled={!session.text.trim()}
-                onClick={() => void copyScript()}
-              />
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+              <div className="min-w-0 flex-1">
+                {session.scriptMeta ? (
+                  <SessionScriptMetaDisplay scriptMeta={session.scriptMeta} />
+                ) : null}
+              </div>
+              <div className="shrink-0">
+                <IconButton
+                  icon={copiedScript ? Check : Copy}
+                  ariaLabel="스크립트 텍스트 복사"
+                  label={copiedScript ? "복사됨" : undefined}
+                  variant="outline"
+                  disabled={!session.text.trim()}
+                  onClick={() => void copyScript()}
+                />
+              </div>
             </div>
-            {session.text.trim() ? (
-              <pre
-                data-testid="session-detail-script-readonly"
-                className="min-h-[min(40vh,16rem)] w-full flex-1 overflow-auto whitespace-pre-wrap rounded-xl border border-zinc-200/90 bg-zinc-50/80 px-3 py-3 font-mono text-sm leading-relaxed text-zinc-800 dark:border-zinc-700/90 dark:bg-zinc-900/60 dark:text-zinc-200"
-              >
-                {session.text}
-              </pre>
-            ) : (
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                스크립트가 비어 있습니다.
-              </p>
-            )}
+            <TranscriptView
+              variant="plain"
+              showHeading={false}
+              partial=""
+              finals={[]}
+              staticScript={session.text}
+              emptyStateHint="스크립트가 비어 있습니다."
+              textareaTestId="session-detail-script-readonly"
+              textareaAriaLabel="스크립트 읽기 전용"
+              pageScrollBody
+            />
           </div>
         </div>
       </div>

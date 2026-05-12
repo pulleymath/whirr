@@ -130,15 +130,41 @@ describe("SessionEditDialog", () => {
     expect(screen.getByTestId("session-edit-dialog")).toBeInTheDocument();
   });
 
-  it("현재 세션 재생성 클릭 시 onGenerate(snap, current)를 호출한다", () => {
-    const onGenerate = vi.fn();
-    renderOpenDialog({ onGenerate });
-    fireEvent.click(
-      screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
-    );
-    expect(onGenerate).toHaveBeenCalledTimes(1);
-    expect(onGenerate.mock.calls[0][0].scriptText).toBe("스크립트");
-    expect(onGenerate.mock.calls[0][1]).toBe("current");
+  it("현재 세션 재생성 클릭 시 확인 후 onGenerate(snap, current)를 호출한다", () => {
+    const confirmSpy = vi.fn(() => true);
+    const prev = window.confirm;
+    window.confirm = confirmSpy as typeof window.confirm;
+    try {
+      const onGenerate = vi.fn();
+      renderOpenDialog({ onGenerate });
+      fireEvent.click(
+        screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+      );
+      expect(confirmSpy).toHaveBeenCalledWith(
+        "현재 세션에 저장된 AI 요약이 새로 생성된 요약으로 덮어써집니다. 계속하시겠어요?",
+      );
+      expect(onGenerate).toHaveBeenCalledTimes(1);
+      expect(onGenerate.mock.calls[0][0].scriptText).toBe("스크립트");
+      expect(onGenerate.mock.calls[0][1]).toBe("current");
+    } finally {
+      window.confirm = prev;
+    }
+  });
+
+  it("현재 세션 재생성에서 확인을 취소하면 onGenerate를 호출하지 않는다", () => {
+    const confirmSpy = vi.fn(() => false);
+    const prev = window.confirm;
+    window.confirm = confirmSpy as typeof window.confirm;
+    try {
+      const onGenerate = vi.fn();
+      renderOpenDialog({ onGenerate });
+      fireEvent.click(
+        screen.getByRole("button", { name: "현재 세션에 요약 재생성" }),
+      );
+      expect(onGenerate).not.toHaveBeenCalled();
+    } finally {
+      window.confirm = prev;
+    }
   });
 
   it("새 세션 재생성 클릭 시 onGenerate(snap, new)를 호출한다", () => {
@@ -199,8 +225,26 @@ describe("SessionEditDialog", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("빌트인 템플릿이면 미리보기 pre를 렌더한다", () => {
+  it("요약 형식을 바꾸면 요약 형식 미리보기 탭으로 이동한다", async () => {
     renderOpenDialog();
+    fireEvent.click(screen.getByTestId("note-tab-summary"));
+    expect(screen.getByTestId("note-tab-summary")).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    fireEvent.change(screen.getByTestId("meeting-template-selector"), {
+      target: { value: "business" },
+    });
+    await waitFor(() => {
+      expect(
+        screen.getByTestId("session-edit-tab-template-preview"),
+      ).toHaveAttribute("aria-selected", "true");
+    });
+  });
+
+  it("빌트인 템플릿이면 미리보기 탭에서 pre를 렌더한다", () => {
+    renderOpenDialog();
+    fireEvent.click(screen.getByTestId("session-edit-tab-template-preview"));
     expect(
       screen.getByTestId("meeting-minutes-template-preview"),
     ).toBeInTheDocument();
