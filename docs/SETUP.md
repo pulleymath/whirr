@@ -10,21 +10,24 @@
 ## 환경 변수
 
 1. `.env.example`을 복사해 **`.env.local`**을 만듭니다.
-2. **필수**: `OPENAI_API_KEY` — STT(음성)와 녹음 후 **요약 생성**에 필요합니다. 값은 여기에 붙이지 않습니다.
-3. **선택**: `ASSEMBLYAI_*`, `STT_TOKEN_RATE_LIMIT_*` 등은 `.env.example` 주석을 따릅니다.
+2. **필수**: `OPENAI_API_KEY` — STT(음성)와 녹음 후 **회의록 요약**(`POST /api/meeting-minutes`)에 필요합니다. 값은 여기에 붙이지 않습니다.
+3. **선택**: `ASSEMBLYAI_*`, `NEXT_PUBLIC_ASSEMBLYAI_*`, `STT_TOKEN_RATE_LIMIT_*`, `MEETING_MINUTES_RATE_LIMIT_*` 등은 `.env.example` 주석을 따릅니다.
 
 비밀 값·실제 키는 문서나 채팅에 붙여 넣지 않습니다.
 
 ## 자주 쓰는 스크립트 (`package.json`)
 
-| 명령            | 용도             |
-| --------------- | ---------------- |
-| `npm run dev`   | 개발 서버        |
-| `npm run build` | 프로덕션 빌드    |
-| `npm run lint`  | ESLint           |
-| `npm run test`  | Vitest 일회 실행 |
+| 명령                 | 용도                      |
+| -------------------- | ------------------------- |
+| `npm run dev`        | 개발 서버                 |
+| `npm run build`      | 프로덕션 빌드             |
+| `npm run lint`       | ESLint                    |
+| `npm run typecheck`  | TypeScript (`tsc --noEmit`) |
+| `npm run test`       | Vitest 일회 실행          |
+| `npm run format`     | Prettier로 전체 포맷 적용 |
+| `npm run format:check` | Prettier 검사만        |
 
-(참고: `start`, `format`, `test:watch` 등도 동일 파일에 정의되어 있습니다.)
+(참고: `start`, `test:watch` 등도 동일 파일에 정의되어 있습니다.)
 
 ## 마이크·브라우저
 
