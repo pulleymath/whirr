@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { SessionList } from "@/components/session-list";
 import { SettingsPanel } from "@/components/settings-panel";
 import { useRecordingActivity } from "@/lib/recording-activity/context";
+import { isSettingsEntryVisible } from "@/lib/settings/dev-ui";
 import { usePrefersReducedMotion } from "@/hooks/use-prefers-reduced-motion";
 
 export type MainShellProps = {
@@ -28,6 +29,7 @@ export function MainShell({
   const [drawerEntered, setDrawerEntered] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { isRecording } = useRecordingActivity();
+  const showSettingsEntry = isSettingsEntryVisible();
 
   useEffect(() => {
     // 라우트 변경 시 History drawer를 닫는다. Next.js 클라이언트 네비게이션과 동기화.
@@ -92,17 +94,19 @@ export function MainShell({
         </h2>
         <SessionList refreshTrigger={sessionRefreshTrigger} />
       </div>
-      <div className="shrink-0 border-t border-zinc-200 p-3 dark:border-zinc-800">
-        <button
-          type="button"
-          onClick={() => setSettingsOpen(true)}
-          disabled={isRecording}
-          className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-900"
-        >
-          <Settings className="size-[18px] shrink-0" aria-hidden />
-          설정
-        </button>
-      </div>
+      {showSettingsEntry ? (
+        <div className="shrink-0 border-t border-zinc-200 p-3 dark:border-zinc-800">
+          <button
+            type="button"
+            onClick={() => setSettingsOpen(true)}
+            disabled={isRecording}
+            className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-zinc-900"
+          >
+            <Settings className="size-[18px] shrink-0" aria-hidden />
+            설정
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 
@@ -137,11 +141,13 @@ export function MainShell({
         </div>
       </main>
 
-      <SettingsPanel
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        isRecording={isRecording}
-      />
+      {showSettingsEntry ? (
+        <SettingsPanel
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+          isRecording={isRecording}
+        />
+      ) : null}
 
       {drawerVisible ? (
         <div
