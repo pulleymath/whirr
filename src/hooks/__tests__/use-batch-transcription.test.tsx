@@ -80,7 +80,7 @@ describe("useBatchTranscription", () => {
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 
-  it("5분 회전 후 백그라운드 스크립트 변환이 5xx로 끝나면 stop 시 error가 된다", async () => {
+  it("3분 회전 후 백그라운드 스크립트 변환이 5xx로 끝나면 stop 시 error가 된다", async () => {
     vi.useFakeTimers();
     globalThis.fetch = vi.fn(async () => {
       return new Response(
@@ -96,7 +96,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 300);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
@@ -135,7 +135,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 300);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
@@ -171,7 +171,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 300);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(2000);
@@ -198,7 +198,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 300);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
@@ -262,7 +262,7 @@ describe("useBatchTranscription", () => {
       await result.current.startRecording();
     });
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 300);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 300);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(20_000);
@@ -302,7 +302,7 @@ describe("useBatchTranscription", () => {
     });
 
     await act(async () => {
-      vi.advanceTimersByTime(5 * 60 * 1000 + 100);
+      vi.advanceTimersByTime(3 * 60 * 1000 + 100);
     });
     await act(async () => {
       await vi.advanceTimersByTimeAsync(5000);

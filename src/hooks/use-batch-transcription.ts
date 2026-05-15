@@ -28,7 +28,7 @@ export type BatchStopResult = {
 
 const LEVEL_UI_MIN_INTERVAL_MS = 48;
 const MINUTES = 60 * 1000;
-const SEGMENT_DURATION_MS = 5 * MINUTES; // 5분
+const SEGMENT_DURATION_MS = 3 * MINUTES; // 3분
 const BATCH_SOFT_LIMIT_MS = 235 * MINUTES;
 const BATCH_HARD_LIMIT_MS = 240 * MINUTES;
 
@@ -43,7 +43,7 @@ export type UseBatchTranscriptionReturn = {
   errorMessage: string | null;
   elapsedMs: number;
   level: number;
-  /** 55분 경과 시 한 번 설정되는 안내 문구 */
+  /** 전체 녹음 상한 5분 전(235분 경과)에 한 번 설정되는 안내 문구 */
   softLimitMessage: string | null;
   /** 현재 세그먼트 진행률 (0~1) */
   segmentProgress: number;

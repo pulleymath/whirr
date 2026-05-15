@@ -109,7 +109,7 @@ export function RecorderUiPreview() {
                   showHeading={false}
                   emptyStateHint={
                     batchRecording && !hasScript
-                      ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
+                      ? "녹음 중입니다. 3분마다 스크립트 결과가 업데이트됩니다."
                       : null
                   }
                   loadingMessage={null}
@@ -144,7 +144,7 @@ export function RecorderUiPreview() {
                 batchRecording && !hasScript
                   ? [
                       {
-                        text: "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다.",
+                        text: "녹음 중입니다. 3분마다 스크립트 결과가 업데이트됩니다.",
                         tone: "warning" as const,
                       },
                     ]

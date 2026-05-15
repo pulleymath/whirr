@@ -390,7 +390,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   const showTranscriptErrorOnCard =
     recordingActive && Boolean(transcriptError?.trim()) && !hasTranscriptScript;
   const batchRecordingHint = batchRecording
-    ? "녹음 중입니다. 5분마다 스크립트 결과가 업데이트됩니다."
+    ? "녹음 중입니다. 3분마다 스크립트 결과가 업데이트됩니다."
     : null;
   const batchLoadingMessage = batchTranscribing
     ? `스크립트 변환 중... (${batch.completedCount}/${batch.totalCount})`

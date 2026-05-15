@@ -150,7 +150,7 @@ export async function startBlobRecording(): Promise<BlobRecordingSession> {
 }
 
 /**
- * 5분 단위 세그먼트 녹음을 지원하는 MediaRecorder 세션을 시작합니다.
+ * 3분 단위 세그먼트 녹음을 지원하는 MediaRecorder 세션을 시작합니다.
  *
  * 세그먼트 교체 시 MediaRecorder를 stop→start하여 각 세그먼트가
  * 독립적인 WebM 컨테이너 헤더를 갖는 유효한 파일이 되도록 합니다.

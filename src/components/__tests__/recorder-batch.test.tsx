@@ -127,7 +127,7 @@ describe("Recorder 배치 모드", () => {
     await vi.waitFor(() => {
       expect(
         screen.getByPlaceholderText(
-          /녹음 중입니다\. 5분마다 스크립트 결과가 업데이트됩니다/,
+          /녹음 중입니다\. 3분마다 스크립트 결과가 업데이트됩니다/,
         ),
       ).toBeTruthy();
     });
@@ -231,7 +231,7 @@ describe("Recorder 배치 모드", () => {
     });
   });
 
-  it("5분 경과 후 중지하면 saveSessionAudio에 회전 세그먼트와 마지막 세그먼트가 모두 저장된다", async () => {
+  it("3분 경과 후 중지하면 saveSessionAudio에 회전 세그먼트와 마지막 세그먼트가 모두 저장된다", async () => {
     vi.stubGlobal("requestAnimationFrame", () => 0);
     vi.stubGlobal("cancelAnimationFrame", () => {});
     vi.useFakeTimers();
@@ -255,7 +255,7 @@ describe("Recorder 배치 모드", () => {
       expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
     });
 
-    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1_000);
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 1_000);
     await vi.waitFor(() => {
       expect(vi.mocked(globalThis.fetch).mock.calls.length).toBeGreaterThan(0);
     });
@@ -314,7 +314,7 @@ describe("Recorder 배치 모드", () => {
       expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
     });
 
-    await vi.advanceTimersByTimeAsync(5 * 60 * 1000 + 1_000);
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 1_000);
     await vi.waitFor(() => {
       expect(vi.mocked(globalThis.fetch).mock.calls.length).toBeGreaterThan(0);
     });
