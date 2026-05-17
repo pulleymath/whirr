@@ -26,7 +26,10 @@ import {
   updateSession,
   type Session,
 } from "@/lib/db";
-import { downloadRecordingZip } from "@/lib/download-recording";
+import {
+  downloadRecordingAudio,
+  downloadRecordingZip,
+} from "@/lib/download-recording";
 import type { SessionContext } from "@/lib/glossary/types";
 import { sessionContextForApi } from "@/lib/session-context-for-api";
 import { fetchMeetingMinutesSummary } from "@/lib/meeting-minutes/fetch-meeting-minutes-client";
@@ -73,7 +76,12 @@ type DetailState =
   | { status: "loading" }
   | { status: "missing" }
   | { status: "error" }
-  | { status: "ready"; session: Session; audioSegments: Blob[] };
+  | {
+      status: "ready";
+      session: Session;
+      audioSegments: Blob[];
+      audioFullBlob: Blob | null;
+    };
 
 type NoteWorkspaceTab = "summary" | "script";
 
@@ -98,6 +106,7 @@ function SessionDetailBody({
           status: "ready",
           session: row,
           audioSegments: audioRow?.segments ?? [],
+          audioFullBlob: audioRow?.fullBlob ?? null,
         });
         return true;
       }
@@ -124,6 +133,7 @@ function SessionDetailBody({
             status: "ready",
             session: row,
             audioSegments: audioRow?.segments ?? [],
+            audioFullBlob: audioRow?.fullBlob ?? null,
           });
         } else {
           setState({ status: "missing" });
@@ -139,8 +149,10 @@ function SessionDetailBody({
     };
   }, [id]);
 
-  const { session, audioSegments } =
-    state.status === "ready" ? state : { session: null, audioSegments: [] };
+  const { session, audioSegments, audioFullBlob } =
+    state.status === "ready"
+      ? state
+      : { session: null, audioSegments: [], audioFullBlob: null };
 
   if (state.status === "loading") {
     return (
@@ -191,6 +203,7 @@ function SessionDetailBody({
     <SessionDetailReadyContent
       session={session}
       audioSegments={audioSegments}
+      audioFullBlob={audioFullBlob}
       isDownloading={isDownloading}
       setIsDownloading={setIsDownloading}
       onSessionRefresh={refreshSession}
@@ -201,12 +214,14 @@ function SessionDetailBody({
 function SessionDetailReadyContent({
   session,
   audioSegments,
+  audioFullBlob,
   isDownloading,
   setIsDownloading,
   onSessionRefresh,
 }: {
   session: Session;
   audioSegments: Blob[];
+  audioFullBlob: Blob | null;
   isDownloading: boolean;
   setIsDownloading: (v: boolean) => void;
   onSessionRefresh: () => Promise<boolean>;
@@ -349,7 +364,7 @@ function SessionDetailReadyContent({
         }
         actions={
           <>
-            {audioSegments.length > 0 ? (
+            {audioFullBlob || audioSegments.length > 0 ? (
               <IconButton
                 icon={isDownloading ? Loader2 : Download}
                 ariaLabel="오디오 다운로드"
@@ -360,12 +375,14 @@ function SessionDetailReadyContent({
                 onClick={async () => {
                   setIsDownloading(true);
                   try {
-                    await downloadRecordingZip(
-                      audioSegments,
-                      `session-${session.id}`,
-                    );
+                    const prefix = `session-${session.id}`;
+                    if (audioFullBlob && audioFullBlob.size > 0) {
+                      downloadRecordingAudio(audioFullBlob, prefix);
+                    } else {
+                      await downloadRecordingZip(audioSegments, prefix);
+                    }
                   } catch {
-                    /* ZIP 실패 시 로딩만 해제 */
+                    /* 다운로드 실패 시 로딩만 해제 */
                   } finally {
                     setIsDownloading(false);
                   }

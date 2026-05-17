@@ -23,7 +23,12 @@ export type BatchStopResult = {
   partialText: string;
   /** 파이프라인에서 스크립트로 변환할 마지막 블롭(없으면 null) */
   finalBlob: Blob | null;
+  /** 다운로드용 연속 WebM(없으면 null) */
+  fullAudioBlob: Blob | null;
   segments: Blob[];
+  /** true면 일부 구간 전사 실패 — 오디오는 반환하되 파이프라인 enqueue는 하지 않는다 */
+  transcriptionFailed?: boolean;
+  failedSegmentIndexes?: number[];
 };
 
 const LEVEL_UI_MIN_INTERVAL_MS = 48;
@@ -296,8 +301,11 @@ export function useBatchTranscription(
         }
 
         let finalBlob: Blob;
+        let fullAudioBlob: Blob | null = null;
         try {
           finalBlob = await session.stopFinalSegment();
+          const full = await session.getFullAudioBlob();
+          fullAudioBlob = full.size > 0 ? full : null;
           await session.close();
         } catch (e) {
           setStatus("error");
@@ -335,11 +343,10 @@ export function useBatchTranscription(
 
         await awaitWorkerIdle();
 
+        const failedIndexes: number[] = [];
         for (let i = 0; i < lastIdx; i++) {
           if (partialTranscriptsRef.current[i] === null) {
-            setStatus("error");
-            setErrorMessage("일부 구간 스크립트 변환에 실패했습니다.");
-            return null;
+            failedIndexes.push(i);
           }
         }
 
@@ -352,11 +359,26 @@ export function useBatchTranscription(
         const finalForPipeline =
           lastBlob && lastBlob.size > 0 ? lastBlob : null;
 
+        if (failedIndexes.length > 0) {
+          setTranscript(partialText.length > 0 ? partialText : null);
+          setStatus("error");
+          setErrorMessage("일부 구간 스크립트 변환에 실패했습니다.");
+          return {
+            partialText,
+            finalBlob: finalForPipeline,
+            fullAudioBlob,
+            segments: [...segs],
+            transcriptionFailed: true,
+            failedSegmentIndexes: failedIndexes,
+          };
+        }
+
         setTranscript(partialText.length > 0 ? partialText : null);
         setStatus("idle");
         return {
           partialText,
           finalBlob: finalForPipeline,
+          fullAudioBlob,
           segments: [...segs],
         };
       } finally {
@@ -413,6 +435,7 @@ export function useBatchTranscription(
         return {
           partialText: fullText,
           finalBlob: null,
+          fullAudioBlob: null,
           segments: [...segmentsRef.current],
         };
       } finally {

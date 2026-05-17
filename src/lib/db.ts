@@ -32,6 +32,14 @@ export type SaveSessionOptions = {
 export type SessionAudio = {
   sessionId: string;
   segments: Blob[];
+  /** 다운로드용 연속 WebM(신규 녹음만, 레거시 세션은 생략) */
+  fullBlob?: Blob;
+};
+
+export type SessionAudioSegmentRow = {
+  sessionId: string;
+  index: number;
+  blob: Blob;
 };
 
 interface WhirrDB extends DBSchema {
@@ -44,12 +52,23 @@ interface WhirrDB extends DBSchema {
     key: string;
     value: SessionAudio;
   };
+  "session-audio-segments": {
+    key: [string, number];
+    value: SessionAudioSegmentRow;
+    indexes: { "by-sessionId": string };
+  };
+  "session-audio-full": {
+    key: string;
+    value: { sessionId: string; blob: Blob };
+  };
 }
 
 const DB_NAME = "whirr-db";
 const STORE = "sessions";
 const AUDIO_STORE = "session-audio";
-const DB_VERSION = 3;
+const AUDIO_SEGMENT_STORE = "session-audio-segments";
+const AUDIO_FULL_STORE = "session-audio-full";
+const DB_VERSION = 5;
 
 let dbPromise: Promise<IDBPDatabase<WhirrDB>> | null = null;
 
@@ -67,10 +86,31 @@ function getDb(): Promise<IDBPDatabase<WhirrDB>> {
         if (oldVersion < 3) {
           /* Session.scriptMeta 필드 추가 — 스토어 스키마 변경 없음 */
         }
+        if (oldVersion < 4) {
+          const segStore = db.createObjectStore(AUDIO_SEGMENT_STORE, {
+            keyPath: ["sessionId", "index"],
+          });
+          segStore.createIndex("by-sessionId", "sessionId");
+        }
+        if (oldVersion < 5) {
+          db.createObjectStore(AUDIO_FULL_STORE, { keyPath: "sessionId" });
+        }
       },
     });
   }
   return dbPromise;
+}
+
+async function listSessionAudioSegments(
+  sessionId: string,
+): Promise<SessionAudioSegmentRow[]> {
+  const db = await getDb();
+  const rows = await db.getAllFromIndex(
+    AUDIO_SEGMENT_STORE,
+    "by-sessionId",
+    sessionId,
+  );
+  return [...rows].sort((a, b) => a.index - b.index);
 }
 
 /** 열린 연결을 닫고 캐시된 `Promise`를 비운다. 테스트 유틸에서 `deleteDB` 전에 호출한다. */
@@ -146,17 +186,64 @@ export async function getAllSessions(): Promise<Session[]> {
   return [...rows].sort((a, b) => b.createdAt - a.createdAt);
 }
 
+/** 단일 오디오 세그먼트를 index별로 upsert한다. */
+export async function saveSessionAudioSegment(
+  sessionId: string,
+  index: number,
+  blob: Blob,
+): Promise<void> {
+  const db = await getDb();
+  await db.put(AUDIO_SEGMENT_STORE, { sessionId, index, blob });
+}
+
+/** 세그먼트 배열을 index 0..n-1로 일괄 upsert한다(레거시 호환·최종 확정 저장). */
 export async function saveSessionAudio(
   sessionId: string,
   segments: Blob[],
+  fullBlob?: Blob,
 ): Promise<void> {
   const db = await getDb();
-  await db.put(AUDIO_STORE, { sessionId, segments });
+  const storeNames: (typeof AUDIO_SEGMENT_STORE | typeof AUDIO_STORE | typeof AUDIO_FULL_STORE)[] =
+    [AUDIO_SEGMENT_STORE, AUDIO_STORE];
+  if (fullBlob && fullBlob.size > 0) {
+    storeNames.push(AUDIO_FULL_STORE);
+  }
+  const tx = db.transaction(storeNames, "readwrite");
+  const writes: Promise<unknown>[] = [
+    ...segments.map((blob, index) =>
+      tx.objectStore(AUDIO_SEGMENT_STORE).put({ sessionId, index, blob }),
+    ),
+    tx.objectStore(AUDIO_STORE).put({ sessionId, segments }),
+  ];
+  if (fullBlob && fullBlob.size > 0) {
+    writes.push(
+      tx.objectStore(AUDIO_FULL_STORE).put({ sessionId, blob: fullBlob }),
+    );
+  }
+  await Promise.all([...writes, tx.done]);
 }
 
 export async function getSessionAudio(
   sessionId: string,
 ): Promise<SessionAudio | undefined> {
   const db = await getDb();
-  return db.get(AUDIO_STORE, sessionId);
+  const fullRow = await db.get(AUDIO_FULL_STORE, sessionId);
+  const fullBlob = fullRow?.blob;
+
+  const segmentRows = await listSessionAudioSegments(sessionId);
+  if (segmentRows.length > 0) {
+    return {
+      sessionId,
+      segments: segmentRows.map((r) => r.blob),
+      ...(fullBlob ? { fullBlob } : {}),
+    };
+  }
+  const legacy = await db.get(AUDIO_STORE, sessionId);
+  if (!legacy) {
+    return undefined;
+  }
+  return {
+    ...legacy,
+    ...(fullBlob ? { fullBlob } : {}),
+  };
 }

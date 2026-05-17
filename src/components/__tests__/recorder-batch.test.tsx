@@ -2,7 +2,12 @@
 import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainAppProviders } from "@/components/providers/main-app-providers";
-import { saveSession, saveSessionAudio } from "@/lib/db";
+import {
+  saveSession,
+  saveSessionAudio,
+  saveSessionAudioSegment,
+  updateSession,
+} from "@/lib/db";
 import { SETTINGS_STORAGE_KEY } from "@/lib/settings/context";
 import { Recorder } from "../recorder";
 
@@ -30,6 +35,8 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "batch-saved-id"),
   saveSessionAudio: vi.fn(async () => {}),
+  saveSessionAudioSegment: vi.fn(async () => {}),
+  updateSession: vi.fn(async () => {}),
 }));
 
 const prepareStreaming = vi.fn(async () => true);
@@ -71,6 +78,9 @@ const startSegmentedRecording = vi.hoisted(() =>
     ),
     stopFinalSegment: vi.fn(
       async () => new Blob(["final-segment"], { type: "audio/webm" }),
+    ),
+    getFullAudioBlob: vi.fn(
+      async () => new Blob(["full-recording"], { type: "audio/webm" }),
     ),
     close: vi.fn(async () => {}),
   })),
@@ -169,17 +179,19 @@ describe("Recorder 배치 모드", () => {
       expect(saveSessionAudio).toHaveBeenCalledWith(
         "batch-saved-id",
         expect.any(Array),
+        expect.any(Blob),
       );
     });
-    const savedAudioSegments = vi
-      .mocked(saveSessionAudio)
-      .mock.calls.at(-1)?.[1];
+    const savedAudioCall = vi.mocked(saveSessionAudio).mock.calls.at(-1);
+    const savedAudioSegments = savedAudioCall?.[1];
+    const savedFullBlob = savedAudioCall?.[2];
     expect(savedAudioSegments).toBeDefined();
     expect(savedAudioSegments).toHaveLength(1);
-    if (!savedAudioSegments) {
-      throw new Error("저장된 오디오 세그먼트가 없습니다.");
+    if (!savedAudioSegments || !savedFullBlob) {
+      throw new Error("저장된 오디오가 없습니다.");
     }
     await expect(savedAudioSegments[0].text()).resolves.toBe("final-segment");
+    await expect(savedFullBlob.text()).resolves.toBe("full-recording");
     expect(mockEnqueue).toHaveBeenCalledWith(
       expect.objectContaining({
         sessionId: "batch-saved-id",
@@ -226,6 +238,95 @@ describe("Recorder 배치 모드", () => {
       expect(mockEnqueue).toHaveBeenCalledWith(
         expect.objectContaining({
           meetingTemplate: { id: "informationSharing" },
+        }),
+      );
+    });
+  });
+
+  it("3분 경과 시 녹음 중 saveSession과 saveSessionAudioSegment가 호출된다", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    vi.useFakeTimers();
+
+    render(
+      <MainAppProviders>
+        <Recorder onSessionSaved={vi.fn()} />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
+      ).toBe("batch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+    });
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 1_000);
+    await vi.waitFor(() => {
+      expect(vi.mocked(saveSession).mock.calls.length).toBeGreaterThan(0);
+    });
+    await vi.waitFor(() => {
+      expect(vi.mocked(saveSessionAudioSegment).mock.calls.length).toBeGreaterThan(
+        0,
+      );
+    });
+  });
+
+  it("3분 후 제목을 수정하고 중지하면 updateSession에 최신 title이 반영된다", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    vi.useFakeTimers();
+
+    render(
+      <MainAppProviders>
+        <Recorder onSessionSaved={vi.fn()} />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
+      ).toBe("batch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+    });
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 1_000);
+    await vi.waitFor(() => {
+      expect(vi.mocked(saveSession).mock.calls.length).toBeGreaterThan(0);
+    });
+
+    vi.mocked(updateSession).mockClear();
+    fireEvent.change(screen.getByTestId("recorder-note-title"), {
+      target: { value: "수정된 제목" },
+    });
+
+    await vi.waitFor(() => {
+      expect(updateSession).toHaveBeenCalledWith(
+        "batch-saved-id",
+        expect.objectContaining({ title: "수정된 제목" }),
+      );
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+
+    await vi.waitFor(() => {
+      expect(updateSession).toHaveBeenCalledWith(
+        "batch-saved-id",
+        expect.objectContaining({
+          title: "수정된 제목",
+          status: "transcribing",
         }),
       );
     });
@@ -280,6 +381,56 @@ describe("Recorder 배치 모드", () => {
     await expect(savedAudioSegments[1].text()).resolves.toBe("final-segment");
   });
 
+  it("배치 전사 실패 후 중지해도 오디오는 저장되고 enqueue는 하지 않는다", async () => {
+    vi.stubGlobal("requestAnimationFrame", () => 0);
+    vi.stubGlobal("cancelAnimationFrame", () => {});
+    vi.useFakeTimers();
+
+    globalThis.fetch = vi.fn(async () => {
+      return new Response(JSON.stringify({ error: "down" }), { status: 503 });
+    }) as unknown as typeof fetch;
+
+    render(
+      <MainAppProviders>
+        <Recorder onSessionSaved={vi.fn()} />
+      </MainAppProviders>,
+    );
+
+    await vi.waitFor(() => {
+      expect(
+        screen
+          .getByTestId("recorder-root")
+          .getAttribute("data-transcription-mode"),
+      ).toBe("batch");
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 시작" }));
+    await vi.waitFor(() => {
+      expect(screen.getByRole("button", { name: "녹음 중지" })).toBeTruthy();
+    });
+
+    await vi.advanceTimersByTimeAsync(3 * 60 * 1000 + 1_000);
+    await vi.waitFor(() => {
+      expect(vi.mocked(globalThis.fetch).mock.calls.length).toBeGreaterThan(0);
+    });
+    await vi.advanceTimersByTimeAsync(35_000);
+
+    const enqueueCallsBeforeStop = mockEnqueue.mock.calls.length;
+
+    fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
+    await vi.advanceTimersByTimeAsync(40_000);
+
+    await vi.waitFor(() => {
+      expect(vi.mocked(saveSessionAudio).mock.calls.length).toBeGreaterThan(0);
+    });
+    expect(mockEnqueue.mock.calls.length).toBe(enqueueCallsBeforeStop);
+    await vi.waitFor(() => {
+      expect(vi.mocked(updateSession).mock.calls.some((c) => c[1]?.status === "error")).toBe(
+        true,
+      );
+    });
+  });
+
   it("배치 전사 실패 후 다시 시도하면 세션 저장과 파이프라인 enqueue가 호출된다", async () => {
     vi.stubGlobal("requestAnimationFrame", () => 0);
     vi.stubGlobal("cancelAnimationFrame", () => {});
@@ -320,7 +471,6 @@ describe("Recorder 배치 모드", () => {
     });
     await vi.advanceTimersByTimeAsync(35_000);
 
-    const saveCallsBeforeStop = vi.mocked(saveSession).mock.calls.length;
     const enqueueCallsBeforeStop = mockEnqueue.mock.calls.length;
 
     fireEvent.click(screen.getByRole("button", { name: "녹음 중지" }));
@@ -330,7 +480,7 @@ describe("Recorder 배치 모드", () => {
       expect(screen.getByRole("button", { name: /다시 시도/ })).toBeTruthy();
     });
 
-    expect(vi.mocked(saveSession).mock.calls.length).toBe(saveCallsBeforeStop);
+    expect(vi.mocked(saveSessionAudio).mock.calls.length).toBeGreaterThan(0);
     expect(mockEnqueue.mock.calls.length).toBe(enqueueCallsBeforeStop);
 
     sttFail = false;
@@ -338,10 +488,7 @@ describe("Recorder 배치 모드", () => {
     await vi.advanceTimersByTimeAsync(40_000);
 
     await vi.waitFor(() => {
-      expect(vi.mocked(saveSession).mock.calls.length).toBeGreaterThan(
-        saveCallsBeforeStop,
-      );
+      expect(mockEnqueue).toHaveBeenCalled();
     });
-    expect(mockEnqueue).toHaveBeenCalled();
   });
 });

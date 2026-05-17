@@ -43,6 +43,8 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "id"),
   saveSessionAudio: vi.fn(async () => {}),
+  saveSessionAudioSegment: vi.fn(async () => {}),
+  updateSession: vi.fn(async () => {}),
 }));
 
 vi.mock("@/hooks/use-transcription", () => ({

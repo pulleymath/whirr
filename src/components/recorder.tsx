@@ -13,7 +13,12 @@ import { useBeforeUnload } from "@/hooks/use-before-unload";
 import { useRecorder } from "@/hooks/use-recorder";
 import { useTranscription } from "@/hooks/use-transcription";
 import { buildSessionText } from "@/lib/build-session-text";
-import { saveSession, saveSessionAudio } from "@/lib/db";
+import {
+  saveSession,
+  saveSessionAudio,
+  saveSessionAudioSegment,
+  updateSession,
+} from "@/lib/db";
 import { useGlossary } from "@/lib/glossary/context";
 import type { SessionContext } from "@/lib/glossary/types";
 import {
@@ -159,10 +164,113 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   const finalsRef = useRef(finals);
   const partialRef = useRef(partial);
   const batchRetryInFlightRef = useRef(false);
+  const activeBatchSessionIdRef = useRef<string | null>(null);
+  const persistedSegmentCountRef = useRef(0);
+  const audioPersistChainRef = useRef(Promise.resolve());
+  const batchSessionSavedNotifiedRef = useRef(false);
   useEffect(() => {
     finalsRef.current = finals;
     partialRef.current = partial;
   }, [finals, partial]);
+
+  const resetBatchPersistState = useCallback(() => {
+    activeBatchSessionIdRef.current = null;
+    persistedSegmentCountRef.current = 0;
+    audioPersistChainRef.current = Promise.resolve();
+    batchSessionSavedNotifiedRef.current = false;
+  }, []);
+
+  const notifyBatchSessionSaved = useCallback(
+    (id: string) => {
+      if (!batchSessionSavedNotifiedRef.current) {
+        batchSessionSavedNotifiedRef.current = true;
+        onSessionSaved?.(id);
+      }
+    },
+    [onSessionSaved],
+  );
+
+  const buildBatchScriptMeta = useCallback(
+    () =>
+      buildScriptMeta({
+        mode: effectiveMode,
+        realtimeEngine: settings.realtimeEngine,
+        batchModel: settings.batchModel,
+        language: settings.language,
+        meetingMinutesModel: settings.meetingMinutesModel,
+      }),
+    [
+      effectiveMode,
+      settings.batchModel,
+      settings.language,
+      settings.meetingMinutesModel,
+      settings.realtimeEngine,
+    ],
+  );
+
+  const ensureActiveBatchSession = useCallback(async (): Promise<string> => {
+    if (activeBatchSessionIdRef.current) {
+      return activeBatchSessionIdRef.current;
+    }
+    const id = await saveSession("", {
+      status: "transcribing",
+      scriptMeta: buildBatchScriptMeta(),
+      title: sessionTitleForSave(noteTitle),
+    });
+    activeBatchSessionIdRef.current = id;
+    notifyBatchSessionSaved(id);
+    return id;
+  }, [buildBatchScriptMeta, noteTitle, notifyBatchSessionSaved]);
+
+  const persistNewBatchSegments = useCallback(
+    async (segments: Blob[]) => {
+      const start = persistedSegmentCountRef.current;
+      if (start >= segments.length) {
+        return;
+      }
+      const sessionId = await ensureActiveBatchSession();
+      for (let i = start; i < segments.length; i++) {
+        const blob = segments[i];
+        if (blob && blob.size > 0) {
+          await saveSessionAudioSegment(sessionId, i, blob);
+        }
+      }
+      persistedSegmentCountRef.current = segments.length;
+    },
+    [ensureActiveBatchSession],
+  );
+
+  useEffect(() => {
+    if (!isBatchMode || batch.status !== "recording") {
+      return;
+    }
+    if (batch.segments.length <= persistedSegmentCountRef.current) {
+      return;
+    }
+    audioPersistChainRef.current = audioPersistChainRef.current
+      .then(() => persistNewBatchSegments(batch.segments))
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[session-storage] segment save failed:", msg);
+        setPersistError("오디오를 저장하지 못했습니다.");
+      });
+  }, [batch.segments, batch.status, isBatchMode, persistNewBatchSegments]);
+
+  useEffect(() => {
+    const id = activeBatchSessionIdRef.current;
+    if (!id || !isBatchMode || batch.status !== "recording") {
+      return;
+    }
+    const title = sessionTitleForSave(noteTitle);
+    void updateSession(id, { title })
+      .then(() => {
+        onSessionSaved?.(id);
+      })
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        console.error("[session-storage] title sync failed:", msg);
+      });
+  }, [batch.status, isBatchMode, noteTitle, onSessionSaved]);
 
   const resetSessionInputs = useCallback(() => {
     setNoteTitle("");
@@ -172,26 +280,55 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
 
   const persistBatchResult = useCallback(
     async (stopped: BatchStopResult) => {
-      const { partialText, finalBlob, segments } = stopped;
+      const {
+        partialText,
+        finalBlob,
+        fullAudioBlob,
+        segments,
+        transcriptionFailed,
+      } = stopped;
       if (!partialText.trim() && segments.length === 0) {
         return;
       }
-      const scriptMeta = buildScriptMeta({
-        mode: effectiveMode,
-        realtimeEngine: settings.realtimeEngine,
-        batchModel: settings.batchModel,
-        language: settings.language,
-        meetingMinutesModel: settings.meetingMinutesModel,
-      });
-      const id = await saveSession(partialText, {
-        status: "transcribing",
-        scriptMeta,
-        title: sessionTitleForSave(noteTitle),
-      });
-      if (segments.length > 0) {
-        await saveSessionAudio(id, segments);
+
+      await audioPersistChainRef.current;
+
+      const scriptMeta = buildBatchScriptMeta();
+      let id = activeBatchSessionIdRef.current;
+
+      if (!id) {
+        id = await saveSession(partialText, {
+          status: transcriptionFailed ? "error" : "transcribing",
+          scriptMeta,
+          title: sessionTitleForSave(noteTitle),
+        });
+        activeBatchSessionIdRef.current = id;
+        notifyBatchSessionSaved(id);
+      } else {
+        await updateSession(id, {
+          text: partialText,
+          status: transcriptionFailed ? "error" : "transcribing",
+          title: sessionTitleForSave(noteTitle),
+        });
       }
+
+      if (segments.length > 0) {
+        await saveSessionAudio(
+          id,
+          segments,
+          fullAudioBlob && fullAudioBlob.size > 0 ? fullAudioBlob : undefined,
+        );
+        persistedSegmentCountRef.current = segments.length;
+      }
+
+      if (transcriptionFailed) {
+        onSessionSaved?.(id);
+        resetSessionInputs();
+        return;
+      }
+
       onSessionSaved?.(id);
+
       enqueuePipeline({
         sessionId: id,
         partialText,
@@ -207,12 +344,17 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
           effectiveMode === "realtime" ? settings.realtimeEngine : undefined,
       });
       resetSessionInputs();
+      activeBatchSessionIdRef.current = null;
+      persistedSegmentCountRef.current = 0;
+      batchSessionSavedNotifiedRef.current = false;
     },
     [
+      buildBatchScriptMeta,
       enqueuePipeline,
       glossary.terms,
       meetingTemplate,
       noteTitle,
+      notifyBatchSessionSaved,
       onSessionSaved,
       resetSessionInputs,
       sessionContext,
@@ -266,6 +408,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
       return;
     }
     if (effectiveMode === "batch") {
+      resetBatchPersistState();
       await startBatchRecording();
       return;
     }
@@ -277,6 +420,7 @@ export function Recorder({ onSessionSaved, fixedMode }: RecorderProps = {}) {
   }, [
     effectiveMode,
     prepareStreaming,
+    resetBatchPersistState,
     startBatchRecording,
     startRecording,
     pipeline.isBusy,

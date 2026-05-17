@@ -98,6 +98,8 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(async () => "saved-id"),
   saveSessionAudio: vi.fn(async () => undefined),
+  saveSessionAudioSegment: vi.fn(async () => undefined),
+  updateSession: vi.fn(async () => undefined),
 }));
 
 function renderRecorder() {

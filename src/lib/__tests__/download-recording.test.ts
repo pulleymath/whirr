@@ -3,6 +3,7 @@ import { unzipSync } from "fflate";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildRecordingZipBlob,
+  downloadRecordingAudio,
   downloadRecordingZip,
   triggerBlobDownload,
 } from "../download-recording";
@@ -36,6 +37,47 @@ describe("download-recording", () => {
     expect(createObjectURL).toHaveBeenCalledWith(blob);
     expect(linkClick).toHaveBeenCalled();
     expect(spy).toHaveBeenCalledWith("a");
+  });
+
+  describe("downloadRecordingAudio", () => {
+    it("단일 WebM Blob을 지정 파일명으로 다운로드한다", () => {
+      const createObjectURL = vi.fn().mockReturnValue("blob:url");
+      const revokeObjectURL = vi.fn();
+      vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+      vi.spyOn(document.body, "appendChild").mockImplementation((node) => node);
+      vi.spyOn(document.body, "removeChild").mockImplementation((node) => node);
+      const linkClick = vi.fn();
+      const anchor = {
+        set href(_val: string) {},
+        set download(val: string) {
+          expect(val).toBe("my-session-audio.webm");
+        },
+        click: linkClick,
+        style: {},
+        ownerDocument: document,
+        parentNode: null,
+        childNodes: [],
+      };
+      vi.spyOn(document, "createElement").mockReturnValue(
+        anchor as unknown as HTMLElement,
+      );
+
+      const blob = new Blob(["audio"], { type: "audio/webm" });
+      downloadRecordingAudio(blob, "my-session");
+
+      expect(createObjectURL).toHaveBeenCalledWith(blob);
+      expect(linkClick).toHaveBeenCalled();
+    });
+
+    it("빈 Blob이면 다운로드를 트리거하지 않는다", () => {
+      const createObjectURL = vi.fn();
+      vi.stubGlobal("URL", {
+        createObjectURL,
+        revokeObjectURL: vi.fn(),
+      });
+      downloadRecordingAudio(new Blob([], { type: "audio/webm" }), "x");
+      expect(createObjectURL).not.toHaveBeenCalled();
+    });
   });
 
   describe("buildRecordingZipBlob", () => {

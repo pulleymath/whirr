@@ -21,6 +21,7 @@ const startSegmentedRecording = vi.hoisted(() =>
     },
     rotateSegment: vi.fn(async () => new Blob([], { type: "audio/webm" })),
     stopFinalSegment: vi.fn(async () => new Blob([], { type: "audio/webm" })),
+    getFullAudioBlob: vi.fn(async () => new Blob([], { type: "audio/webm" })),
     close: vi.fn(async () => {}),
   })),
 );

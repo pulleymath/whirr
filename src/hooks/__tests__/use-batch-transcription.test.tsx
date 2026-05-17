@@ -18,6 +18,9 @@ const startSegmentedRecording = vi.hoisted(() =>
     stopFinalSegment: vi.fn(
       async () => new Blob(["webm"], { type: "audio/webm" }),
     ),
+    getFullAudioBlob: vi.fn(
+      async () => new Blob(["full-webm"], { type: "audio/webm" }),
+    ),
     close: vi.fn(async () => {}),
   })),
 );
@@ -76,6 +79,8 @@ describe("useBatchTranscription", () => {
     expect(saved).not.toBeNull();
     expect(saved!.partialText).toBe("");
     expect(saved!.finalBlob).not.toBeNull();
+    expect(saved!.fullAudioBlob).not.toBeNull();
+    expect(await saved!.fullAudioBlob!.text()).toBe("full-webm");
     expect(saved!.segments).toHaveLength(1);
     expect(globalThis.fetch).not.toHaveBeenCalled();
   });
@@ -321,6 +326,7 @@ describe("useBatchTranscription", () => {
     expect(out?.partialText).toContain("첫번째");
     expect(out?.partialText).not.toContain("두번째");
     expect(out?.finalBlob).not.toBeNull();
+    expect(out?.fullAudioBlob).not.toBeNull();
     expect(result.current.status).toBe("idle");
   });
 });

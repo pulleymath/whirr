@@ -110,6 +110,9 @@ export async function startPcmRecording(
 const PREFERRED_WEBM_MIME = "audio/webm;codecs=opus";
 const FALLBACK_WEBM_MIME = "audio/webm";
 
+/** 다운로드용 full recorder가 메모리에 쌓는 최대 구간(브라우저별로 stop 전까지 버퍼링됨) */
+export const FULL_RECORDER_TIMESLICE_MS = 30_000;
+
 export function pickWebmRecordingMimeType(): string {
   if (
     typeof MediaRecorder !== "undefined" &&
@@ -174,14 +177,20 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
   analyser.smoothingTimeConstant = 0.4;
   source.connect(analyser);
 
-  const allChunks: BlobPart[] = [];
-  let recorder: MediaRecorder | null = null;
+  const fullChunks: BlobPart[] = [];
+  let segmentRecorder: MediaRecorder | null = null;
+  let fullRecorder: MediaRecorder | null = null;
+  let fullBlobPromise: Promise<Blob> | null = null;
 
-  function createRecorder(): MediaRecorder {
+  function createSegmentRecorder(): MediaRecorder {
+    return new MediaRecorder(stream, { mimeType });
+  }
+
+  function createFullRecorder(): MediaRecorder {
     const r = new MediaRecorder(stream, { mimeType });
     r.ondataavailable = (ev: BlobEvent) => {
       if (ev.data && ev.data.size > 0) {
-        allChunks.push(ev.data);
+        fullChunks.push(ev.data);
       }
     };
     return r;
@@ -191,6 +200,25 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
    * 현재 recorder를 stop하고, stop 이벤트에서 발행된 마지막 데이터를
    * 포함한 완전한 WebM Blob을 반환합니다.
    */
+  function stopMediaRecorder(rec: MediaRecorder): Promise<void> {
+    if (rec.state === "inactive") {
+      return Promise.resolve();
+    }
+    return new Promise<void>((resolve, reject) => {
+      rec.addEventListener("stop", () => resolve(), { once: true });
+      rec.addEventListener(
+        "error",
+        () => reject(new Error("MediaRecorder error")),
+        { once: true },
+      );
+      try {
+        rec.stop();
+      } catch {
+        reject(new Error("Failed to stop recorder"));
+      }
+    });
+  }
+
   function stopRecorderAsBlob(rec: MediaRecorder): Promise<Blob> {
     if (rec.state === "inactive") {
       return Promise.resolve(new Blob([], { type: mimeType }));
@@ -228,49 +256,64 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
     });
   }
 
-  recorder = createRecorder();
-  recorder.start();
+  segmentRecorder = createSegmentRecorder();
+  segmentRecorder.start();
+
+  fullRecorder = createFullRecorder();
+  fullRecorder.start(FULL_RECORDER_TIMESLICE_MS);
 
   if (ctx.state === "suspended") {
     await ctx.resume();
   }
 
+  const stopFullRecorderAsBlob = async (): Promise<Blob> => {
+    if (fullRecorder && fullRecorder.state !== "inactive") {
+      await stopMediaRecorder(fullRecorder);
+      fullRecorder = null;
+    }
+    return new Blob(fullChunks, { type: mimeType });
+  };
+
   const rotateSegment = async (): Promise<Blob> => {
-    if (!recorder || recorder.state !== "recording") {
+    if (!segmentRecorder || segmentRecorder.state !== "recording") {
       return new Blob([], { type: mimeType });
     }
-    const blob = await stopRecorderAsBlob(recorder);
-    recorder = createRecorder();
-    recorder.start();
+    const blob = await stopRecorderAsBlob(segmentRecorder);
+    segmentRecorder = createSegmentRecorder();
+    segmentRecorder.start();
     return blob;
   };
 
   const stopFinalSegment = async (): Promise<Blob> => {
-    if (!recorder || recorder.state === "inactive") {
+    if (!segmentRecorder || segmentRecorder.state === "inactive") {
       return new Blob([], { type: mimeType });
     }
-    const blob = await stopRecorderAsBlob(recorder);
-    recorder = null;
+    const blob = await stopRecorderAsBlob(segmentRecorder);
+    segmentRecorder = null;
     return blob;
   };
 
+  const getFullAudioBlob = async (): Promise<Blob> => {
+    if (!fullBlobPromise) {
+      fullBlobPromise = stopFullRecorderAsBlob();
+    }
+    return fullBlobPromise;
+  };
+
   const close = async () => {
-    if (recorder && recorder.state !== "inactive") {
+    if (segmentRecorder && segmentRecorder.state !== "inactive") {
       try {
-        recorder.stop();
+        segmentRecorder.stop();
       } catch {
         /* already stopped */
       }
-      recorder = null;
+      segmentRecorder = null;
     }
+    await getFullAudioBlob();
     stream.getTracks().forEach((t) => t.stop());
     source.disconnect();
     analyser.disconnect();
     await ctx.close().catch(() => {});
-  };
-
-  const getFullAudioBlob = async (): Promise<Blob> => {
-    return new Blob(allChunks, { type: mimeType });
   };
 
   return {
@@ -279,5 +322,5 @@ export async function startSegmentedRecording(): Promise<SegmentedRecordingSessi
     close,
     analyser,
     getFullAudioBlob,
-  } as SegmentedRecordingSession & { getFullAudioBlob: () => Promise<Blob> };
+  };
 }

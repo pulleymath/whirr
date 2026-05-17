@@ -4,10 +4,12 @@ import {
   getSessionById,
   saveSession,
   saveSessionAudio,
+  saveSessionAudioSegment,
   getSessionAudio,
   updateSession,
 } from "../db";
 import type { SessionScriptMeta } from "../session-script-meta";
+import { disconnectWhirrDb } from "../db";
 import { resetWhirrDbForTests } from "./db-test-utils";
 
 describe("db (IndexedDB)", () => {
@@ -147,6 +149,20 @@ describe("db (IndexedDB)", () => {
     expect(row?.scriptMeta).toEqual(meta);
   });
 
+  it("saveSessionAudio에 fullBlob을 넘기면 getSessionAudio에서 함께 조회한다", async () => {
+    const sessionId = "session-full";
+    const segments = [new Blob(["part1"], { type: "audio/webm" })];
+    const fullBlob = new Blob(["full"], { type: "audio/webm" });
+
+    await saveSessionAudio(sessionId, segments, fullBlob);
+    const saved = await getSessionAudio(sessionId);
+
+    expect(saved).toBeDefined();
+    expect(saved!.segments).toHaveLength(1);
+    expect(saved!.fullBlob).toBeDefined();
+    expect(await saved!.fullBlob!.text()).toBe("full");
+  });
+
   it("saveSessionAudio 및 getSessionAudio가 정상 동작한다", async () => {
     const sessionId = "session-123";
     const segments = [
@@ -161,5 +177,41 @@ describe("db (IndexedDB)", () => {
     expect(saved!.sessionId).toBe(sessionId);
     expect(saved!.segments).toHaveLength(2);
     expect(await saved!.segments[0].text()).toBe("part1");
+  });
+
+  it("saveSessionAudioSegment으로 누적 저장한 세그먼트를 index 순으로 조회한다", async () => {
+    const sessionId = "session-seg";
+    await saveSessionAudioSegment(
+      sessionId,
+      1,
+      new Blob(["b"], { type: "audio/webm" }),
+    );
+    await saveSessionAudioSegment(
+      sessionId,
+      0,
+      new Blob(["a"], { type: "audio/webm" }),
+    );
+
+    const saved = await getSessionAudio(sessionId);
+    expect(saved?.segments).toHaveLength(2);
+    expect(await saved!.segments[0].text()).toBe("a");
+    expect(await saved!.segments[1].text()).toBe("b");
+  });
+
+  it("세그먼트 store가 비어 있으면 레거시 session-audio row를 읽는다", async () => {
+    const sessionId = "legacy-only";
+    await saveSession("t");
+    const { openDB } = await import("idb");
+    const conn = await openDB("whirr-db");
+    await conn.put("session-audio", {
+      sessionId,
+      segments: [new Blob(["legacy"], { type: "audio/webm" })],
+    });
+    conn.close();
+    await disconnectWhirrDb();
+
+    const saved = await getSessionAudio(sessionId);
+    expect(saved?.segments).toHaveLength(1);
+    expect(await saved!.segments[0].text()).toBe("legacy");
   });
 });

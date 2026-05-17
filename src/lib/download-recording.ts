@@ -63,6 +63,21 @@ export async function buildRecordingZipBlob(
 }
 
 /**
+ * 단일 WebM 오디오 Blob을 다운로드합니다.
+ * `blob`이 비어 있으면 아무 작업도 하지 않습니다(예외 없음).
+ */
+export function downloadRecordingAudio(
+  blob: Blob,
+  prefix: string = "recording",
+): void {
+  if (blob.size === 0) {
+    return;
+  }
+  const safePrefix = sanitizePrefix(prefix);
+  triggerBlobDownload(blob, `${safePrefix}-audio.webm`);
+}
+
+/**
  * 여러 오디오 세그먼트를 하나의 zip으로 묶어 한 번만 다운로드합니다.
  * `blobs`가 비어 있으면 아무 작업도 하지 않습니다(예외 없음).
  * ZIP 바이너리만 필요하면 `buildRecordingZipBlob`를 사용하세요(비어 있으면 예외).

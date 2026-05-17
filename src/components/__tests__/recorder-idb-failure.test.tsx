@@ -36,6 +36,8 @@ vi.mock("@/lib/post-recording-pipeline/context", async (importOriginal) => {
 vi.mock("@/lib/db", () => ({
   saveSession: vi.fn(),
   saveSessionAudio: vi.fn(),
+  saveSessionAudioSegment: vi.fn(),
+  updateSession: vi.fn(),
 }));
 
 const prepareStreaming = vi.fn(async () => true);
@@ -78,6 +80,9 @@ const startSegmentedRecording = vi.hoisted(() =>
     ),
     stopFinalSegment: vi.fn(
       async () => new Blob(["final-segment"], { type: "audio/webm" }),
+    ),
+    getFullAudioBlob: vi.fn(
+      async () => new Blob(["full-recording"], { type: "audio/webm" }),
     ),
     close: vi.fn(async () => {}),
   })),
